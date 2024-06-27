@@ -67,11 +67,12 @@ F = ufl.Identity(3) + ufl.grad(u)
 # Strain measure: Cauchy strain tensor
 C = F.T * F
 C = ufl.variable(C)
+
 # Variation of strain measure
 δC = dolfiny.expression.derivative(C, m, δm)
 
 # Elasticity parameters
-E = dolfinx.fem.Constant(mesh, scalar(0.01))  # [GPa]
+E = dolfinx.fem.Constant(mesh, scalar(1.0))  # [MPa]
 nu = dolfinx.fem.Constant(mesh, scalar(0.4))  # [-]
 mu = E / (2 * (1 + nu))
 la = E * nu / ((1 + nu) * (1 - 2 * nu))
@@ -80,7 +81,7 @@ la = E * nu / ((1 + nu) * (1 - 2 * nu))
 x0 = ufl.SpatialCoordinate(mesh)
 n0 = ufl.FacetNormal(mesh)
 λ = dolfinx.fem.Constant(mesh, scalar(0.0))
-t = ufl.cross(x0 - ufl.as_vector([0.0, 0.0, h]), n0) / 20 * λ
+t = ufl.cross(x0 - ufl.as_vector([0.0, 0.0, h]), n0) * 4 * λ  # [N/m^2]
 
 
 def strain_energy(i1, i2, i3):
@@ -91,13 +92,13 @@ def strain_energy(i1, i2, i3):
     J = ufl.sqrt(i3)
     #
     # Classical St. Venant-Kirchhoff
-    # Ψ = la / 8 * (i1 - 3)**2 + mu / 4 * ((i1 - 3)**2 + 4 * (i1 - 3) - 2 * (i2 - 3))
+    # Ψ = la / 8 * (i1 - 3) ** 2 + mu / 4 * ((i1 - 3) ** 2 + 4 * (i1 - 3) - 2 * (i2 - 3))
     # Modified St. Venant-Kirchhoff
-    # Ψ = la / 2 * (ufl.ln(J))**2 + mu / 4 * ((i1 - 3)**2 + 4 * (i1 - 3) - 2 * (i2 - 3))
+    # Ψ = la / 2 * (ufl.ln(J)) ** 2 + mu / 4 * ((i1 - 3) ** 2 + 4 * (i1 - 3) - 2 * (i2 - 3))
     # Compressible neo-Hooke
     Ψ = mu / 2 * (i1 - 3 - 2 * ufl.ln(J)) + la / 2 * (J - 1) ** 2
     # Compressible Mooney-Rivlin (beta = 0)
-    # Ψ = mu / 4 * (i1 - 3) + mu / 4 * (i2 - 3) - mu * ufl.ln(J) + la / 2 * (J - 1)**2
+    # Ψ = mu / 4 * (i1 - 3) + mu / 4 * (i2 - 3) - mu * ufl.ln(J) + la / 2 * (J - 1) ** 2
     #
     return Ψ
 
