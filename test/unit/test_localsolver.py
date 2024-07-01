@@ -2,8 +2,8 @@ from petsc4py import PETSc
 
 import basix
 import dolfinx
+import dolfinx.fem.forms
 import ufl
-from dolfinx.cpp.fem import compute_integration_domains
 
 import numba
 import numpy as np
@@ -140,7 +140,9 @@ def test_linear_elasticity(squaremesh_5):
 
     cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
     exterior_facets = dict(
-        compute_integration_domains(dolfinx.fem.IntegralType.exterior_facet, mt._cpp_object)
+        dolfinx.fem.forms.get_integration_domains(
+            dolfinx.fem.IntegralType.exterior_facet, mt, np.unique(mt.values)
+        )
     )
 
     ls = dolfiny.localsolver.LocalSolver(
@@ -305,7 +307,9 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
 
     cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
     exterior_facets = dict(
-        compute_integration_domains(dolfinx.fem.IntegralType.exterior_facet, mt._cpp_object)
+        dolfinx.fem.forms.get_integration_domains(
+            dolfinx.fem.IntegralType.exterior_facet, mt, np.unique(mt.values)
+        )
     )
 
     ls = dolfiny.localsolver.LocalSolver(
@@ -462,7 +466,9 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
 
     cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
     exterior_facets = dict(
-        compute_integration_domains(dolfinx.fem.IntegralType.exterior_facet, mt._cpp_object)
+        dolfinx.fem.forms.get_integration_domains(
+            dolfinx.fem.IntegralType.exterior_facet, mt, np.unique(mt.values)
+        )
     )
 
     ls = dolfiny.localsolver.LocalSolver(
