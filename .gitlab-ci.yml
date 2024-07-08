@@ -32,7 +32,7 @@ image build:
       - name: docker:dind
         command: ["--mtu=1450"]
    tags:
-      - saas-linux-medium-$ARCH
+      - saas-linux-large-$ARCH
    before_script:
       - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
    script:
@@ -43,13 +43,13 @@ image build:
    parallel:
       matrix:
          - ARCH: [amd64, arm64]
-   rules:
-      - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_PIPELINE_SOURCE == "schedule")
-      - if: $CI_COMMIT_TAG
-      - exists: 
-          - Dockerfile
-        when: manual
-        allow_failure: true
+   # rules:
+   #    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_PIPELINE_SOURCE == "schedule")
+   #    - if: $CI_COMMIT_TAG
+   #    - exists: 
+   #        - Dockerfile
+   #      when: manual
+   #      allow_failure: true
 
 image release:
    stage: release
