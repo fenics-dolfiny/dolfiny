@@ -61,6 +61,8 @@ Presentations about `dolfiny` functionality:
   at FEniCS 2022 conference,
 - [Nonlinear local solver](https://hdl.handle.net/10993/54223)
   at FEniCS 2022 conference.
+- [Non-standard formulations of 3D elasticity with FEniCSx](https://hdl.handle.net/10993/61399)
+  at FEniCS 2024 conference.
 
 # Authors
 

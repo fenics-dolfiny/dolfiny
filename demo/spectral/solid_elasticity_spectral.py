@@ -65,14 +65,14 @@ so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="
 F = ufl.Identity(3) + ufl.grad(u)
 
 # Strain measure: from Cauchy strain tensor to squares of principal stretches
-(c0, c1, c2), (E0, E1, E2) = dolfiny.invariants.eigenstate(F.T * F)  # spectral decomposition of C
-c = ufl.as_vector([c0, c1, c2])  # squares of principal stretches
+c, _ = dolfiny.invariants.eigenstate(F.T * F)  # spectral decomposition of C
+c = ufl.as_vector(c)  # squares of principal stretches
 c = ufl.variable(c)
 # Variation of strain measure (squares of principal stretches)
 δc = dolfiny.expression.derivative(c, m, δm)
 
 # Elasticity parameters
-E = dolfinx.fem.Constant(mesh, scalar(0.01))  # [GPa]
+E = dolfinx.fem.Constant(mesh, scalar(1.0))  # [MPa]
 nu = dolfinx.fem.Constant(mesh, scalar(0.4))  # [-]
 mu = E / (2 * (1 + nu))
 la = E * nu / ((1 + nu) * (1 - 2 * nu))
@@ -81,7 +81,7 @@ la = E * nu / ((1 + nu) * (1 - 2 * nu))
 x0 = ufl.SpatialCoordinate(mesh)
 n0 = ufl.FacetNormal(mesh)
 λ = dolfinx.fem.Constant(mesh, scalar(0.0))
-t = ufl.cross(x0 - ufl.as_vector([0.0, 0.0, h]), n0) / 20 * λ
+t = ufl.cross(x0 - ufl.as_vector([0.0, 0.0, h]), n0) * 4 * λ  # [N/m^2]
 
 
 def strain_energy(i1, i2, i3):
@@ -92,19 +92,19 @@ def strain_energy(i1, i2, i3):
     J = ufl.sqrt(i3)
     #
     # Classical St. Venant-Kirchhoff
-    # Ψ = la / 8 * (i1 - 3)**2 + mu / 4 * ((i1 - 3)**2 + 4 * (i1 - 3) - 2 * (i2 - 3))
+    # Ψ = la / 8 * (i1 - 3) ** 2 + mu / 4 * ((i1 - 3) ** 2 + 4 * (i1 - 3) - 2 * (i2 - 3))
     # Modified St. Venant-Kirchhoff
-    # Ψ = la / 2 * (ufl.ln(J))**2 + mu / 4 * ((i1 - 3)**2 + 4 * (i1 - 3) - 2 * (i2 - 3))
+    # Ψ = la / 2 * (ufl.ln(J)) ** 2 + mu / 4 * ((i1 - 3) ** 2 + 4 * (i1 - 3) - 2 * (i2 - 3))
     # Compressible neo-Hooke
     Ψ = mu / 2 * (i1 - 3 - 2 * ufl.ln(J)) + la / 2 * (J - 1) ** 2
     # Compressible Mooney-Rivlin (beta = 0)
-    # Ψ = mu / 4 * (i1 - 3) + mu / 4 * (i2 - 3) - mu * ufl.ln(J) + la / 2 * (J - 1)**2
+    # Ψ = mu / 4 * (i1 - 3) + mu / 4 * (i2 - 3) - mu * ufl.ln(J) + la / 2 * (J - 1) ** 2
     #
     return Ψ
 
 
 # Invariants (based on spectral decomposition of C)
-i1, i2, i3 = dolfiny.invariants.invariants_principal(ufl.diag(c))
+i1, i2, i3 = c[0] + c[1] + c[2], c[0] * c[1] + c[1] * c[2] + c[0] * c[2], c[0] * c[1] * c[2]
 # Material model (isotropic)
 Ψ = strain_energy(i1, i2, i3)
 # Stress measure
@@ -132,7 +132,7 @@ opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
 
 # FFCx options
-jit_options = dict(cffi_extra_compile_args=["-O0"])
+jit_options = dict(cffi_extra_compile_args=["-O3", "-fno-var-tracking"])  # may take several minutes
 
 # Create nonlinear problem: SNES
 problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, prefix=name, jit_options=jit_options)
