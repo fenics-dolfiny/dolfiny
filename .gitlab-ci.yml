@@ -7,7 +7,6 @@ stages:
 
 variables:
    CONTAINER_COMMIT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
-   CONTAINER_LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
 
 # jobs
 
@@ -37,19 +36,17 @@ image build:
       - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
    script:
       - echo CONTAINER_COMMIT_IMAGE = "$CONTAINER_COMMIT_IMAGE"
-      - echo CONTAINER_LATEST_IMAGE = "$CONTAINER_LATEST_IMAGE"
-      - echo DOLFINY_IMAGE_BUILDARGS = "$DOLFINY_IMAGE_BUILDARGS"
-      - docker build --push --tag $CONTAINER_COMMIT_IMAGE-$ARCH --file docker/Dockerfile .
+      - docker pull $CONTAINER_COMMIT_IMAGE-$ARCH || true
+      - docker build
+               --cache-from $CONTAINER_COMMIT_IMAGE-$ARCH
+               --pull
+               --push
+               --tag $CONTAINER_COMMIT_IMAGE-$ARCH
+               --file docker/Dockerfile
+               .
    parallel:
       matrix:
          - ARCH: [amd64, arm64]
-   # rules:
-   #    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_PIPELINE_SOURCE == "schedule")
-   #    - if: $CI_COMMIT_TAG
-   #    - exists: 
-   #        - Dockerfile
-   #      when: manual
-   #      allow_failure: true
 
 image release:
    stage: release
@@ -62,6 +59,8 @@ image release:
       - docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
    script:
       - echo "Gitlab registry -- create multiarch manifest"
+      - docker pull $CONTAINER_COMMIT_IMAGE-amd64
+      - docker pull $CONTAINER_COMMIT_IMAGE-arm64
       - docker buildx imagetools create -t $CONTAINER_COMMIT_IMAGE $(printf "$CONTAINER_COMMIT_IMAGE-%s " amd64 arm64)
       - echo "DockerHub registry -- create multiarch manifest"
       - docker tag $CONTAINER_COMMIT_IMAGE-amd64 $DOCKERHUB_COMMIT_IMAGE-amd64
@@ -70,8 +69,6 @@ image release:
       - docker push $DOCKERHUB_COMMIT_IMAGE-arm64
       - docker buildx imagetools create -t $DOCKERHUB_COMMIT_IMAGE $(printf "$DOCKERHUB_COMMIT_IMAGE-%s " amd64 arm64)
    rules:
-      - if: $DOLFINY_IMAGE_RELEASE == "no"
-        when: never
       - if: $CI_COMMIT_TAG
         variables:
            DOCKERHUB_COMMIT_IMAGE: dolfiny/dolfiny:$CI_COMMIT_TAG
