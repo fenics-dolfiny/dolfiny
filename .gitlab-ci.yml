@@ -39,7 +39,7 @@ image build:
       - echo CONTAINER_COMMIT_IMAGE = "$CONTAINER_COMMIT_IMAGE"
       - echo CONTAINER_LATEST_IMAGE = "$CONTAINER_LATEST_IMAGE"
       - echo DOLFINY_IMAGE_BUILDARGS = "$DOLFINY_IMAGE_BUILDARGS"
-      - docker build --push -t $CONTAINER_COMMIT_IMAGE-$ARCH .
+      - docker build --push --tag $CONTAINER_COMMIT_IMAGE-$ARCH --file docker/Dockerfile .
    parallel:
       matrix:
          - ARCH: [amd64, arm64]
