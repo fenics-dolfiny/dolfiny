@@ -1,6 +1,6 @@
-FROM dolfinx/dolfinx:v0.8.0
+FROM dolfinx/dolfinx:nightly
 
-ARG PIP_INDEX_URL="https://gitlab.uni.lu/api/v4/projects/3415/packages/pypi/simple"
+ARG PIP_INDEX_URL="https://gitlab.com/api/v4/projects/59503118/packages/pypi/simple"
 ARG EXTRA_CLING_ARGS="-O2"
 
 ADD . /src/dolfiny/

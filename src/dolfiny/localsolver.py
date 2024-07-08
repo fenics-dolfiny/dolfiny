@@ -27,7 +27,7 @@ c_signature = numba.types.void(
     numba.types.CPointer(numba.types.int32),
     numba.types.CPointer(numba.types.uint8),
 )
-Form = dolfinx.fem.form_cpp_class(PETSc.ScalarType)
+formtype = dolfinx.fem.form_cpp_class(PETSc.ScalarType)  # type: ignore
 
 KernelData = collections.namedtuple(
     "KernelData",
@@ -131,6 +131,8 @@ class LocalSolver:
         self.coefficients = None
         self.constants = None
 
+        self.active_coeffs = None
+
     def reduced_F_forms(self):
         """Return list of forms used to assemble reduced residuals"""
         F_form = []
@@ -143,10 +145,11 @@ class LocalSolver:
                     integral[k] = (
                         integral[k][0],
                         self.wrap_kernel(integral[k][1], (i,), celltype),
-                        np.array(integral[k][2]),
+                        np.array(integral[k][2], dtype=np.int32),
+                        self.active_coeffs,
                     )
 
-            cppform = Form(
+            cppform = formtype(
                 [V._cpp_object],
                 integrals,
                 [c[0] for c in self.stacked_coefficients],
@@ -177,10 +180,11 @@ class LocalSolver:
                         integral[k] = (
                             integral[k][0],
                             self.wrap_kernel(integral[k][1], (i, j), celltype),
-                            integral[k][2],
+                            np.array(integral[k][2], dtype=np.int32),
+                            self.active_coeffs,
                         )
 
-                J_form[gi][gj] = Form(
+                J_form[gi][gj] = formtype(
                     [V0._cpp_object, V1._cpp_object],
                     integrals,
                     [c[0] for c in self.stacked_coefficients],
@@ -196,6 +200,7 @@ class LocalSolver:
     def local_form(self):
         """Return list of forms used to 'assemble' into local state vectors."""
         local_form = []
+
         for li, i in enumerate(self.local_spaces_id):
             V = self.function_spaces[i]
 
@@ -205,10 +210,11 @@ class LocalSolver:
                     integral[k] = (
                         integral[k][0],
                         self.wrap_kernel(integral[k][1], (i,), celltype),
-                        integral[k][2],
+                        np.array(integral[k][2], dtype=np.int32),
+                        self.active_coeffs,
                     )
 
-            cppform = Form(
+            cppform = formtype(
                 [V._cpp_object],
                 integrals,
                 [c[0] for c in self.stacked_coefficients],
@@ -245,11 +251,11 @@ class LocalSolver:
         def fetch_tabulated_tensor_integrals(ufcx_form, celltype):
             integral_offsets = ufcx_form.form_integral_offsets
             num_integrals_celltype = (
-                integral_offsets[int(celltype) + 1] - integral_offsets[int(celltype)]
+                integral_offsets[celltype.value + 1] - integral_offsets[celltype.value]
             )
             if num_integrals_celltype > 0:
                 tab_integrals_celltype = ufcx_form.form_integrals[
-                    integral_offsets[int(celltype)]
+                    integral_offsets[celltype.value]
                 ].tabulate_tensor_float64
             else:
                 tab_integrals_celltype = do_nothing_cffi
@@ -467,12 +473,12 @@ class LocalSolver:
             ufcx_form = self.F_ufc[i].ufcx_form
             integral_offsets = ufcx_form.form_integral_offsets
             num_integrals_celltype = (
-                integral_offsets[int(celltype) + 1] - integral_offsets[int(celltype)]
+                integral_offsets[celltype.value + 1] - integral_offsets[celltype.value]
             )
 
             if num_integrals_celltype > 0:
                 F_fn = ufcx_form.form_integrals[
-                    integral_offsets[int(celltype)]
+                    integral_offsets[celltype.value]
                 ].tabulate_tensor_float64
 
                 alloc_code += f"""
@@ -544,12 +550,12 @@ class LocalSolver:
                 ufcx_form = self.J_ufc[i][j].ufcx_form
                 integral_offsets = ufcx_form.form_integral_offsets
                 num_integrals_celltype = (
-                    integral_offsets[int(celltype) + 1] - integral_offsets[int(celltype)]
+                    integral_offsets[celltype.value + 1] - integral_offsets[celltype.value]
                 )
 
                 if self.J_ufc[i][j] is not None and num_integrals_celltype > 0:
                     J_fn = ufcx_form.form_integrals[
-                        integral_offsets[int(celltype)]
+                        integral_offsets[celltype.value]
                     ].tabulate_tensor_float64
                     alloc_code += f"""
                     auto kernel_J{i}{j} = (ufc_kernel_t){int(ffi.cast("intptr_t", J_fn))};
@@ -675,7 +681,7 @@ class LocalSolver:
             original_coefficients = form_ufl.coefficients()
             for j in range(stacked_forms_ufc[i].num_coefficients):
                 coeff = original_coefficients[
-                    stacked_forms_ufc[i].original_coefficient_position[j]
+                    stacked_forms_ufc[i].original_coefficient_positions[j]
                 ]._cpp_object
                 if coeff not in [c[0] for c in stacked_coefficients]:
                     stacked_coefficients.append(
@@ -696,7 +702,7 @@ class LocalSolver:
             coeff_pos = 0
             for c in range(self.F_ufc[i].ufcx_form.num_coefficients):
                 coeff = original_coefficients[
-                    self.F_ufc[i].ufcx_form.original_coefficient_position[c]
+                    self.F_ufc[i].ufcx_form.original_coefficient_positions[c]
                 ]._cpp_object
                 coeff_stacked_pos = next(
                     (c[1][0], c[1][1]) for c in stacked_coefficients if c[0] == coeff
@@ -738,7 +744,7 @@ class LocalSolver:
                 coeff_pos = 0
                 for c in range(self.J_ufc[i][j].ufcx_form.num_coefficients):
                     coeff = original_coefficients[
-                        self.J_ufc[i][j].ufcx_form.original_coefficient_position[c]
+                        self.J_ufc[i][j].ufcx_form.original_coefficient_positions[c]
                     ]._cpp_object
                     coeff_stacked_pos = next(
                         (c[1][0], c[1][1]) for c in stacked_coefficients if c[0] == coeff
@@ -776,6 +782,8 @@ class LocalSolver:
         self.stacked_constants = stacked_constants
         self.coefficients = tuple(coefficients)
         self.constants = tuple(constants)
+
+        self.active_coeffs = np.arange(len(self.stacked_coefficients), dtype=np.int8)
 
     def view(self):
         """Shows information about kernels, sizes of blocks and positions of Coefficient DOFs."""

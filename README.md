@@ -33,7 +33,7 @@ For ARM-based architectures (`aarch64`/`arm64` on Linux) we recommend to fallbac
 custom-compiled binary wheels for `vtk` and `cppyy-cling` by setting the
 local package index repository in the respective environment variable 
 ```
-export PIP_INDEX_URL=https://gitlab.uni.lu/api/v4/projects/3415/packages/pypi/simple
+export PIP_INDEX_URL=https://gitlab.com/api/v4/projects/59503118/packages/pypi/simple
 ```
 before calling `pip`.
 
