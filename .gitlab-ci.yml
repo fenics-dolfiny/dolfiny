@@ -96,15 +96,18 @@ wheel release:
       - tags
 
 .install_template:
-   image: $CONTAINER_COMMIT_IMAGE
+   image: $CONTAINER_COMMIT_IMAGE-$ARCH
    tags:
-      - saas-linux-large-amd64
+      - saas-linux-large-$ARCH
+   parallel:
+      matrix:
+         - ARCH: [amd64, arm64]
 
 .test_template:
    stage: test
    extends: .install_template
    artifacts:
-      name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-artifacts"
+      name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-$ARCH-artifacts"
       paths:
          - "test/*/*"
       expire_in: 1 week
@@ -148,7 +151,7 @@ test/convergence:
         when: manual
         allow_failure: true
    artifacts:
-      name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-artifacts"
+      name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-$ARCH-artifacts"
       paths:
          - "demo/*/*"
       expire_in: 1 week
