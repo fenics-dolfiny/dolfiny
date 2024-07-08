@@ -5,15 +5,9 @@ stages:
    - demo
    - release
 
-default:
-   tags:
-      - docker
-
 variables:
    CONTAINER_COMMIT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
    CONTAINER_LATEST_IMAGE: $CI_REGISTRY_IMAGE:latest
-   CI_RUNNER_ARCHITECTURE: amd64
-   CI_RUNNER_JOBMAXNPROCS: 8
 
 # jobs
 
@@ -31,34 +25,25 @@ mypy:
       - pip install mypy
       - mypy .
 
-.image build:
+image build:
    stage: image
-   image: docker:latest
-   variables:
-      TARGET_PLATFORM: linux/$TARGET_ARCH
+   image: docker:git
+   services:
+      - name: docker:dind
+        command: ["--mtu=1450"]
+   tags:
+      - saas-linux-medium-$ARCH
+   before_script:
+      - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
    script:
       - echo CONTAINER_COMMIT_IMAGE = "$CONTAINER_COMMIT_IMAGE"
       - echo CONTAINER_LATEST_IMAGE = "$CONTAINER_LATEST_IMAGE"
       - echo DOLFINY_IMAGE_BUILDARGS = "$DOLFINY_IMAGE_BUILDARGS"
-      - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-      - docker buildx create 
-               --driver=docker-container 
-               --name=multi 
-               --platform="$TARGET_PLATFORM"
-               --bootstrap
-      - docker buildx build
-               --cache-to=type=inline
-               --cache-from=type=registry,ref="$CONTAINER_COMMIT_IMAGE-$TARGET_ARCH"
-               --cache-from=type=registry,ref="$CONTAINER_LATEST_IMAGE-$TARGET_ARCH"
-               --tag="$CONTAINER_COMMIT_IMAGE-$TARGET_ARCH"
-               --pull
-               --load
-               --builder=multi --platform="$TARGET_PLATFORM" $DOLFINY_IMAGE_BUILDARGS
-               --file docker/Dockerfile
-               .
-      - docker push "$CONTAINER_COMMIT_IMAGE-$TARGET_ARCH"
+      - docker build --push -t $CONTAINER_COMMIT_IMAGE-$ARCH .
+   parallel:
+      matrix:
+         - ARCH: [amd64, arm64]
    rules:
-      - if: ($CI_RUNNER_ARCHITECTURE == $TARGET_ARCH)
       - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH || $CI_PIPELINE_SOURCE == "schedule")
       - if: $CI_COMMIT_TAG
       - exists: 
@@ -66,38 +51,24 @@ mypy:
         when: manual
         allow_failure: true
 
-image build:
-   extends: .image build
-   parallel:
-      matrix:
-        - TARGET_ARCH: [amd64, arm64]
-
 image release:
    stage: release
-   image: docker:latest
-   script:
-      - echo "Gitlab registry -- login, tag, manifest and push"
-      - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-      - docker pull $CONTAINER_COMMIT_IMAGE-amd64
-      - docker pull $CONTAINER_COMMIT_IMAGE-arm64
-      - docker manifest create $CONTAINER_COMMIT_IMAGE $CONTAINER_COMMIT_IMAGE-amd64 $CONTAINER_COMMIT_IMAGE-arm64
-      - docker manifest push $CONTAINER_COMMIT_IMAGE
-      - docker manifest create $CONTAINER_LATEST_IMAGE $CONTAINER_COMMIT_IMAGE-amd64 $CONTAINER_COMMIT_IMAGE-arm64
-      - docker manifest push $CONTAINER_LATEST_IMAGE
-      - echo "DockerHub registry -- login, tag, manifest and push"
+   image: docker:git
+   services:
+      - name: docker:dind
+        command: ["--mtu=1450"]
+   before_script:
+      - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
       - docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
+   script:
+      - echo "Gitlab registry -- create multiarch manifest"
+      - docker buildx imagetools create -t $CONTAINER_COMMIT_IMAGE $(printf "$CONTAINER_COMMIT_IMAGE-%s " amd64 arm64)
+      - echo "DockerHub registry -- create multiarch manifest"
       - docker tag $CONTAINER_COMMIT_IMAGE-amd64 $DOCKERHUB_COMMIT_IMAGE-amd64
       - docker tag $CONTAINER_COMMIT_IMAGE-arm64 $DOCKERHUB_COMMIT_IMAGE-arm64
       - docker push $DOCKERHUB_COMMIT_IMAGE-amd64
       - docker push $DOCKERHUB_COMMIT_IMAGE-arm64
-      - docker manifest create $DOCKERHUB_COMMIT_IMAGE $DOCKERHUB_COMMIT_IMAGE-amd64 $DOCKERHUB_COMMIT_IMAGE-arm64
-      - docker manifest push $DOCKERHUB_COMMIT_IMAGE
-      - echo "DockerHub registry -- pull and test"
-      - docker manifest inspect $DOCKERHUB_COMMIT_IMAGE
-      - docker run --platform linux/amd64 $DOCKERHUB_COMMIT_IMAGE uname -m > amd64.txt
-      - grep -q "x86_64" amd64.txt
-      - docker run --platform linux/arm64 $DOCKERHUB_COMMIT_IMAGE uname -m > arm64.txt
-      - grep -q "aarch64" arm64.txt
+      - docker buildx imagetools create -t $DOCKERHUB_COMMIT_IMAGE $(printf "$DOCKERHUB_COMMIT_IMAGE-%s " amd64 arm64)
    rules:
       - if: $DOLFINY_IMAGE_RELEASE == "no"
         when: never
@@ -125,7 +96,9 @@ wheel release:
       - tags
 
 .install_template:
-   image: $CONTAINER_COMMIT_IMAGE-$CI_RUNNER_ARCHITECTURE
+   image: $CONTAINER_COMMIT_IMAGE
+   tags:
+      - saas-linux-large-amd64
 
 .test_template:
    stage: test
@@ -140,20 +113,20 @@ test/unit/serial:
    extends: .test_template
    script:
       - cd test/unit
-      - python3 -u -m pytest -n $CI_RUNNER_JOBMAXNPROCS -vsx .
+      - python3 -u -m pytest -n $(nproc) -vsx .
 
 test/unit/parallel:
    extends: .test_template
    script:
       - cd test/unit
-      - mpirun -n $CI_RUNNER_JOBMAXNPROCS python3 -u -m pytest -vsx .
+      - mpirun -n $(nproc) python3 -u -m pytest -vsx .
 
 test/convergence:
    extends: .test_template
    script:
       - cd test/convergence
-      - python3 -u -m pytest -n $CI_RUNNER_JOBMAXNPROCS -m 'convergence' -vsx .
-      - python3 -u -m pytest -n $CI_RUNNER_JOBMAXNPROCS -m 'postprocess' -vsx .
+      - python3 -u -m pytest -n $(nproc) -m 'convergence' -vsx .
+      - python3 -u -m pytest -n $(nproc) -m 'postprocess' -vsx .
    rules:
       - if: ($DOLFINY_TEST_CONVERGENCE == "yes")
       - exists:
