@@ -132,7 +132,7 @@ opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
 
 # FFCx options
-jit_options = dict(cffi_extra_compile_args=[""])
+jit_options = dict(cffi_extra_compile_args=["-g0"])
 
 # Create nonlinear problem: SNES
 problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, prefix=name, jit_options=jit_options)
