@@ -84,10 +84,11 @@ def eigenstate3(A):
     A = ufl.variable(A)
     #
     # --- determine eigenvalues λ0, λ1, λ2
-    #
-    I1, I2, I3 = invariants_principal(A)
-    dq = 2 * I1**3 - 9 * I1 * I2 + 27 * I3
-    #
+
+    # Invariants
+    I1, _, _ = invariants_principal(A)
+
+    # Discriminant as sum-of-products
     Δx = [
         A[0, 1] * A[1, 2] * A[2, 0] - A[0, 2] * A[1, 0] * A[2, 1],
         A[0, 1] ** 2 * A[1, 2]
@@ -263,17 +264,33 @@ def eigenstate3(A):
         + A[1, 2] * A[2, 1] * A[2, 2],
     ]
     Δd = [9, 6, 6, 6, 8, 8, 8, 2, 2, 2, 2, 2, 2, 1]
-    Δ = 0
-    for i in range(len(Δd)):
-        Δ += Δx[i] * Δd[i] * Δy[i]
+    Δ = sum(Δxk * Δdk * Δyk for Δxk, Δdk, Δyk in zip(Δx, Δd, Δy))  # discriminant as sop
 
+    # Invariant dp as sum-of-products
     Δxp = [A[1, 0], A[2, 0], A[2, 1], -A[0, 0] + A[1, 1], -A[0, 0] + A[2, 2], -A[1, 1] + A[2, 2]]
     Δyp = [A[0, 1], A[0, 2], A[1, 2], -A[0, 0] + A[1, 1], -A[0, 0] + A[2, 2], -A[1, 1] + A[2, 2]]
     Δdp = [6, 6, 6, 1, 1, 1]
+    dp = sum(Δxpk * Δdpk * Δypk for Δxpk, Δdpk, Δypk in zip(Δxp, Δdp, Δyp)) / 2  # dp as sop
 
-    dp = 0
-    for i in range(len(Δdp)):
-        dp += 1 / 2 * Δxp[i] * Δdp[i] * Δyp[i]
+    # Invariant dq as sum-of-products
+    Δxq = [
+        A[1, 2],
+        A[2, 1],
+        A[0, 1] * A[1, 0],
+        A[0, 2] * A[2, 0],
+        A[1, 2] * A[2, 1],
+        A[1, 1] + A[2, 2] - 2 * A[0, 0],
+    ]
+    Δyq = [
+        A[0, 1] * A[2, 0],
+        A[0, 2] * A[1, 0],
+        A[0, 0] + A[1, 1] - 2 * A[2, 2],
+        A[0, 0] + A[2, 2] - 2 * A[1, 1],
+        A[1, 1] + A[2, 2] - 2 * A[0, 0],
+        (A[0, 0] + A[2, 2] - 2 * A[1, 1]) * (A[0, 0] + A[1, 1] - 2 * A[2, 2]),
+    ]
+    Δdq = [27, 27, 9, 9, 9, -1]
+    dq = sum(Δxqk * Δdqk * Δyqk for Δxqk, Δdqk, Δyqk in zip(Δxq, Δdq, Δyq))
 
     # Avoid dp = 0 and disc = 0, both are known with absolute error of ~eps**2
     # Required to avoid sqrt(0) derivatives and negative square roots
