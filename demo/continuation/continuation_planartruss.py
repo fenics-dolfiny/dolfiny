@@ -218,6 +218,6 @@ if comm.size == 1:
     )
 
     ax1.legend()
-    ax1.set_xlim([-2.0, +0.0])
-    ax1.set_ylim([-0.6, +0.6])
+    ax1.set_xlim((-2.0, +0.0))
+    ax1.set_ylim((-0.6, +0.6))
     fig.savefig(f"{name}.png")
