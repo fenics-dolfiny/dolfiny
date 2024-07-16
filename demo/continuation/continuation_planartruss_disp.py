@@ -235,6 +235,6 @@ if comm.rank == 0:
     ax1.plot(um_, fm_, lw=1.5, ms=6.0, mfc="w", marker=".", label=["$u^{top}_1$", "$u^{mid}_1$"])
 
     ax1.legend()
-    ax1.set_xlim([-0.4, +0.0])
-    ax1.set_ylim([-0.2, +0.2])
+    ax1.set_xlim((-0.4, +0.0))
+    ax1.set_ylim((-0.2, +0.2))
     fig.savefig(f"{name}.png")
