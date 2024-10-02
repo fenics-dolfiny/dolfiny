@@ -83,7 +83,7 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
         ), "Non-zero residual at (t + dt)!"
 
         # Store results
-        u_[time_step], ut_[time_step] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])
+        u_[time_step], ut_[time_step] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])  # noqa: E501
 
     return u_, ut_
 
@@ -174,7 +174,7 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
         ), "Non-zero residual at (t + dt)!"
 
         # Store results
-        u_[time_step], ut_[time_step] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])
+        u_[time_step], ut_[time_step] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])  # noqa: E501
 
     return u_, ut_
 
@@ -490,7 +490,7 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
         dolfiny.interpolation.interpolate(d, u)
 
         # Store results
-        u_[ts], v_[ts], vt_[ts] = (w.x.petsc_vec.sum() / w.x.petsc_vec.getSize() for w in [u, v, vt])
+        u_[ts], v_[ts], vt_[ts] = (w.x.petsc_vec.sum() / w.x.petsc_vec.getSize() for w in [u, v, vt])  # noqa: E501
 
     return u_, v_, vt_
 

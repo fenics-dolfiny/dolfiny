@@ -90,14 +90,16 @@ def vec_to_functions(x, u: list[dolfinx.fem.Function]):
     if x.getType() == "nest":
         for i, subvec in enumerate(x.getNestSubVecs()):
             subvec.copy(u[i].x.petsc_vec)
-            u[i].x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            u[i].x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT,
+                                         mode=PETSc.ScatterMode.FORWARD)
     else:
         offset = 0
         for i in range(len(u)):
             size_local = u[i].x.petsc_vec.getLocalSize()
             u[i].x.petsc_vec.array[:] = x.array_r[offset : offset + size_local]
             offset += size_local
-            u[i].x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            u[i].x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT,
+                                         mode=PETSc.ScatterMode.FORWARD)
 
 
 def unroll_dofs(dofs, block_size):
