@@ -125,14 +125,14 @@ def test_linear_elasticity(squaremesh_5):
         dx.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         # Fill the du function to be accessed from local kernel
-        with dx.localForm() as dx_, du.vector.localForm() as du_:
+        with dx.localForm() as dx_, du.x.petsc_vec.localForm() as du_:
             dx_.copy(du_)
 
         with problem.xloc.localForm() as x_local:
             x_local.set(0.0)
         # Assemble into local vector and scatter to functions
         dolfinx.fem.petsc.assemble_vector_block(
-            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, scale=-1.0
+            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, alpha=-1.0
         )
         vec_to_functions(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
@@ -175,8 +175,8 @@ def test_linear_elasticity(squaremesh_5):
     )
     sigma1, u1 = problem.solve()
 
-    assert np.isclose(u1.vector.norm(), 2.80028313)
-    assert np.isclose(sigma1.vector.norm(), 1.88848539)
+    assert np.isclose(u1.x.petsc_vec.norm(), 2.80028313)
+    assert np.isclose(sigma1.x.petsc_vec.norm(), 1.88848539)
 
 
 def test_nonlinear_elasticity_schur(squaremesh_5):
@@ -292,14 +292,14 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
         dx.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         # Fill the du function to be accessed from local kernel
-        with dx.localForm() as dx_, du.vector.localForm() as du_:
+        with dx.localForm() as dx_, du.x.petsc_vec.localForm() as du_:
             dx_.copy(du_)
 
         with problem.xloc.localForm() as x_local:
             x_local.set(0.0)
         # Assemble into local vector and scatter to functions
         dolfinx.fem.petsc.assemble_vector_block(
-            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, scale=-1.0
+            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, alpha=-1.0
         )
         vec_to_functions(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
@@ -342,8 +342,8 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
     )
     sigma1, u1 = problem.solve()
 
-    assert np.isclose(u1.vector.norm(), 1.24196714)
-    assert np.isclose(sigma1.vector.norm(), 0.98351753)
+    assert np.isclose(u1.x.petsc_vec.norm(), 1.24196714)
+    assert np.isclose(sigma1.x.petsc_vec.norm(), 0.98351753)
 
 
 def test_nonlinear_elasticity_nonlinear(squaremesh_5):
@@ -458,7 +458,7 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
             x_local.set(0.0)
         # Assemble into local vector and scatter to functions
         dolfinx.fem.petsc.assemble_vector_block(
-            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, scale=-1.0
+            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, alpha=-1.0
         )
         vec_to_functions(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
@@ -510,5 +510,5 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
     )
     sigma1, u1 = problem.solve()
 
-    assert np.isclose(u1.vector.norm(), 1.24196714)
-    assert np.isclose(sigma1.vector.norm(), 0.98351753)
+    assert np.isclose(u1.x.petsc_vec.norm(), 1.24196714)
+    assert np.isclose(sigma1.x.petsc_vec.norm(), 0.98351753)

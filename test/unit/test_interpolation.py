@@ -97,13 +97,13 @@ def test_linear_combination(element):
     f = dolfinx.fem.Function(V)
     g = dolfinx.fem.Function(V)
 
-    print(f"\nndofs = {f.vector.getSize()}")
+    print(f"\nndofs = {f.x.petsc_vec.getSize()}")
 
-    with u1.vector.localForm() as local:
+    with u1.x.petsc_vec.localForm() as local:
         local.set(1.0)
-    with u2.vector.localForm() as local:
+    with u2.x.petsc_vec.localForm() as local:
         local.set(2.0)
-    with u3.vector.localForm() as local:
+    with u3.x.petsc_vec.localForm() as local:
         local.set(3.0)
 
     c1 = dolfinx.fem.Constant(V.mesh, 3.14)
@@ -149,7 +149,7 @@ def test_function_expression_scalar(element0, element1):
     u1 = dolfinx.fem.Function(V1)
     u2 = dolfinx.fem.Function(V1)
 
-    print(f"\nndofs V0 = {u0.vector.getSize()}, ndofs V1 = {u1.vector.getSize()}")
+    print(f"\nndofs V0 = {u0.x.petsc_vec.getSize()}, ndofs V1 = {u1.x.petsc_vec.getSize()}")
 
     t0 = time.time()
     dolfiny.interpolation.interpolate(u0, u1)
@@ -183,7 +183,7 @@ def test_function_expression_blocked(element0, element1):
     u1 = dolfinx.fem.Function(V1)
     u2 = dolfinx.fem.Function(V1)
 
-    print(f"\nndofs V0 = {u0.vector.getSize()}, ndofs V1 = {u1.vector.getSize()}")
+    print(f"\nndofs V0 = {u0.x.petsc_vec.getSize()}, ndofs V1 = {u1.x.petsc_vec.getSize()}")
 
     t0 = time.time()
     dolfiny.interpolation.interpolate(u0, u1)

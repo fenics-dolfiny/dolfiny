@@ -38,7 +38,7 @@ def project(e, target_func, bcs=[]):
     solver.getPC().setType("bjacobi")
     solver.rtol = 1.0e-05
     solver.setOperators(A)
-    solver.solve(b, target_func.vector)
+    solver.solve(b, target_func.x.petsc_vec)
     assert solver.reason > 0
     target_func.x.scatter_forward()
 
@@ -105,7 +105,7 @@ def project_codimension(p_expression, target_func, projector, mt, mt_id, eps=1.0
     solver.getPC().setType("bjacobi")
     solver.rtol = eps * 1.0e-02
     solver.setOperators(A)
-    solver.solve(b, target_func.vector)
+    solver.solve(b, target_func.x.petsc_vec)
     assert solver.reason > 0
     target_func.x.scatter_forward()
 

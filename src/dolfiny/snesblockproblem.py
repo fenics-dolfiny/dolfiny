@@ -207,7 +207,7 @@ class SNESBlockProblem:
             self.localsolver.local_update(self)
 
         dolfinx.fem.petsc.assemble_vector_block(
-            self.F, self.F_form, self.J_form, self.bcs, x0=self.x, scale=-1.0
+            self.F, self.F_form, self.J_form, self.bcs, x0=self.x, alpha=-1.0
         )
 
         if self.restriction is not None:
@@ -227,7 +227,7 @@ class SNESBlockProblem:
             with F_sub.localForm() as F_sub_local:
                 F_sub_local.set(0.0)
             dolfinx.fem.petsc.assemble_vector(F_sub, L)
-            dolfinx.fem.petsc.apply_lifting(F_sub, a, bcs1, x0=x, scale=-1.0)
+            dolfinx.fem.petsc.apply_lifting(F_sub, a, bcs1, x0=x, alpha=-1.0)
             F_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
         # Set bc value in RHS
@@ -396,7 +396,7 @@ class SNESBlockProblem:
                 # owned restricted dofs
                 size_local = self.restriction.bglobal_dofs_vec[i].shape[0]
             else:
-                size_local = self.u[i].vector.getLocalSize()
+                size_local = self.u[i].x.petsc_vec.getLocalSize()
 
             subvec_r = r[offset : offset + size_local]
             subvec_dx = dx[offset : offset + size_local]

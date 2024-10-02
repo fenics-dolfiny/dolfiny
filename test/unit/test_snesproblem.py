@@ -45,8 +45,8 @@ def test_monolithic(V1, V2, squaremesh_5):
     u0 = u0.collapse()
     u1 = u1.collapse()
 
-    assert np.isclose((u0.vector - np.arcsin(0.5)).norm(), 0.0)
-    assert np.isclose((u1.vector - 4.0 * np.arcsin(0.5)).norm(), 0.0)
+    assert np.isclose((u0.x.petsc_vec - np.arcsin(0.5)).norm(), 0.0)
+    assert np.isclose((u1.x.petsc_vec - 4.0 * np.arcsin(0.5)).norm(), 0.0)
 
 
 @pytest.mark.parametrize("nest", [True, False])
@@ -88,5 +88,5 @@ def test_block(V1, V2, squaremesh_5, nest):
     sol = problem.solve()
 
     assert problem.snes.getConvergedReason() > 0
-    assert np.isclose((sol[0].vector - np.arcsin(0.5)).norm(), 0.0)
-    assert np.isclose((sol[1].vector - 4.0 * np.arcsin(0.5)).norm(), 0.0)
+    assert np.isclose((sol[0].x.petsc_vec - np.arcsin(0.5)).norm(), 0.0)
+    assert np.isclose((sol[1].x.petsc_vec - 4.0 * np.arcsin(0.5)).norm(), 0.0)

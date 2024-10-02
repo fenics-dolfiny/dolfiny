@@ -11,10 +11,10 @@ def _copy_entries(source, target):
 
     if isinstance(source, list):
         for si, ti in zip(source, target):
-            with si.vector.localForm() as locs, ti.vector.localForm() as loct:
+            with si.x.petsc_vec.localForm() as locs, ti.x.petsc_vec.localForm() as loct:
                 locs.copy(loct)
     else:
-        with source.vector.localForm() as locs, target.vector.localForm() as loct:
+        with source.x.petsc_vec.localForm() as locs, target.x.petsc_vec.localForm() as loct:
             locs.copy(loct)
 
 
