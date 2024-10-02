@@ -115,7 +115,7 @@ opts = PETSc.Options(name)  # type: ignore[attr-defined]
 
 opts["snes_type"] = "newtonls"
 opts["snes_linesearch_type"] = "basic"
-opts["snes_rtol"] = 1.0e-00
+opts["snes_rtol"] = 0.99
 opts["snes_max_it"] = 1
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
