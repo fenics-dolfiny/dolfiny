@@ -58,11 +58,11 @@ d = dolfinx.fem.Function(V, name="d")  # dummy
 m, mt, δm = [v, s], [vt, st], [δv, δs]
 
 # Set initial conditions
-v.vector.set(v_0), vt.vector.set(-_s(u_0))
-s.vector.set(_s(u_0)), st.vector.set(_st(u_0, v_0))
-u.vector.set(u_0)
+v.x.petsc_vec.set(v_0), vt.x.petsc_vec.set(-_s(u_0))
+s.x.petsc_vec.set(_s(u_0)), st.x.petsc_vec.set(_st(u_0, v_0))
+u.x.petsc_vec.set(u_0)
 
-[w.vector.ghostUpdate() for w in [v, s, u, vt, st]]
+[w.x.petsc_vec.ghostUpdate() for w in [v, s, u, vt, st]]
 
 # Measure
 dx = ufl.Measure("dx", domain=mesh)
@@ -108,7 +108,7 @@ problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m)
 # Book-keeping of results
 v_, vt_, s_, st_, u_ = (np.zeros(nT + 1) for w in [v, vt, s, st, u])
 v_[0], vt_[0], s_[0], st_[0], u_[0] = (
-    w.vector.sum() / w.vector.getSize() for w in [v, vt, s, st, u]
+    w.x.petsc_vec.sum() / w.x.petsc_vec.getSize() for w in [v, vt, s, st, u]
 )
 
 # Process time steps
@@ -143,7 +143,7 @@ for ts in range(1, nT + 1):
 
     # Store results
     v_[ts], vt_[ts], s_[ts], st_[ts], u_[ts] = (
-        w.vector.sum() / w.vector.getSize() for w in [v, vt, s, st, u]
+        w.x.petsc_vec.sum() / w.x.petsc_vec.getSize() for w in [v, vt, s, st, u]
     )
 
 

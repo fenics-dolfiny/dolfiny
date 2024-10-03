@@ -45,13 +45,13 @@ def interpolate(expr, target_func):
             else:
                 linear_comb_acc[func] = scalar
 
-        with target_func.vector.localForm() as target_local:
+        with target_func.x.petsc_vec.localForm() as target_local:
             target_local.set(0.0)
 
         for func, scalar in linear_comb_acc.items():
             with (
-                target_func.vector.localForm() as target_local,
-                func.vector.localForm() as func_local,
+                target_func.x.petsc_vec.localForm() as target_local,
+                func.x.petsc_vec.localForm() as func_local,
             ):
                 target_local.axpy(scalar, func_local)
     else:

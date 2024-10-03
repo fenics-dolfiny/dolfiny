@@ -145,7 +145,7 @@ def monitor(context=None):
         dolfiny.mesh.locate_dofs_topological(u1_component, interfaces, connect),
     ]
 
-    track_val = [u.vector[idx[0]].squeeze() for idx in track_ids]
+    track_val = [u.x.petsc_vec[idx[0]].squeeze() for idx in track_ids]
 
     u_step.append(track_val)
     λ_step.append(context.λ.value.item())

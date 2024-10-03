@@ -24,11 +24,11 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
     u = dolfinx.fem.Function(U, name="u")
     ut = dolfinx.fem.Function(U, name="ut")
 
-    u.vector.set(u_0)  # initial condition
-    ut.vector.set(b - a * u_0)  # exact initial rate of this ODE for generalised alpha
+    u.x.petsc_vec.set(u_0)  # initial condition
+    ut.x.petsc_vec.set(b - a * u_0)  # exact initial rate of this ODE for generalised alpha
 
-    u.vector.ghostUpdate()
-    ut.vector.ghostUpdate()
+    u.x.petsc_vec.ghostUpdate()
+    ut.x.petsc_vec.ghostUpdate()
 
     δu = ufl.TestFunction(U)
 
@@ -62,7 +62,7 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
 
     # Book-keeping of results
     u_, ut_ = np.zeros(nT + 1), np.zeros(nT + 1)
-    u_[0], ut_[0] = (v.vector.sum() / v.vector.getSize() for v in [u, ut])
+    u_[0], ut_[0] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])
 
     dolfiny.utils.pprint(f"+++ Processing time steps = {nT}")
 
@@ -83,7 +83,7 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
         ), "Non-zero residual at (t + dt)!"
 
         # Store results
-        u_[time_step], ut_[time_step] = (v.vector.sum() / v.vector.getSize() for v in [u, ut])
+        u_[time_step], ut_[time_step] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])  # noqa: E501
 
     return u_, ut_
 
@@ -103,11 +103,11 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
     u = dolfinx.fem.Function(U, name="u")
     ut = dolfinx.fem.Function(U, name="ut")
 
-    u.vector.set(0.0)  # initial condition
-    ut.vector.set(a * b**2 * np.cos(c))  # exact initial rate of this ODE for generalised alpha
+    u.x.petsc_vec.set(0.0)  # initial condition
+    ut.x.petsc_vec.set(a * b**2 * np.cos(c))  # exact initial rate of this ODE for generalised alpha
 
-    u.vector.ghostUpdate()
-    ut.vector.ghostUpdate()
+    u.x.petsc_vec.ghostUpdate()
+    ut.x.petsc_vec.ghostUpdate()
 
     δu = ufl.TestFunction(U)
 
@@ -150,7 +150,7 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
 
     # Book-keeping of results
     u_, ut_ = np.zeros(nT + 1), np.zeros(nT + 1)
-    u_[0], ut_[0] = (v.vector.sum() / v.vector.getSize() for v in [u, ut])
+    u_[0], ut_[0] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])
 
     dolfiny.utils.pprint(f"+++ Processing time steps = {nT}")
 
@@ -174,7 +174,7 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
         ), "Non-zero residual at (t + dt)!"
 
         # Store results
-        u_[time_step], ut_[time_step] = (v.vector.sum() / v.vector.getSize() for v in [u, ut])
+        u_[time_step], ut_[time_step] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])  # noqa: E501
 
     return u_, ut_
 
@@ -194,15 +194,15 @@ def ode_2nd_linear_odeint(a=12.0, b=1000.0, c=1000.0, u_0=0.5, du_0=0.0, nT=100,
     ut = dolfinx.fem.Function(U, name="ut")
     utt = dolfinx.fem.Function(U, name="utt")
 
-    u.vector.set(u_0)  # initial condition
-    ut.vector.set(du_0)  # initial condition
-    utt.vector.set(
+    u.x.petsc_vec.set(u_0)  # initial condition
+    ut.x.petsc_vec.set(du_0)  # initial condition
+    utt.x.petsc_vec.set(
         c - a * du_0 - b * u_0
     )  # exact initial rate of rate of this ODE for generalised alpha
 
-    u.vector.ghostUpdate()
-    ut.vector.ghostUpdate()
-    utt.vector.ghostUpdate()
+    u.x.petsc_vec.ghostUpdate()
+    ut.x.petsc_vec.ghostUpdate()
+    utt.x.petsc_vec.ghostUpdate()
 
     δu = ufl.TestFunction(U)
 
@@ -236,7 +236,7 @@ def ode_2nd_linear_odeint(a=12.0, b=1000.0, c=1000.0, u_0=0.5, du_0=0.0, nT=100,
 
     # Book-keeping of results
     u_, ut_, utt_ = np.zeros(nT + 1), np.zeros(nT + 1), np.zeros(nT + 1)
-    u_[0], ut_[0], utt_[0] = (v.vector.sum() / v.vector.getSize() for v in [u, ut, utt])
+    u_[0], ut_[0], utt_[0] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut, utt])
 
     dolfiny.utils.pprint(f"+++ Processing time steps = {nT}")
 
@@ -258,7 +258,7 @@ def ode_2nd_linear_odeint(a=12.0, b=1000.0, c=1000.0, u_0=0.5, du_0=0.0, nT=100,
 
         # Store results
         u_[time_step], ut_[time_step], utt_[time_step] = (
-            v.vector.sum() / v.vector.getSize() for v in [u, ut, utt]
+            v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut, utt]
         )
 
     return u_, ut_, utt_
@@ -279,15 +279,15 @@ def ode_2nd_nonlinear_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwargs):
     ut = dolfinx.fem.Function(U, name="ut")
     utt = dolfinx.fem.Function(U, name="utt")
 
-    u.vector.set(u_0)  # initial condition
-    ut.vector.set(0.0)  # initial condition
-    utt.vector.set(
+    u.x.petsc_vec.set(u_0)  # initial condition
+    ut.x.petsc_vec.set(0.0)  # initial condition
+    utt.x.petsc_vec.set(
         -a * u_0 - b * u_0**3
     )  # exact initial rate of rate of this ODE for generalised alpha
 
-    u.vector.ghostUpdate()
-    ut.vector.ghostUpdate()
-    utt.vector.ghostUpdate()
+    u.x.petsc_vec.ghostUpdate()
+    ut.x.petsc_vec.ghostUpdate()
+    utt.x.petsc_vec.ghostUpdate()
 
     δu = ufl.TestFunction(U)
 
@@ -330,7 +330,7 @@ def ode_2nd_nonlinear_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwargs):
 
     # Book-keeping of results
     u_, ut_, utt_ = np.zeros(nT + 1), np.zeros(nT + 1), np.zeros(nT + 1)
-    u_[0], ut_[0], utt_[0] = (v.vector.sum() / v.vector.getSize() for v in [u, ut, utt])
+    u_[0], ut_[0], utt_[0] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut, utt])
 
     dolfiny.utils.pprint(f"+++ Processing time steps = {nT}")
 
@@ -355,7 +355,7 @@ def ode_2nd_nonlinear_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwargs):
 
         # Store results
         u_[time_step], ut_[time_step], utt_[time_step] = (
-            v.vector.sum() / v.vector.getSize() for v in [u, ut, utt]
+            v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut, utt]
         )
 
     return u_, ut_, utt_
@@ -406,11 +406,11 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
     m, mt, δm = [v, s], [vt, st], [δv, δs]
 
     # Set initial conditions
-    v.vector.set(v_0), vt.vector.set(-_s(u_0))
-    s.vector.set(_s(u_0)), st.vector.set(_st(u_0, v_0))
-    u.vector.set(u_0)
+    v.x.petsc_vec.set(v_0), vt.x.petsc_vec.set(-_s(u_0))
+    s.x.petsc_vec.set(_s(u_0)), st.x.petsc_vec.set(_st(u_0, v_0))
+    u.x.petsc_vec.set(u_0)
 
-    [w.vector.ghostUpdate() for w in [v, s, u, vt, st]]
+    [w.x.petsc_vec.ghostUpdate() for w in [v, s, u, vt, st]]
 
     # Measure
     dx = ufl.Measure("dx", domain=mesh)
@@ -459,7 +459,7 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
 
     # Book-keeping of results
     u_, v_, vt_ = (np.zeros(nT + 1) for w in [u, v, vt])
-    u_[0], v_[0], vt_[0] = (w.vector.sum() / w.vector.getSize() for w in [u, v, vt])
+    u_[0], v_[0], vt_[0] = (w.x.petsc_vec.sum() / w.x.petsc_vec.getSize() for w in [u, v, vt])
 
     dolfiny.utils.pprint(f"+++ Processing time steps = {nT}")
 
@@ -490,7 +490,7 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
         dolfiny.interpolation.interpolate(d, u)
 
         # Store results
-        u_[ts], v_[ts], vt_[ts] = (w.vector.sum() / w.vector.getSize() for w in [u, v, vt])
+        u_[ts], v_[ts], vt_[ts] = (w.x.petsc_vec.sum() / w.x.petsc_vec.getSize() for w in [u, v, vt])  # noqa: E501
 
     return u_, v_, vt_
 

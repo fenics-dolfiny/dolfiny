@@ -268,7 +268,7 @@ for step, factor in enumerate(cycles):
 
     # Store primal states
     for source, target in zip([u, P, h, B], [u0, P0, h0, B0]):
-        with source.vector.localForm() as locs, target.vector.localForm() as loct:
+        with source.x.petsc_vec.localForm() as locs, target.x.petsc_vec.localForm() as loct:
             locs.copy(loct)
 
 ofile.close()

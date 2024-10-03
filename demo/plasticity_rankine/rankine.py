@@ -268,7 +268,7 @@ def local_update(problem):
         [[problem.J_form[0][0] for i in range(2)] for i in range(2)],
         [],
         x0=problem.xloc,
-        scale=-1.0,
+        alpha=-1.0,
     )
     dolfiny.function.vec_to_functions(
         problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
@@ -326,7 +326,7 @@ for step, factor in enumerate(cycle):
 
     # Accumulate plastic states from increments
     for source, target in zip([dP, dl], [P0, l0]):
-        with source.vector.localForm() as locs, target.vector.localForm() as loct:
+        with source.x.petsc_vec.localForm() as locs, target.x.petsc_vec.localForm() as loct:
             loct.axpy(1.0, locs)
 
     # Interpolate and write output

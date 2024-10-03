@@ -73,14 +73,14 @@ def functions_to_vec(u: list[dolfinx.fem.Function], x):
     """Copies functions into block vector."""
     if x.getType() == "nest":
         for i, subvec in enumerate(x.getNestSubVecs()):
-            u[i].vector.copy(subvec)
+            u[i].x.petsc_vec.copy(subvec)
             subvec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
     else:
         offset = 0
         for i in range(len(u)):
-            size_local = u[i].vector.getLocalSize()
+            size_local = u[i].x.petsc_vec.getLocalSize()
             with x.localForm() as loc:
-                loc.array[offset : offset + size_local] = u[i].vector.array_r
+                loc.array[offset : offset + size_local] = u[i].x.petsc_vec.array_r
             offset += size_local
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
@@ -89,15 +89,17 @@ def vec_to_functions(x, u: list[dolfinx.fem.Function]):
     """Copies block vector into functions."""
     if x.getType() == "nest":
         for i, subvec in enumerate(x.getNestSubVecs()):
-            subvec.copy(u[i].vector)
-            u[i].vector.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            subvec.copy(u[i].x.petsc_vec)
+            u[i].x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT,
+                                         mode=PETSc.ScatterMode.FORWARD)
     else:
         offset = 0
         for i in range(len(u)):
-            size_local = u[i].vector.getLocalSize()
-            u[i].vector.array[:] = x.array_r[offset : offset + size_local]
+            size_local = u[i].x.petsc_vec.getLocalSize()
+            u[i].x.petsc_vec.array[:] = x.array_r[offset : offset + size_local]
             offset += size_local
-            u[i].vector.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            u[i].x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT,
+                                         mode=PETSc.ScatterMode.FORWARD)
 
 
 def unroll_dofs(dofs, block_size):
