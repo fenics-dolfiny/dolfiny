@@ -1,4 +1,4 @@
-FROM dolfinx/dolfinx:nightly
+FROM dolfinx/dolfinx:v0.9.0
 
 ARG PIP_INDEX_URL="https://gitlab.com/api/v4/projects/59503118/packages/pypi/simple"
 ARG EXTRA_CLING_ARGS="-O2"
