@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dolfiny"
-version = "0.9.0dev0"
+version = "0.9.0"
 description = "High-level and convenience wrappers for DOLFINx, the FEniCS library."
 authors = [
       {name = "Andreas Zilian", email = "andreas.zilian@uni.lu"},
@@ -12,7 +12,7 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10.0"
-dependencies = ["fenics-dolfinx>=0.9.0dev0,<0.10.0"]
+dependencies = ["fenics-dolfinx>=0.9.0,<0.10.0"]
 
 [project.optional-dependencies]
 dev = ["mypy<1.10", "ruff"]
