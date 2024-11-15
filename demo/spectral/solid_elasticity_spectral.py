@@ -123,10 +123,12 @@ forms = dolfiny.function.extract_blocks(form, δm)
 opts = PETSc.Options(name)  # type: ignore[attr-defined]
 
 opts["snes_type"] = "newtonls"
-opts["snes_linesearch_type"] = "basic"
+opts["snes_linesearch_type"] = "l2"
+opts["snes_linesearch_monitor"] = ""
+
 opts["snes_atol"] = 1.0e-12
 opts["snes_rtol"] = 1.0e-08
-opts["snes_max_it"] = 10
+opts["snes_max_it"] = 20
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
@@ -146,7 +148,7 @@ problem.bcs = [
 ]
 
 # Apply external force via load stepping
-for λk in np.linspace(0.0, 1.0, 10 + 1)[1:]:
+for λk in np.linspace(0.0, 1.0, 2 + 1)[1:]:
     # Set load factor
     λ.value = λk
     dolfiny.utils.pprint(f"\n*** Load factor λ = {λk:.4f} \n")
