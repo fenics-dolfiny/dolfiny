@@ -182,7 +182,7 @@ class SNESBlockProblem:
             self.active_x = self.rx
         else:
             self.active_F = self.F
-            self.active_x = self.x
+            self.active_x = self.x0
 
         # Default monitoring verbosity
         self.verbose = dict(snes=True, ksp=True)
