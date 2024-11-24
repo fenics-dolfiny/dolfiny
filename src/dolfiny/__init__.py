@@ -20,11 +20,12 @@ from dolfiny import (
 logger = logging.Logger("dolfiny")
 
 __all__ = [
+    "continuation",
     "expression",
     "function",
-    "io",
     "interpolation",
     "invariants",
+    "io",
     "la",
     "localsolver",
     "mesh",
@@ -33,5 +34,4 @@ __all__ = [
     "restriction",
     "slepcblockproblem",
     "snesblockproblem",
-    "continuation",
 ]
