@@ -139,6 +139,7 @@ class SNESBlockProblem:
             self.J = dolfinx.fem.petsc.create_matrix_nest(self.J_form)
             self.F = dolfinx.fem.petsc.create_vector_nest(self.F_form)
             self.x = self.F.copy()
+            self.x0 = self.F.copy()
 
             self.snes.setFunction(self._F_nest, self.F)
             self.snes.setJacobian(self._J_nest, self.J)
@@ -151,6 +152,7 @@ class SNESBlockProblem:
             self.J = dolfinx.fem.petsc.create_matrix_block(self.J_form)
             self.F = dolfinx.fem.petsc.create_vector_block(self.F_form)
             self.x = self.F.copy()
+            self.x0 = self.F.copy()
 
             if self.restriction is not None:
                 # Need to create new global matrix for the restriction
@@ -180,7 +182,7 @@ class SNESBlockProblem:
             self.active_x = self.rx
         else:
             self.active_F = self.F
-            self.active_x = self.x
+            self.active_x = self.x0
 
         # Default monitoring verbosity
         self.verbose = dict(snes=True, ksp=True)
@@ -445,7 +447,7 @@ class SNESBlockProblem:
 
     def solve(self, u_init=None):
         if u_init is not None:
-            functions_to_vec(u_init, self.x)
+            functions_to_vec(u_init, self.x0)
 
         self.snes.getKSP().setMonitor(self._monitor_ksp)
 
@@ -455,8 +457,8 @@ class SNESBlockProblem:
                 self.rx, [self.solution[idx] for idx in self.global_spaces_id]
             )
         else:
-            self.snes.solve(None, self.x)
-            vec_to_functions(self.x, [self.solution[idx] for idx in self.global_spaces_id])
+            self.snes.solve(None, self.x0)
+            vec_to_functions(self.x0, [self.solution[idx] for idx in self.global_spaces_id])
 
         if self.localsolver is not None:
             with self.snes.getSolutionUpdate().localForm() as dx_local:

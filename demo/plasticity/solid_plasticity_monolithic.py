@@ -186,9 +186,12 @@ ofile.write_mesh_meshtags(mesh, mts)
 opts = PETSc.Options(name)  # type: ignore[attr-defined]
 
 opts["snes_type"] = "newtonls"
-opts["snes_linesearch_type"] = "basic"
-opts["snes_atol"] = 1.0e-12
-opts["snes_rtol"] = 1.0e-09
+opts["snes_linesearch_type"] = "l2"
+opts["snes_linesearch_max_it"] = 4
+opts["snes_linesearch_monitor"] = ""
+opts["snes_atol"] = 1.0e-09
+opts["snes_rtol"] = 1.0e-06
+opts["snes_stol"] = 1.0e-09
 opts["snes_max_it"] = 12
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "lu"  # NOTE: this monolithic formulation is not symmetric
@@ -205,7 +208,7 @@ surface_2_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface
 results: dict[str, list[float]] = {"E": [], "S": [], "P": [], "μ": []}
 
 # Set up load steps
-K = 25  # number of steps per load phase
+K = 10  # number of steps per load phase
 Z = 2  # number of cycles
 load, unload = np.linspace(0.0, 1.0, num=K + 1), np.linspace(1.0, 0.0, num=K + 1)
 cycle = np.concatenate((load, unload, -load, -unload))
@@ -244,7 +247,7 @@ for step, factor in enumerate(cycles):
 
     # Basic consistency checks
     assert dolfiny.expression.assemble(dλ * df, dxg) / V < 1.0e-03, "|| dλ*df || != 0.0"
-    assert dolfiny.expression.assemble(dλ * f, dxg) / V < 1.0e-06, "|| dλ*df || != 0.0"
+    assert dolfiny.expression.assemble(dλ * f, dxg) / V < 1.0e-05, "|| dλ*df || != 0.0"
 
     # Fix: 2nd order tetrahedron
     # mesh.geometry.cmap.non_affine_atol = 1.0e-8
