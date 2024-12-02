@@ -4,6 +4,7 @@ from mpi4py import MPI
 
 from dolfinx import cpp, default_real_type
 from dolfinx.cpp.mesh import CellType
+from dolfinx.graph import adjacencylist
 from dolfinx.io import distribute_entity_data
 from dolfinx.io.gmshio import ufl_mesh
 from dolfinx.mesh import create_mesh, meshtags, meshtags_from_entities
@@ -256,7 +257,7 @@ def gmsh_to_dolfin(
             mesh.topology.create_connectivity(pgdim, d)
 
         mt = meshtags_from_entities(
-            mesh, pgdim, cpp.graph.AdjacencyList_int32(local_entities), local_values
+            mesh, pgdim, adjacencylist(local_entities), local_values
         )
         mt.name = pg_tag_name
 
