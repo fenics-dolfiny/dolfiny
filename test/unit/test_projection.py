@@ -45,7 +45,7 @@ def test_project_scalar(mesh, expr, family, order):
 
     # Provide reference
     ui = dolfinx.fem.Function(V)
-    ex = dolfinx.fem.Expression(u_expr, V.element.interpolation_points())
+    ex = dolfinx.fem.Expression(u_expr, V.element.interpolation_points)
     ui.interpolate(ex)
 
     # Compare
@@ -76,7 +76,7 @@ def test_project_vector(mesh, expr, family, order):
 
     # Provide reference
     ui = dolfinx.fem.Function(V)
-    ex = dolfinx.fem.Expression(u_expr, V.element.interpolation_points())
+    ex = dolfinx.fem.Expression(u_expr, V.element.interpolation_points)
     ui.interpolate(ex)
 
     # Compare
