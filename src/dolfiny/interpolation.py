@@ -76,7 +76,7 @@ def interpolate(expr, target_func):
                 target_func.interpolate(expr)
             else:
                 logger.info("Interpolating given ufl.Expr")
-                e = dolfinx.fem.Expression(expr, T.element.interpolation_points())
+                e = dolfinx.fem.Expression(expr, T.element.interpolation_points)
                 target_func.interpolate(e)
         except TypeError:
             # expr is callable
