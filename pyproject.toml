@@ -18,7 +18,7 @@ dependencies = ["fenics-dolfinx>=0.10.0dev0,<0.11.0"]
 dev = ["mypy<1.10", "ruff"]
 vis = ["matplotlib", "pyvista>=0.43.0"]
 jit = ["numba", "cppyy>=3.1.0"]
-test = ["dolfiny[jit,vis]", "pytest-xdist", "scipy"]
+test = ["dolfiny[jit,vis]", "pytest-xdist", "coverage", "scipy"]
 demo = ["dolfiny[jit,vis]"]
 all = ["dolfiny[test,demo,dev]"]
 
@@ -74,4 +74,9 @@ section-order = [
 "fenics" = ["basix", "dolfinx", "ffcx", "ufl"]
 
 [tool.pytest.ini_options]
-addopts = ["--color=yes"]
+addopts = "--color=yes --junitxml=report.xml"
+
+[tool.coverage.run]
+parallel = true
+branch = true
+source = ["dolfiny"]

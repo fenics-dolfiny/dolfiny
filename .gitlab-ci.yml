@@ -103,30 +103,43 @@ wheel release:
 .test_template:
    stage: test
    extends: .install_template
+   before_script:
+      - export COVERAGE_PROCESS_START=pyproject.toml
+      - pip install coverage_enable_subprocess
+   after_script:
+      - coverage combine -a
+      - coverage report -m
+      - coverage xml
+   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
    artifacts:
       name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-$ARCH-artifacts"
       paths:
-         - "test/*/*"
+         - "report.xml"
+         - "coverage.xml"
+         - "test_*.json"
+         - "test_*.pdf"
+      reports:
+         junit: report.xml
+         coverage_report:
+            coverage_format: cobertura
+            path: coverage.xml
       expire_in: 1 week
 
 test/unit/serial:
    extends: .test_template
    script:
-      - cd test/unit
-      - python3 -u -m pytest -n $(nproc) -vsx .
+      - coverage run -m pytest -n auto -vsx test/unit
 
 test/unit/parallel:
    extends: .test_template
    script:
-      - cd test/unit
-      - mpirun -n $(nproc) python3 -u -m pytest -vsx .
+      - mpirun -n $(nproc) coverage run -m pytest -vsx test/unit
 
 test/convergence:
    extends: .test_template
    script:
-      - cd test/convergence
-      - python3 -u -m pytest -n $(nproc) -m 'convergence' -vsx .
-      - python3 -u -m pytest -n $(nproc) -m 'postprocess' -vsx .
+      - coverage run -m pytest -n auto -m 'convergence' -vsx test/convergence
+      - coverage run -m pytest -n auto -m 'postprocess' -vsx test/convergence
    rules:
       - if: ($DOLFINY_TEST_CONVERGENCE == "yes")
       - exists:
