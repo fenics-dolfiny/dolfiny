@@ -18,6 +18,7 @@ c_signature = numba.types.void(
     numba.types.CPointer(numba.types.double),
     numba.types.CPointer(numba.types.int32),
     numba.types.CPointer(numba.types.uint8),
+    numba.types.CPointer(numba.types.void),
 )
 
 
@@ -438,7 +439,7 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
             for (int i = 0; i < 5; ++i){
                 F0.array.setZero();
                 F0.kernel(F0.array.data(), F0.w.data(), F0.c.data(), F0.coords.data(),
-                          F0.entity_local_index.data(), F0.permutation.data());
+                          F0.entity_local_index.data(), F0.permutation.data(), nullptr);
                 double err = F0.array.norm();
 
                 if (err < 1e-12)

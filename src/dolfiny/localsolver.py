@@ -9,6 +9,7 @@ import os
 from petsc4py import PETSc
 
 import dolfinx
+from ffcx.codegeneration.utils import empty_void_pointer
 
 import cffi
 import numba
@@ -26,6 +27,7 @@ c_signature = numba.types.void(
     numba.types.CPointer(numba.types.double),
     numba.types.CPointer(numba.types.int32),
     numba.types.CPointer(numba.types.uint8),
+    numba.types.CPointer(numba.types.void),
 )
 formtype = dolfinx.fem.form_cpp_class(PETSc.ScalarType)  # type: ignore
 
@@ -50,12 +52,12 @@ UserKernel = collections.namedtuple("UserKernel", ("name", "code", "required_J")
 
 
 @numba.cfunc(c_signature, nopython=True)
-def do_nothing(A_, w_, c_, coords_, entity_local_index, permutation=ffi.NULL):
+def do_nothing(A_, w_, c_, coords_, entity_local_index, permutation=ffi.NULL, custom_data=ffi.NULL):
     pass
 
 
 do_nothing_cffi = ffi.cast(
-    "void(*)(double *, double *, double *, double *, int *, uint8_t *)", do_nothing.address
+    "void(*)(double *, double *, double *, double *, int *, uint8_t *, void *)", do_nothing.address
 )
 
 
@@ -298,7 +300,7 @@ class LocalSolver:
         coefficients = self.coefficients
 
         @numba.cfunc(c_signature, nopython=True)
-        def wrapped_kernel(A_, w_, c_, coords_, entity_local_index_, permutation_=ffi.NULL):
+        def wrapped_kernel(A_, w_, c_, coords_, entity_local_index_, permutation_=ffi.NULL, custom_data=ffi.NULL):
             A = numba.carray(A_, shape, dtype=PETSc.ScalarType)
             w = numba.carray(w_, (stacked_coefficients_size,), dtype=PETSc.ScalarType)
             c = numba.carray(c_, (stacked_constants_size,), dtype=PETSc.ScalarType)
@@ -352,6 +354,7 @@ class LocalSolver:
                     ffi.from_buffer(coords),
                     ffi.from_buffer(entity_local_index),
                     ffi.from_buffer(permutation),
+                    empty_void_pointer(),
                 )
 
                 F.append(
@@ -421,6 +424,7 @@ class LocalSolver:
                         ffi.from_buffer(coords),
                         ffi.from_buffer(entity_local_index),
                         ffi.from_buffer(permutation),
+                        empty_void_pointer()
                     )
                     J_row.append(
                         KernelData(
@@ -538,7 +542,7 @@ class LocalSolver:
                 F{i}.array.setZero();
                 F{i}.kernel(F{i}.array.data(), F{i}.w.data(), F{i}.c.data(),
                             F{i}.coords.data(), F{i}.entity_local_index.data(),
-                            F{i}.permutation.data());
+                            F{i}.permutation.data(), nullptr);
                 """
 
             for j in range(len(sizes)):
@@ -615,7 +619,7 @@ class LocalSolver:
                     J{i}{j}.array.setZero();
                     J{i}{j}.kernel(J{i}{j}.array.data(), J{i}{j}.w.data(), J{i}{j}.c.data(),
                                    J{i}{j}.coords.data(), J{i}{j}.entity_local_index.data(),
-                                   J{i}{j}.permutation.data());
+                                   J{i}{j}.permutation.data(), nullptr);
                     """
 
         code += f"""
@@ -626,7 +630,7 @@ class LocalSolver:
 
         void kernel(double* __restrict__ A_, const double* __restrict__ w_,
                     const double* __restrict__ c_, const double* __restrict__ coords_,
-                    void* __restrict__ eli_null, void* __restrict__ perm_null)
+                    void* __restrict__ eli_null, void* __restrict__ perm_null, void* custom_data_)
         {{
             // This is a hack for cppyy which cannot implicitly cast nullptr
             // passed for cell integrals into int32_t*
