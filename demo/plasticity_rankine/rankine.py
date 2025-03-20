@@ -156,12 +156,12 @@ solve_body = r"""
         F1.array.setZero();
         F1.kernel(F1.array.data(), F1.w.data(), F1.c.data(),
                     F1.coords.data(), F1.entity_local_index.data(),
-                    F1.permutation.data());
+                    F1.permutation.data(), nullptr);
 
         F2.array.setZero();
         F2.kernel(F2.array.data(), F2.w.data(), F2.c.data(),
                     F2.coords.data(), F2.entity_local_index.data(),
-                    F2.permutation.data());
+                    F2.permutation.data(), nullptr);
 
         R << F1.array,
              F2.array;
@@ -179,22 +179,22 @@ solve_body = r"""
         J11.array.setZero();
         J11.kernel(J11.array.data(), J11.w.data(), J11.c.data(),
                    J11.coords.data(), J11.entity_local_index.data(),
-                   J11.permutation.data());
+                   J11.permutation.data(), nullptr);
 
         J12.array.setZero();
         J12.kernel(J12.array.data(), J12.w.data(), J12.c.data(),
                    J12.coords.data(), J12.entity_local_index.data(),
-                   J12.permutation.data());
+                   J12.permutation.data(), nullptr);
 
         J21.array.setZero();
         J21.kernel(J21.array.data(), J21.w.data(), J21.c.data(),
                    J21.coords.data(), J21.entity_local_index.data(),
-                   J21.permutation.data());
+                   J21.permutation.data(), nullptr);
 
         J22.array.setZero();
         J22.kernel(J22.array.data(), J22.w.data(), J22.c.data(),
                    J22.coords.data(), J22.entity_local_index.data(),
-                   J22.permutation.data());
+                   J22.permutation.data(), nullptr);
 
         Jllrow0 << J11.array, J12.array;
         Jllrow1 << J21.array, J22.array;
