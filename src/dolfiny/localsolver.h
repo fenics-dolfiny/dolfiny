@@ -4,10 +4,8 @@
 #define EIGEN_DEFAULT_TO_ROW_MAJOR
 #include <Eigen/Dense>
 
-using ufc_kernel_void_t = void(*)(double* __restrict__, const double* __restrict__, const double* __restrict__,
-                                  const double* __restrict__, void*, void*);
 using ufc_kernel_t = void(*)(double* __restrict__, const double* __restrict__, const double* __restrict__,
-                             const double* __restrict__, int32_t* __restrict__, uint8_t* __restrict__);
+                             const double* __restrict__, int32_t* __restrict__, uint8_t* __restrict__, void*);
 
 struct kernel_data_t {
     const ufc_kernel_t kernel;
