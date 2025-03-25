@@ -136,8 +136,8 @@ class SNESBlockProblem:
             if self.localsolver is not None:
                 raise RuntimeError("LocalSolver for MATNEST not yet supported.")
 
-            self.J = dolfinx.fem.petsc.create_matrix_nest(self.J_form)
-            self.F = dolfinx.fem.petsc.create_vector_nest(self.F_form)
+            self.J = dolfinx.fem.petsc.create_matrix(self.J_form, kind=PETSc.Mat.Type.NEST)
+            self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Mat.Type.NEST)
             self.x = self.F.copy()
             self.x0 = self.F.copy()
 
@@ -147,16 +147,16 @@ class SNESBlockProblem:
         else:
             if self.localsolver is not None:
                 # Create global vector where all local fields are assembled into
-                self.xloc = dolfinx.fem.petsc.create_vector_block(self.local_form)
+                self.xloc = dolfinx.fem.petsc.create_vector(self.local_form)
 
-            self.J = dolfinx.fem.petsc.create_matrix_block(self.J_form)
-            self.F = dolfinx.fem.petsc.create_vector_block(self.F_form)
+            self.J = dolfinx.fem.petsc.create_matrix(self.J_form)
+            self.F = dolfinx.fem.petsc.create_vector(self.F_form)
             self.x = self.F.copy()
             self.x0 = self.F.copy()
 
             if self.restriction is not None:
                 # Need to create new global matrix for the restriction
-                self._J = dolfinx.fem.petsc.create_matrix_block(self.J_form)
+                self._J = dolfinx.fem.petsc.create_matrix(self.J_form)
                 self._J.assemble()
 
                 self._x = self.x.copy()
