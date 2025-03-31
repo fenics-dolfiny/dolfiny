@@ -104,11 +104,11 @@ class SLEPcBlockProblem:
         self.A_form = dolfinx.fem.form(self.A_form)
         self.B_form = dolfinx.fem.form(self.B_form)
 
-        self.A = dolfinx.fem.petsc.create_matrix_block(self.A_form)  # type: ignore[arg-type]
+        self.A = dolfinx.fem.petsc.create_matrix(self.A_form)  # type: ignore[arg-type]
 
         self.B = None
         if not self.empty_B():
-            self.B = dolfinx.fem.petsc.create_matrix_block(self.B_form)  # type: ignore[arg-type]
+            self.B = dolfinx.fem.petsc.create_matrix(self.B_form)  # type: ignore[arg-type]
 
     def solve(self):
         self.A.zeroEntries()
