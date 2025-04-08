@@ -143,6 +143,7 @@ def test_linear_elasticity(squaremesh_5):
         # )
         # problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         # dolfinx.fem.petsc.set_bc(problem.xloc, [], x0=problem.xloc, alpha=-1.0)
+        problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         vec_to_functions(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
         )
@@ -308,6 +309,7 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
             x_local.set(0.0)
         # Assemble into local vector and scatter to functions
         dolfinx.fem.petsc.assemble_vector(problem.xloc, problem.local_form)
+        problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         dolfinx.fem.petsc.set_bc(problem.xloc, [], x0=problem.xloc, alpha=-1.0)
         vec_to_functions(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
@@ -466,6 +468,7 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
             x_local.set(0.0)
         # Assemble into local vector and scatter to functions
         dolfinx.fem.petsc.assemble_vector(problem.xloc, problem.local_form)
+        problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         # No bcs, so no lifting/set_bc necessary
         # dolfinx.fem.petsc.apply_lifting(
         #     problem.xloc,

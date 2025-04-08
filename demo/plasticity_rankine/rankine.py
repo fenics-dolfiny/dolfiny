@@ -272,6 +272,7 @@ def local_update(problem):
     #     x0=problem.xloc,
     #     alpha=-1.0,
     # )
+    problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
     dolfiny.function.vec_to_functions(
         problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
     )
