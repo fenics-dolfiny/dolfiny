@@ -158,7 +158,10 @@ class SNESBlockProblem:
             #       behavior, None does not work atm.
             self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Vec.Type.MPI)
             self.x = self.F.copy()
+            self.x.setAttr("_blocks", self.F.getAttr("_blocks"))
+
             self.x0 = self.F.copy()
+            self.x0.setAttr("_blocks", self.F.getAttr("_blocks"))
 
             if self.restriction is not None:
                 # Need to create new global matrix for the restriction
@@ -224,6 +227,8 @@ class SNESBlockProblem:
             bcs=dolfinx.fem.bcs_by_block(
                 dolfinx.fem.extract_function_spaces(self.J_form, 1), self.bcs
             ),
+            x0=self.x,
+            alpha=-1.0
         )
         self.F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         dolfinx.fem.petsc.set_bc(
