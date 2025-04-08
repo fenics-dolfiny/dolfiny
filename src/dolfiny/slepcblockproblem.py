@@ -112,12 +112,12 @@ class SLEPcBlockProblem:
 
     def solve(self):
         self.A.zeroEntries()
-        dolfinx.fem.petsc.assemble_matrix_block(self.A, self.A_form, [])
+        dolfinx.fem.petsc.assemble_matrix(self.A, self.A_form, [])
         self.A.assemble()
 
         if not self.empty_B():
             self.B.zeroEntries()
-            dolfinx.fem.petsc.assemble_matrix_block(self.B, self.B_form, [])
+            dolfinx.fem.petsc.assemble_matrix(self.B, self.B_form, [])
             self.B.assemble()
 
         self.eps.setOperators(self.A, self.B)

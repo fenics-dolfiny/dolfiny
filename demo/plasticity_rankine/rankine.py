@@ -262,14 +262,16 @@ def local_update(problem):
     )
 
     # Assemble into local vector and scatter to functions
-    dolfinx.fem.petsc.assemble_vector_block(
-        problem.xloc,
-        problem.local_form,
-        [[problem.J_form[0][0] for i in range(2)] for i in range(2)],
-        [],
-        x0=problem.xloc,
-        alpha=-1.0,
-    )
+    dolfinx.fem.petsc.assemble_vector(problem.xloc, problem.local_form)
+    # No bcs, so no lifting/set_bc necessary
+    # dolfinx.fem.petsc.assemble_vector_block(
+    #     problem.xloc,
+    #     problem.local_form,
+    #     [[problem.J_form[0][0] for i in range(2)] for i in range(2)],
+    #     [],
+    #     x0=problem.xloc,
+    #     alpha=-1.0,
+    # )
     dolfiny.function.vec_to_functions(
         problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
     )

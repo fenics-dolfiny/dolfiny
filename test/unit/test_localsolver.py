@@ -132,9 +132,17 @@ def test_linear_elasticity(squaremesh_5):
         with problem.xloc.localForm() as x_local:
             x_local.set(0.0)
         # Assemble into local vector and scatter to functions
-        dolfinx.fem.petsc.assemble_vector_block(
-            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, alpha=-1.0
-        )
+        dolfinx.fem.petsc.assemble_vector(problem.xloc, problem.local_form)
+        # No bcs, so no lifting/set_bc necessary
+        # dolfinx.fem.petsc.apply_lifting(
+        #     problem.xloc,
+        #     problem.J_form,
+        #     bcs=dolfinx.fem.bcs_by_block(
+        #         dolfinx.fem.extract_function_spaces(problem.J_form, 1), []
+        #     ),
+        # )
+        # problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        # dolfinx.fem.petsc.set_bc(problem.xloc, [], x0=problem.xloc, alpha=-1.0)
         vec_to_functions(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
         )
@@ -299,9 +307,8 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
         with problem.xloc.localForm() as x_local:
             x_local.set(0.0)
         # Assemble into local vector and scatter to functions
-        dolfinx.fem.petsc.assemble_vector_block(
-            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, alpha=-1.0
-        )
+        dolfinx.fem.petsc.assemble_vector(problem.xloc, problem.local_form)
+        dolfinx.fem.petsc.set_bc(problem.xloc, [], x0=problem.xloc, alpha=-1.0)
         vec_to_functions(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
         )
@@ -458,9 +465,17 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
         with problem.xloc.localForm() as x_local:
             x_local.set(0.0)
         # Assemble into local vector and scatter to functions
-        dolfinx.fem.petsc.assemble_vector_block(
-            problem.xloc, problem.local_form, problem.J_form, [], x0=problem.xloc, alpha=-1.0
-        )
+        dolfinx.fem.petsc.assemble_vector(problem.xloc, problem.local_form)
+        # No bcs, so no lifting/set_bc necessary
+        # dolfinx.fem.petsc.apply_lifting(
+        #     problem.xloc,
+        #     problem.J_form,
+        #     bcs=dolfinx.fem.bcs_by_block(
+        #         dolfinx.fem.extract_function_spaces(problem.J_form, 1), []
+        #     ),
+        # )
+        # problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        # dolfinx.fem.petsc.set_bc(problem.xloc, [], x0=problem.xloc, alpha=-1.0)
         vec_to_functions(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
         )
