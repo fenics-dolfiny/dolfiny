@@ -60,7 +60,7 @@ class SNESBlockProblem:
         if not len(self.u) > 0:
             raise RuntimeError("List of provided solution functions is empty!")
 
-        if not isinstance(self.u[0], dolfinx.fem.Function):
+        if not all(isinstance(_u, dolfinx.fem.Function) for _u in u):
             raise RuntimeError("Provided solution function not of type dolfinx.Function!")
 
         self.comm = self.u[0].function_space.mesh.comm
