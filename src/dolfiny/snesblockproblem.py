@@ -137,7 +137,7 @@ class SNESBlockProblem:
                 raise RuntimeError("LocalSolver for MATNEST not yet supported.")
 
             self.J = dolfinx.fem.petsc.create_matrix(self.J_form, kind=PETSc.Mat.Type.NEST)
-            self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Mat.Type.NEST)
+            self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Vec.Type.NEST)
             self.x = self.F.copy()
             self.x0 = self.F.copy()
 
