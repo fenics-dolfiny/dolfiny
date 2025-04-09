@@ -228,7 +228,7 @@ class SNESBlockProblem:
                 dolfinx.fem.extract_function_spaces(self.J_form, 1), self.bcs
             ),
             x0=self.x,
-            alpha=-1.0
+            alpha=-1.0,
         )
         self.F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         dolfinx.fem.petsc.set_bc(

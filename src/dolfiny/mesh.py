@@ -256,9 +256,7 @@ def gmsh_to_dolfin(
         for d in range(mesh.topology.dim + 1):
             mesh.topology.create_connectivity(pgdim, d)
 
-        mt = meshtags_from_entities(
-            mesh, pgdim, adjacencylist(local_entities), local_values
-        )
+        mt = meshtags_from_entities(mesh, pgdim, adjacencylist(local_entities), local_values)
         mt.name = pg_tag_name
 
         mts[pg_tag_name] = mt
