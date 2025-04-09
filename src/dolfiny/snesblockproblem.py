@@ -147,12 +147,21 @@ class SNESBlockProblem:
         else:
             if self.localsolver is not None:
                 # Create global vector where all local fields are assembled into
-                self.xloc = dolfinx.fem.petsc.create_vector(self.local_form)
+                # TODO: this might be a bug in dolfinx: doc claims None and MPI should have same
+                #       behavior, None does not work atm.
+                self.xloc = dolfinx.fem.petsc.create_vector(
+                    self.local_form, kind=PETSc.Vec.Type.MPI
+                )
 
             self.J = dolfinx.fem.petsc.create_matrix(self.J_form)
-            self.F = dolfinx.fem.petsc.create_vector(self.F_form)
+            # TODO: this might be a bug in dolfinx: doc claims None and MPI should have same
+            #       behavior, None does not work atm.
+            self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Vec.Type.MPI)
             self.x = self.F.copy()
+            self.x.setAttr("_blocks", self.F.getAttr("_blocks"))
+
             self.x0 = self.F.copy()
+            self.x0.setAttr("_blocks", self.F.getAttr("_blocks"))
 
             if self.restriction is not None:
                 # Need to create new global matrix for the restriction
@@ -208,8 +217,25 @@ class SNESBlockProblem:
         if self.localsolver is not None:
             self.localsolver.local_update(self)
 
-        dolfinx.fem.petsc.assemble_vector_block(
-            self.F, self.F_form, self.J_form, self.bcs, x0=self.x, alpha=-1.0
+        dolfinx.fem.petsc.assemble_vector(
+            self.F,
+            self.F_form,
+        )
+        dolfinx.fem.petsc.apply_lifting(
+            self.F,
+            self.J_form,
+            bcs=dolfinx.fem.bcs_by_block(
+                dolfinx.fem.extract_function_spaces(self.J_form, 1), self.bcs
+            ),
+            x0=self.x,
+            alpha=-1.0
+        )
+        self.F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        dolfinx.fem.petsc.set_bc(
+            self.F,
+            dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(self.F_form), self.bcs),
+            x0=self.x,
+            alpha=-1.0,
         )
 
         if self.restriction is not None:
@@ -246,7 +272,7 @@ class SNESBlockProblem:
         self.J.zeroEntries()
         self._update_functions(x)
 
-        dolfinx.fem.petsc.assemble_matrix_block(self.J, self.J_form, self.bcs, diagonal=1.0)
+        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)
         self.J.assemble()
 
         if self.restriction is not None:
@@ -254,7 +280,7 @@ class SNESBlockProblem:
 
     def _J_nest(self, snes, x, J, P):
         self.J.zeroEntries()
-        dolfinx.fem.petsc.assemble_matrix_nest(self.J, self.J_form, self.bcs, diagonal=1.0)
+        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)
         self.J.assemble()
 
     def _converged(self, snes, it, norms):
