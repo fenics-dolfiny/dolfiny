@@ -114,13 +114,10 @@ class SNESBlockProblem:
             self.global_spaces_id = self.localsolver.global_spaces_id
 
         self.bcs = bcs
-        self.solution = []
 
         # Prepare empty functions on the corresponding sub-spaces
         # These store solution sub-functions
-        for i, ui in enumerate(self.u):
-            u = dolfinx.fem.Function(self.u[i].function_space, name=self.u[i].name)
-            self.solution.append(u)
+        self.solution = [dolfinx.fem.Function(u.function_space, name=u.name) for u in self.u]
 
         self.norm_r: dict[int, np.ndarray] = {}
         self.norm_dx: dict[int, np.ndarray] = {}
