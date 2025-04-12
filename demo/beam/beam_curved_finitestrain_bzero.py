@@ -154,7 +154,6 @@ b = x0 + ufl.as_vector([u, 0, w]) + ξ * d
 
 # Configuration gradient, undeformed configuration
 J0 = ufl.grad(b0) - ufl.outer(d0, d0)  # = P * ufl.grad(x0) + ufl.grad(ξ * d0)
-J0 = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(J0)
 J0 = ufl.algorithms.apply_derivatives.apply_derivatives(J0)
 J0 = ufl.replace(J0, {ufl.grad(ξ): d0})
 
@@ -162,7 +161,6 @@ J0 = ufl.replace(J0, {ufl.grad(ξ): d0})
 J = ufl.grad(b) - ufl.outer(
     d0, d0
 )  # = P * ufl.grad(x0) + ufl.grad(ufl.as_vector([u, 0, w]) + ξ * d)
-J = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(J)
 J = ufl.algorithms.apply_derivatives.apply_derivatives(J)
 J = ufl.replace(J, {ufl.grad(ξ): d0})
 
@@ -258,7 +256,7 @@ z = dolfinx.fem.Function(Z)
 
 # Process load steps
 for factor in np.linspace(0, 1, num=20 + 1):
-    # Set current time
+    # Set current load factor
     μ.value = factor
 
     # Set/update boundary conditions

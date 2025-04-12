@@ -253,7 +253,7 @@ z = dolfinx.fem.Function(Z)
 
 # Process load steps
 for factor in np.linspace(0, 1, num=20 + 1):
-    # Set current time
+    # Set current load factor
     μ.value = factor
 
     # Set/update boundary conditions

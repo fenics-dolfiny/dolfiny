@@ -105,6 +105,11 @@ mt = [vt, pt, nt, tt]
 v_vector_o = dolfinx.fem.Function(Vf)
 p_scalar_i = dolfinx.fem.Function(Pf)
 
+vo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="v")  # for output
+po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="p")  # for output
+no = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="n")  # for output
+to = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="t")  # for output
+
 # Set up restriction
 rdofsV = dolfiny.mesh.locate_dofs_topological(Vf, subdomains, domain)
 rdofsV = dolfiny.function.unroll_dofs(rdofsV, Vf.dofmap.bs)
@@ -171,8 +176,14 @@ ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
 # Write mesh, meshtags
 ofile.write_mesh_meshtags(mesh, mts)
 # Write initial state
-# ofile.write_function(v, time.value)
-# ofile.write_function(p, time.value)
+dolfiny.interpolation.interpolate(v, vo)
+dolfiny.interpolation.interpolate(p, po)
+dolfiny.interpolation.interpolate(n, no)
+dolfiny.interpolation.interpolate(t, to)
+ofile.write_function(vo, time.value)
+ofile.write_function(po, time.value)
+ofile.write_function(no, time.value)
+ofile.write_function(to, time.value)
 
 # Options for PETSc backend
 opts = PETSc.Options("bingham")  # type: ignore[attr-defined]
@@ -220,9 +231,13 @@ for time_step in range(1, nT + 1):
     odeint.update()
 
     # Write output
-    # ofile.write_function(v, time.value)
-    # ofile.write_function(p, time.value)
-    # ofile.write_function(n, time.value)
-    # ofile.write_function(t, time.value)
+    dolfiny.interpolation.interpolate(v, vo)
+    dolfiny.interpolation.interpolate(p, po)
+    dolfiny.interpolation.interpolate(n, no)
+    dolfiny.interpolation.interpolate(t, to)
+    ofile.write_function(vo, time.value)
+    ofile.write_function(po, time.value)
+    ofile.write_function(no, time.value)
+    ofile.write_function(to, time.value)
 
 ofile.close()

@@ -1,6 +1,9 @@
 import dolfinx
 import ufl
+from ufl.algorithms.apply_algebra_lowering import apply_algebra_lowering
+from ufl.algorithms.apply_derivatives import apply_derivatives
 from ufl.algorithms.map_integrands import map_integrand_dags
+from ufl.algorithms.replace import Replacer
 from ufl.corealg.multifunction import MultiFunction
 
 
@@ -20,9 +23,6 @@ def evaluate(e, u, u0):
 
     """
 
-    from ufl.algorithms.map_integrands import map_integrand_dags
-    from ufl.algorithms.replace import Replacer
-
     if isinstance(u, list) and isinstance(u0, list):
         repmap = {v: v0 for v, v0 in zip(u, u0)}
     elif not isinstance(u, list) and not isinstance(u0, list):
@@ -33,9 +33,7 @@ def evaluate(e, u, u0):
     replacer = Replacer(repmap)
 
     if isinstance(e, list):
-        e0 = []
-        for e_ in e:
-            e0.append(map_integrand_dags(replacer, e_))
+        e0 = [map_integrand_dags(replacer, e_) for e_ in e]
     else:
         e0 = map_integrand_dags(replacer, e)
 
@@ -61,28 +59,29 @@ def derivative(e, u, du, u0=None):
 
     """
 
-    if u0 is None:
-        u0 = u
-
+    u0 = u if u0 is None else u0
     e0 = evaluate(e, u, u0)
 
-    if isinstance(e0, list):
-        de0 = []
-        for e0_ in e0:
-            if isinstance(u0, list) and isinstance(du, list):
-                de0_ = sum(ufl.derivative(e0_, v0, dv) for v0, dv in zip(u0, du))
-            else:
-                de0_ = ufl.derivative(e0_, u0, du)
-            de0_ = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(de0_)
-            de0_ = ufl.algorithms.apply_derivatives.apply_derivatives(de0_)
-            de0.append(de0_)
-    else:
+    def compute_derivative(expr, u0, du):
         if isinstance(u0, list) and isinstance(du, list):
-            de0 = sum(ufl.derivative(e0, v0, dv) for v0, dv in zip(u0, du))
+            assert len(u0) == len(du), "Incompatible fct lists in multivariate Gateaux derivative."
+            return sum(ufl.derivative(expr, v0, dv) for v0, dv in zip(u0, du))  # multivariate
+        elif not isinstance(u0, list) and not isinstance(du, list):
+            return ufl.derivative(expr, u0, du)  # univariate
         else:
-            de0 = ufl.derivative(e0, u0, du)
-        de0 = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(de0)
-        de0 = ufl.algorithms.apply_derivatives.apply_derivatives(de0)
+            raise RuntimeError("Mismatching input for u0 and du.")
+
+    if isinstance(e0, list):
+        de0 = [compute_derivative(e0_, u0, du) for e0_ in e0]
+    else:
+        de0 = compute_derivative(e0, u0, du)
+
+    if isinstance(de0, list):
+        de0 = [apply_algebra_lowering(de0_) for de0_ in de0]
+        de0 = [apply_derivatives(de0_) for de0_ in de0]
+    else:
+        de0 = apply_algebra_lowering(de0)
+        de0 = apply_derivatives(de0)
 
     return de0
 
@@ -119,9 +118,7 @@ def linearise(e, u, u0=None):
     deu0 = derivative(e, u, u0, u0)
 
     if isinstance(e, list):
-        de = []
-        for e0_, deu_, deu0_ in zip(e0, deu, deu0):
-            de.append(e0_ + (deu_ - deu0_))
+        de = [e0_ + (deu_ - deu0_) for e0_, deu_, deu0_ in zip(e0, deu, deu0)]
     else:
         de = e0 + (deu - deu0)
 
