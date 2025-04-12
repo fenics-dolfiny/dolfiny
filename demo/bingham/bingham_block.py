@@ -111,6 +111,9 @@ v_vector_o = dolfinx.fem.Function(Vf)
 v_vector_i = dolfinx.fem.Function(Vf)
 p_scalar_i = dolfinx.fem.Function(Pf)
 
+vo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="v")  # for output
+po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="p")  # for output
+
 # Time integrator
 odeint = dolfiny.odeint.ODEInt(t=time, dt=dt, x=m, xt=mt)
 
@@ -161,8 +164,10 @@ ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
 # Write mesh, meshtags
 ofile.write_mesh_meshtags(mesh, mts)
 # Write initial state
-# ofile.write_function(v, time.value)
-# ofile.write_function(p, time.value)
+dolfiny.interpolation.interpolate(v, vo)
+dolfiny.interpolation.interpolate(p, po)
+ofile.write_function(vo, time.value)
+ofile.write_function(po, time.value)
 
 # Options for PETSc backend
 opts = PETSc.Options("bingham")  # type: ignore[attr-defined]
@@ -213,7 +218,9 @@ for time_step in range(1, nT + 1):
     odeint.update()
 
     # Write output
-    # ofile.write_function(v, time.value)
-    # ofile.write_function(p, time.value)
+    dolfiny.interpolation.interpolate(v, vo)
+    dolfiny.interpolation.interpolate(p, po)
+    ofile.write_function(vo, time.value)
+    ofile.write_function(po, time.value)
 
 ofile.close()

@@ -96,6 +96,8 @@ wheel release:
    image: $CONTAINER_COMMIT_IMAGE-$ARCH
    tags:
       - saas-linux-large-$ARCH
+   script:
+      - echo "Apply optional runtime hot-fixes here."
    parallel:
       matrix:
          - ARCH: [amd64, arm64]
@@ -110,7 +112,7 @@ wheel release:
       - coverage combine -a
       - coverage report -m
       - coverage xml
-   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+   coverage: '/[Tt][Oo][Tt][Aa][Ll].*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
    artifacts:
       name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-$ARCH-artifacts"
       paths:
