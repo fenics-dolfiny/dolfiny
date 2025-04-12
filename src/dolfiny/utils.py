@@ -57,4 +57,4 @@ def prefixify(n: int, prefixes=[" ", "k", "m", "b"]) -> str:
     i = int(0.30102999566398114 * (int(n).bit_length() - 1)) + 1
     e = i - (10**i > n)
     e //= 3
-    return f"{n // 10**(3 * e):>3d}{prefixes[e]}"
+    return f"{n // 10 ** (3 * e):>3d}{prefixes[e]}"

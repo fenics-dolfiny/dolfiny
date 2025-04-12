@@ -130,12 +130,12 @@ for ts in range(1, nT + 1):
     odeint.update()
 
     # Assert zero residual at t + dt
-    assert np.isclose(
-        dolfiny.expression.assemble(r1, dx), 0.0, atol=1e-10
-    ), "Non-zero residual r1 at (t + dt)!"
-    assert np.isclose(
-        dolfiny.expression.assemble(r2, dx), 0.0, atol=1e-10
-    ), "Non-zero residual r2 at (t + dt)!"
+    assert np.isclose(dolfiny.expression.assemble(r1, dx), 0.0, atol=1e-10), (
+        "Non-zero residual r1 at (t + dt)!"
+    )
+    assert np.isclose(dolfiny.expression.assemble(r2, dx), 0.0, atol=1e-10), (
+        "Non-zero residual r2 at (t + dt)!"
+    )
 
     # Assign time-integrated quantities
     dolfiny.interpolation.interpolate(u_expr, d)

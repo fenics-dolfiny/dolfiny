@@ -300,7 +300,9 @@ class LocalSolver:
         coefficients = self.coefficients
 
         @numba.cfunc(c_signature, nopython=True)
-        def wrapped_kernel(A_, w_, c_, coords_, entity_local_index_, permutation_=ffi.NULL, custom_data=ffi.NULL):
+        def wrapped_kernel(
+            A_, w_, c_, coords_, entity_local_index_, permutation_=ffi.NULL, custom_data=ffi.NULL
+        ):
             A = numba.carray(A_, shape, dtype=PETSc.ScalarType)
             w = numba.carray(w_, (stacked_coefficients_size,), dtype=PETSc.ScalarType)
             c = numba.carray(c_, (stacked_constants_size,), dtype=PETSc.ScalarType)
@@ -424,7 +426,7 @@ class LocalSolver:
                         ffi.from_buffer(coords),
                         ffi.from_buffer(entity_local_index),
                         ffi.from_buffer(permutation),
-                        empty_void_pointer()
+                        empty_void_pointer(),
                     )
                     J_row.append(
                         KernelData(

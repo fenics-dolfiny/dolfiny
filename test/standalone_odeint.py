@@ -78,12 +78,14 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
         odeint.update()
 
         # Assert zero residual at t + dt
-        assert np.isclose(
-            dolfiny.expression.assemble(r, dx), 0.0, atol=1e-6
-        ), "Non-zero residual at (t + dt)!"
+        assert np.isclose(dolfiny.expression.assemble(r, dx), 0.0, atol=1e-6), (
+            "Non-zero residual at (t + dt)!"
+        )
 
         # Store results
-        u_[time_step], ut_[time_step] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])  # noqa: E501
+        u_[time_step], ut_[time_step] = (
+            v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut]
+        )
 
     return u_, ut_
 
@@ -169,12 +171,14 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
         odeint.update()
 
         # Assert zero residual at t + dt
-        assert np.isclose(
-            dolfiny.expression.assemble(r, dx), 0.0, atol=1e-6
-        ), "Non-zero residual at (t + dt)!"
+        assert np.isclose(dolfiny.expression.assemble(r, dx), 0.0, atol=1e-6), (
+            "Non-zero residual at (t + dt)!"
+        )
 
         # Store results
-        u_[time_step], ut_[time_step] = (v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut])  # noqa: E501
+        u_[time_step], ut_[time_step] = (
+            v.x.petsc_vec.sum() / v.x.petsc_vec.getSize() for v in [u, ut]
+        )
 
     return u_, ut_
 
@@ -252,9 +256,9 @@ def ode_2nd_linear_odeint(a=12.0, b=1000.0, c=1000.0, u_0=0.5, du_0=0.0, nT=100,
         odeint.update()
 
         # Assert zero residual at t + dt
-        assert np.isclose(
-            dolfiny.expression.assemble(r, dx), 0.0, atol=1e-6
-        ), "Non-zero residual at (t + dt)!"
+        assert np.isclose(dolfiny.expression.assemble(r, dx), 0.0, atol=1e-6), (
+            "Non-zero residual at (t + dt)!"
+        )
 
         # Store results
         u_[time_step], ut_[time_step], utt_[time_step] = (
@@ -349,9 +353,9 @@ def ode_2nd_nonlinear_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwargs):
         odeint.update()
 
         # Assert zero residual at t + dt
-        assert np.isclose(
-            dolfiny.expression.assemble(r, dx), 0.0, atol=1e-6
-        ), "Non-zero residual at (t + dt)!"
+        assert np.isclose(dolfiny.expression.assemble(r, dx), 0.0, atol=1e-6), (
+            "Non-zero residual at (t + dt)!"
+        )
 
         # Store results
         u_[time_step], ut_[time_step], utt_[time_step] = (
@@ -478,19 +482,21 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
         odeint.update()
 
         # Assert zero residual at t + dt
-        assert np.isclose(
-            dolfiny.expression.assemble(r1, dx), 0.0, atol=1e-6
-        ), "Non-zero residual r1 at (t + dt)!"
-        assert np.isclose(
-            dolfiny.expression.assemble(r2, dx), 0.0, atol=1e-6
-        ), "Non-zero residual r2 at (t + dt)!"
+        assert np.isclose(dolfiny.expression.assemble(r1, dx), 0.0, atol=1e-6), (
+            "Non-zero residual r1 at (t + dt)!"
+        )
+        assert np.isclose(dolfiny.expression.assemble(r2, dx), 0.0, atol=1e-6), (
+            "Non-zero residual r2 at (t + dt)!"
+        )
 
         # Assign time-integrated quantities
         dolfiny.interpolation.interpolate(u_expr, d)
         dolfiny.interpolation.interpolate(d, u)
 
         # Store results
-        u_[ts], v_[ts], vt_[ts] = (w.x.petsc_vec.sum() / w.x.petsc_vec.getSize() for w in [u, v, vt])  # noqa: E501
+        u_[ts], v_[ts], vt_[ts] = (
+            w.x.petsc_vec.sum() / w.x.petsc_vec.getSize() for w in [u, v, vt]
+        )
 
     return u_, v_, vt_
 

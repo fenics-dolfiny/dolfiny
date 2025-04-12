@@ -15,6 +15,7 @@ ruff:
    image: dolfinx/dev-env:current
    script:
       - pip install ruff
+      - ruff format --check
       - ruff check .
 
 mypy:
