@@ -2,12 +2,13 @@ import dolfinx
 import ufl
 import ufl.constantvalue
 
+import numpy as np
 import pytest
 
 from dolfiny.inequality import Inequality
 
 forms = [
-    lambda V: dolfinx.fem.Constant(V.mesh, 1.0) * ufl.dx,
+    lambda V: dolfinx.fem.Constant(V.mesh, np.float64(1.0)) * ufl.dx,
     lambda V: dolfinx.fem.Function(V) ** 2 * ufl.dx,
     lambda V: ufl.inner(dolfinx.fem.Function(V), ufl.TestFunction(V)) * ufl.dx,
     lambda V: ufl.inner(ufl.TestFunction(V), ufl.TrialFunction(V)) * ufl.dx,
