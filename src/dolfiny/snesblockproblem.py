@@ -60,7 +60,7 @@ class SNESBlockProblem:
         if not len(self.u) > 0:
             raise RuntimeError("List of provided solution functions is empty!")
 
-        if not isinstance(self.u[0], dolfinx.fem.Function):
+        if not all(isinstance(_u, dolfinx.fem.Function) for _u in u):
             raise RuntimeError("Provided solution function not of type dolfinx.Function!")
 
         self.comm = self.u[0].function_space.mesh.comm
@@ -114,13 +114,10 @@ class SNESBlockProblem:
             self.global_spaces_id = self.localsolver.global_spaces_id
 
         self.bcs = bcs
-        self.solution = []
 
         # Prepare empty functions on the corresponding sub-spaces
         # These store solution sub-functions
-        for i, ui in enumerate(self.u):
-            u = dolfinx.fem.Function(self.u[i].function_space, name=self.u[i].name)
-            self.solution.append(u)
+        self.solution = [dolfinx.fem.Function(u.function_space, name=u.name) for u in self.u]
 
         self.norm_r: dict[int, np.ndarray] = {}
         self.norm_dx: dict[int, np.ndarray] = {}
@@ -137,7 +134,7 @@ class SNESBlockProblem:
                 raise RuntimeError("LocalSolver for MATNEST not yet supported.")
 
             self.J = dolfinx.fem.petsc.create_matrix(self.J_form, kind=PETSc.Mat.Type.NEST)
-            self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Mat.Type.NEST)
+            self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Vec.Type.NEST)
             self.x = self.F.copy()
             self.x0 = self.F.copy()
 
