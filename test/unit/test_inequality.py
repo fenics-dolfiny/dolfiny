@@ -55,3 +55,6 @@ def test_inequality(V1, a, b):
     assert isinstance(inequality, Inequality)
     assert inequality.lhs == a
     assert inequality.rhs == b
+
+    assert (a <= b) == (b >= a)
+    assert (a >= b) == (b <= a)

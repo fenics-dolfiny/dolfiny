@@ -26,9 +26,7 @@ class Inequality:
 
     def __eq__(self, other: object) -> bool:
         return (
-            isinstance(other, Inequality)
-            and self.lhs.equals(other.lhs)
-            and self.rhs.equals(other.rhs)
+            isinstance(other, Inequality) and self._lhs.equals(other.lhs) and self._rhs == other.rhs
         )
 
 
