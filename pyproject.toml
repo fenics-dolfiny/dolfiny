@@ -12,7 +12,7 @@ authors = [
 ]
 readme = "README.md"
 requires-python = ">=3.10.0"
-dependencies = ["fenics-dolfinx>=0.10.0dev0,<0.11.0"]
+dependencies = ["fenics-dolfinx>=0.10.0.dev0,<0.11.0"]
 
 [project.optional-dependencies]
 dev = ["mypy<1.10", "ruff"]
@@ -20,7 +20,8 @@ vis = ["matplotlib", "pyvista>=0.43.0"]
 jit = ["numba", "cppyy>=3.1.0"]
 test = ["dolfiny[jit,vis]", "pytest-xdist", "coverage", "scipy"]
 demo = ["dolfiny[jit,vis]"]
-all = ["dolfiny[test,demo,dev]"]
+typing = ["mypy"]
+all = ["dolfiny[test,demo,dev,typing]"]
 
 [project.urls]
 repository = "https://github.com/fenics-dolfiny/dolfiny"
@@ -33,8 +34,8 @@ disallow_untyped_defs = false
 disallow_any_unimported = false
 no_implicit_optional = false
 check_untyped_defs = false
-warn_return_any = false
-warn_unused_ignores = false
+warn_return_any = true
+warn_unused_ignores = true
 show_error_codes = true
 ignore_missing_imports = true
 
