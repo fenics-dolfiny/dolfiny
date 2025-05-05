@@ -860,3 +860,96 @@ def test_poisson_pde_as_constraint():
 #     assert L2_norm(sol_optimization - sol_weak_form) == pytest.approx(0, abs=atol)
 
 # test_poisson_constrained(None, True)
+
+
+@pytest.mark.skip()
+def test_optimal_control():
+    # based on https://www.dolfin-adjoint.org/en/stable/documentation/poisson-mother/poisson-mother.html
+
+    n = 32
+    mesh = dolfinx.mesh.create_unit_square(
+        MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
+    )
+
+    V_state = dolfinx.fem.functionspace(mesh, ("P", 1))
+    V_control = dolfinx.fem.functionspace(mesh, ("P", 1))
+
+    top = V_state.mesh.topology
+    top.create_connectivity(top.dim - 1, top.dim)
+    boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
+    boundary_dofs = dolfinx.fem.locate_dofs_topological(V_state, top.dim - 1, boundary_facets)
+    bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(V_state.mesh, 0.0), boundary_dofs, V_state)
+
+    u = dolfinx.fem.Function(V_state, name="state")
+    d = dolfinx.fem.Function(V_state, name="state_desired")
+    d.interpolate(lambda x: 1 / (2 * np.pi**2) * np.sin(np.pi * x[0]) * np.sin(np.pi * x[1]))
+
+    f = dolfinx.fem.Function(V_control)
+    f.interpolate(lambda x: x[0] + x[1])
+
+    with dolfinx.io.VTXWriter(V_state.mesh.comm, "d.bp", d, "bp4") as file:
+        file.write(0.0)
+
+    with dolfinx.io.VTXWriter(V_control.mesh.comm, "f_init.bp", f, "bp4") as file:
+        file.write(0.0)
+
+    alpha = 1e-2
+    F = 0.5 * ufl.inner(u - d, u - d) * ufl.dx + alpha / 2 * f**2 * ufl.dx
+
+    # J = ufl.derivative(F, u, ufl.TestFunction(W))
+    # H = ufl.derivative(J, u, ufl.TrialFunction(W))
+
+    v = ufl.TestFunction(V_state)
+    a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
+
+    L = f * v * ufl.dx
+    g = [a - L == 0]
+    Jg = [
+        [
+            ufl.derivative(g[0].lhs, u, ufl.TrialFunction(V_state)),
+            ufl.derivative(g[0].lhs, f, ufl.TrialFunction(V_control)),
+        ],
+    ]
+
+    opts = PETSc.Options("optimal_control")
+    opts["tao_type"] = "almm"  # pdipm
+    opts["tao_almm_type"] = "classic"
+    opts["tao_gatol"] = 1e-3
+    opts["tao_almm_mu_init"] = 1e4  # penalty
+    opts["tao_almm_mu_factor"] = 10
+    # opts["tao_almm_type"] = "classic"
+    # opts["tao_almm_mu_factor"] = 1e5
+    # opts["tao_max_it"] = 10
+    # opts["tao_almm_subsolver_tao_type"] = "bqnls"
+    # opts["tao_almm_subsolver_tao_ls_type"] = "armijo"
+    # opts["tao_almm_subsolver_ksp_type"] = "preonly"
+    # opts["tao_almm_subsolver_pc_type"] = "lu"
+    # opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
+    # opts["tao_almm_subsolver_tao_monitor"] = ""
+    # opts["tao_almm_subsolver_tao_ls_monitor"] = ""
+    opts["tao_monitor"] = ""
+    # opts["tao_test_gradient"] = ""
+    # opts["tao_ls_monitor"] = ""
+
+    problem = dolfiny.taoblockproblem.TAOBlockProblem(
+        F, [u, f], bcs=[bc], g=g, Jg=Jg, prefix="optimal_control"
+    )
+    (
+        u,
+        f,
+    ) = problem.solve([u, f])
+
+    x = ufl.SpatialCoordinate(mesh)
+    f_ana = 1 / (1 + 4 * alpha * np.pi**4) * ufl.sin(np.pi * x[0]) * ufl.sin(np.pi * x[1])
+    u_ana = 1 / (2 * np.pi**2) * f_ana
+
+    print(L2_norm(f - f_ana))
+    print(L2_norm(u - u_ana))
+    assert np.allclose(0, L2_norm(f - f_ana), atol=5e-2)
+    assert np.allclose(0, L2_norm(u - u_ana), atol=5e-3)
+
+    with dolfinx.io.VTXWriter(V_state.mesh.comm, "opt.bp", u, "bp4") as file:
+        file.write(0.0)
+
+    with dolfinx.io.VTXWriter(V_control.mesh.comm, "opt_f.bp", f, "bp4") as file:
+        file.write(0.0)
