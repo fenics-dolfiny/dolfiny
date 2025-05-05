@@ -62,6 +62,7 @@ class TAOBlockProblem:
             J = dolfiny.function.extract_blocks(J, δu)
 
         if H is None:
+            assert J is not None
             # TODO:
             # δu = [ufl.TestFunction(_u.function_space) for _u in self._u]
             # δδu = [ufl.TrialFunction(_u.function_space) for _u in self._u]
@@ -85,7 +86,7 @@ class TAOBlockProblem:
         J = compile(J)
         H = compile(H)
 
-        x0 = dolfinx.fem.petsc.create_vector(J, kind=PETSc.Vec.Type.MPI)
+        x0 = dolfinx.fem.petsc.create_vector(J, kind=PETSc.Vec.Type.MPI)  # type: ignore
 
         jacobian = x0.copy()
         jacobian.setAttr("_blocks", x0.getAttr("_blocks"))
@@ -291,7 +292,7 @@ class TAOBlockProblem:
                         case 1:
                             Jg_vec = dolfinx.fem.petsc.assemble_vector(_Jg)
                             Jg_vec.ghostUpdate(
-                                addv=PETSc.InsertMode.ADD,
+                                addv=PETSc.InsertMode.ADD,  # type: ignore
                                 mode=PETSc.ScatterMode.REVERSE,  # type: ignore
                             )
 

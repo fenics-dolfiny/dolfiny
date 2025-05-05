@@ -131,7 +131,6 @@ def test_poisson_discrete(n, order, atol, element):
     #     file.write(0.0)
 
 
-# TODO: add test case without dbc
 @pytest.mark.parametrize("autodiff", [True, False])
 def test_poisson(autodiff: bool):
     n = 32
@@ -183,6 +182,67 @@ def test_poisson(autodiff: bool):
     assert opt_problem.tao.getConvergedReason() > 0
 
     # with dolfinx.io.VTXWriter(W.mesh.comm, "opt.bp", u, "bp4") as file:
+    #     file.write(0.0)
+    # with dolfinx.io.VTXWriter(W.mesh.comm, "direct.bp", sol_weak_form, "bp4") as file:
+    #     file.write(0.0)
+
+
+@pytest.mark.parametrize("element", [("P", 1), ("P", 2), ("P", 3)])
+def test_poisson_nitsche(element):
+    n = 32
+    mesh = dolfinx.mesh.create_unit_square(
+        MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
+    )
+    W = dolfinx.fem.functionspace(mesh, ("P", 1))
+
+    u = dolfinx.fem.Function(W)
+    f = 1.0  # rhs
+    g = 1.0  # boundary value
+    gamma = 5  # nitsche parameter
+    h = 1 / n  # mesh size
+    n = ufl.FacetNormal(mesh)
+    F = (
+        1 / 2 * ufl.inner(ufl.grad(u), ufl.grad(u)) * ufl.dx
+        - ufl.inner(ufl.grad(u), n) * (u - g) * ufl.ds
+        - ufl.inner(f, u) * ufl.dx
+        + gamma / (2 * h) * (u - g) ** 2 * ufl.ds
+    )
+
+    opts = PETSc.Options("poisson")
+    opts["tao_type"] = "nls"
+    opts["tao_gatol"] = 1e-12
+    opts["tao_grtol"] = 0
+    opts["tao_gttol"] = 0
+    opts["tao_nls_ksp_type"] = "preonly"
+    opts["tao_nls_pc_type"] = "cholesky"
+    opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
+    # opts["tao_monitor"] = ""form_constraints
+    # opts["tao_ls_monitor"] = ""
+
+    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(F, [u], prefix="poisson")
+    (sol_optimization,) = opt_problem.solve()
+
+    u, v = ufl.TrialFunction(W), ufl.TestFunction(W)
+    a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
+    L = ufl.inner(f, v) * ufl.dx
+
+    top = W.mesh.topology
+    top.create_connectivity(top.dim - 1, top.dim)
+    boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
+    boundary_dofs = dolfinx.fem.locate_dofs_topological(W, top.dim - 1, boundary_facets)
+    bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(W.mesh, g), boundary_dofs, W)
+
+    problem = dolfinx.fem.petsc.LinearProblem(
+        a, L, [bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
+    )
+    sol_weak_form = problem.solve()
+
+    print(L2_norm(sol_optimization - sol_weak_form))
+    assert np.allclose(L2_norm(sol_optimization - sol_weak_form), 0, atol=1e-4)
+    assert opt_problem.tao.getIterationNumber() == 1
+    assert opt_problem.tao.getConvergedReason() == PETSc.TAO.ConvergedReason.CONVERGED_GATOL
+
+    # with dolfinx.io.VTXWriter(W.mesh.comm, "opt.bp", sol_optimization, "bp4") as file:
     #     file.write(0.0)
     # with dolfinx.io.VTXWriter(W.mesh.comm, "direct.bp", sol_weak_form, "bp4") as file:
     #     file.write(0.0)
