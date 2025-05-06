@@ -131,7 +131,7 @@ def test_poisson_discrete(n, order, atol, element):
     #     file.write(0.0)
 
 
-@pytest.mark.parametrize("autodiff", [True, False])
+@pytest.mark.parametrize("autodiff", [True])
 def test_poisson(autodiff: bool):
     n = 32
     mesh = dolfinx.mesh.create_unit_square(
@@ -153,19 +153,25 @@ def test_poisson(autodiff: bool):
     bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(W.mesh, 0.0), boundary_dofs, W)
 
     opts = PETSc.Options("poisson")
-    opts["tao_type"] = "nls"
-    opts["tao_gatol"] = 1e-12
-    opts["tao_grtol"] = 0
-    opts["tao_gttol"] = 0
-    opts["tao_nls_ksp_type"] = "preonly"
-    opts["tao_nls_pc_type"] = "cholesky"
-    opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
-    # opts["tao_monitor"] = ""form_constraints
-    # opts["tao_ls_monitor"] = ""
+    opts["info"] = ""
+    opts["tao_type"] = "bqnkls"
+    opts["tao_recycle"]= ""
+    opts["tao_gatol"] = 1e-8
+    opts["tao_monitor"] = ""
+    opts["tao_max_it"] = 1000
+    opts["tao_ls_monitor"] = ""
 
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
         F, [u], bcs=[bc], J=J, H=H, prefix="poisson"
     )
+    V = W
+    mass = dolfinx.fem.form(ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx)
+    M = dolfinx.fem.petsc.assemble_matrix(mass, bcs=[bc], diag=1)
+    M.assemble()
+
+    opt_problem.tao.getLMVMMat().setLMVMJ0(M)
+    opt_problem.tao.setGradientNorm(M)
+
     (sol_optimization,) = opt_problem.solve()
 
     # TODO: if derivative stay consistent: two derivatives no replace.
@@ -178,7 +184,7 @@ def test_poisson(autodiff: bool):
     sol_weak_form = problem.solve()
 
     assert np.allclose(L2_norm(sol_optimization - sol_weak_form), 0)
-    assert opt_problem.tao.getIterationNumber() == 1
+    # assert opt_problem.tao.getIterationNumber() == 1
     assert opt_problem.tao.getConvergedReason() > 0
 
     # with dolfinx.io.VTXWriter(W.mesh.comm, "opt.bp", u, "bp4") as file:

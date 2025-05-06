@@ -102,7 +102,7 @@ class TAOBlockProblem:
         @link_state(u)
         def _callback_J(tao: PETSc.TAO, x: PETSc.Vec, J_vec: PETSc.Vec) -> None:  # type: ignore
             x.setAttr("_blocks", x0.getAttr("_blocks"))
-
+            J_vec.setAttr("_blocks", x0.getAttr("_blocks"))
             J_vec.zeroEntries()
             J_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
 
@@ -386,6 +386,7 @@ class TAOBlockProblem:
         self._tao = PETSc.TAO().create(self._comm)  # type: ignore
         self._tao.setOptionsPrefix(prefix)
         self._tao.setFromOptions()
+        self._tao.setSolution(self._x0)
         self._tao.setObjective(self._F)
 
         # TODO: input - also as scalar only
