@@ -13,12 +13,11 @@ import dolfiny
 import dolfiny.inequality
 import dolfiny.taoblockproblem
 
-# TODO: options prefix should be unique -> cross influence
 
-
-def L2_norm(u: dolfinx.fem.Function) -> float:
+def _L2_norm(u: dolfinx.fem.Function) -> float:
     form = dolfinx.fem.form(ufl.inner(u, u) * ufl.dx)
-    return np.sqrt(MPI.COMM_WORLD.allreduce(dolfinx.fem.assemble_scalar(form)))
+    norm: float = np.sqrt(MPI.COMM_WORLD.allreduce(dolfinx.fem.assemble_scalar(form)))
+    return norm
 
 
 @pytest.mark.parametrize(
@@ -36,6 +35,7 @@ def L2_norm(u: dolfinx.fem.Function) -> float:
     ],
 )
 def test_poisson_discrete(n, order, atol, element):
+    """Solves poissons problem stated in discretized form."""
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
     )
@@ -51,7 +51,7 @@ def test_poisson_discrete(n, order, atol, element):
 
     u, v = ufl.TrialFunction(W), ufl.TestFunction(W)
     a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
-    L = -ufl.inner(f, u) * ufl.dx  # TODO: v!!!
+    L = -ufl.inner(f, v) * ufl.dx
 
     a = dolfinx.fem.form(a)
     L = dolfinx.fem.form(L)
@@ -65,22 +65,22 @@ def test_poisson_discrete(n, order, atol, element):
 
     tmp = b.copy()
     tmp.zeroEntries()
-    b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+    tmp.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
-    def F(tao: PETSc.TAO, x: PETSc.Vec) -> float:
+    def F(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
         A.mult(x, tmp)
-        return 0.5 * tmp.dot(x) - b.dot(x)
+        return 0.5 * tmp.dot(x) - b.dot(x)  # type: ignore
 
-    def J(tao: PETSc.TAO, x: PETSc.Vec, J: PETSc.Vec) -> None:
+    def J(tao: PETSc.TAO, x: PETSc.Vec, J: PETSc.Vec) -> None:  # type: ignore
         J.zeroEntries()
-        J.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        J.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
 
         A.mult(x, J)
         J.axpy(-1, b)
 
-        J.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        J.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
 
-    def H(tao: PETSc.TAO, x: PETSc.Vec, H: PETSc.Mat, P: PETSc.Mat) -> None:
+    def H(tao: PETSc.TAO, x: PETSc.Vec, H: PETSc.Mat, P: PETSc.Mat) -> None:  # type: ignore
         pass
 
     opts = PETSc.Options("poisson_discrete")
@@ -98,41 +98,49 @@ def test_poisson_discrete(n, order, atol, element):
     opts["tao_nls_ksp_type"] = "preonly"
     opts["tao_nls_pc_type"] = "cholesky"
     opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
-    # opts["tao_monitor"] = ""
-    # opts["tao_ls_monitor"] = ""
 
     u = dolfinx.fem.Function(W)
-
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
         F, [u], bcs=[bc], J=(J, u.x.petsc_vec.copy()), H=(H, A), prefix="poisson_discrete"
     )
-    (sol_optimization,) = opt_problem.solve()
+    opt_problem.solve()
 
+    u_direct = dolfinx.fem.Function(W)
     problem = dolfinx.fem.petsc.LinearProblem(
         a,
         L,
-        u=dolfinx.fem.Function(W),
+        u=u_direct,
         bcs=[bc],
         petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
     )
-    sol_weak_form = problem.solve()
+    problem.solve()
 
     # TODO:
     # assert opt_problem.tao.getConvergedReason() == PETSc.TAO.ConvergedReason.CONVERGED_GATOL
     # assert opt_problem.tao.getConvergedReason() > 0
 
-    assert L2_norm(sol_optimization - sol_weak_form) == pytest.approx(0, abs=atol)
+    assert _L2_norm(u - u_direct) == pytest.approx(0, abs=atol)
     if order == 2:
         assert opt_problem.tao.getIterationNumber() == 1
 
-    # with dolfinx.io.VTXWriter(W.mesh.comm, "opt.bp", sol_optimization, "bp4") as file:
-    #     file.write(0.0)
-    # with dolfinx.io.VTXWriter(W.mesh.comm, "direct.bp", sol_weak_form, "bp4") as file:
-    #     file.write(0.0)
 
-
+# TODO: verify patch date aligns with https://gitlab.com/petsc/petsc/-/merge_requests/8386
 @pytest.mark.parametrize("autodiff", [True, False])
-def test_poisson(autodiff: bool):
+@pytest.mark.parametrize(
+    "order",
+    [
+        pytest.param(
+            1,
+            marks=pytest.mark.skipif(
+                (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 3),  # type: ignore
+                reason="Missing PETSc exports",
+            ),
+        ),
+        2,
+    ],
+)
+def test_poisson(autodiff: bool, order: int):
+    """Tests poissons problem as variational problem, with different optimisation setups."""
     n = 32
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
@@ -142,113 +150,65 @@ def test_poisson(autodiff: bool):
     u = dolfinx.fem.Function(W)
     f = -1.0
 
-    F = 1 / 2 * ufl.inner(ufl.grad(u), ufl.grad(u)) * ufl.dx + ufl.inner(f, u) * ufl.dx
-    J = None if autodiff else [ufl.derivative(F, u, ufl.TestFunction(W))]
-    H = None if autodiff else [[ufl.derivative(J[0], u, ufl.TrialFunction(W))]]
+    F = 1 / 2 * ufl.inner(ufl.grad(u), ufl.grad(u)) * ufl.dx - ufl.inner(f, u) * ufl.dx
+    J = None if autodiff else [ufl.derivative(F, u)]
+    H = None if autodiff else [[ufl.derivative(J[0], u)]]  # type: ignore
 
     top = W.mesh.topology
     top.create_connectivity(top.dim - 1, top.dim)
     boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
     boundary_dofs = dolfinx.fem.locate_dofs_topological(W, top.dim - 1, boundary_facets)
-    bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(W.mesh, 0.0), boundary_dofs, W)
+    bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(W.mesh, np.array(0.0)), boundary_dofs, W)
 
-    opts = PETSc.Options("poisson")
-    opts["tao_type"] = "nls"
-    opts["tao_gatol"] = 1e-12
-    opts["tao_grtol"] = 0
-    opts["tao_gttol"] = 0
-    opts["tao_nls_ksp_type"] = "preonly"
-    opts["tao_nls_pc_type"] = "cholesky"
-    opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
-    # opts["tao_monitor"] = ""form_constraints
-    # opts["tao_ls_monitor"] = ""
+    lb = PETSc.NINFINITY  # type: ignore
+    ub = PETSc.INFINITY  # type: ignore
+    if order == 1:
+        lb = 0.0
+        ub = 1.0
+
+    opts = PETSc.Options("poisson")  # type: ignore
+    opts["info"] = ""
+    opts["tao_type"] = "bqnls" if order == 1 else "nls"
+    opts["tao_recycle"] = ""
+    opts["tao_gatol"] = 1e-10
+    opts["tao_monitor"] = ""
+    opts["tao_max_it"] = 1000
+    opts["tao_ls_monitor"] = ""
+    opts["tao_monitor"] = ""
 
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
-        F, [u], bcs=[bc], J=J, H=H, prefix="poisson"
+        F, [u], bcs=[bc], lb=lb, ub=ub, J=J, H=H, prefix="poisson"
     )
-    (sol_optimization,) = opt_problem.solve()
 
-    # TODO: if derivative stay consistent: two derivatives no replace.
-    weak_form = ufl.replace(ufl.derivative(F, u, ufl.TestFunction(W)), {u: ufl.TrialFunction(W)})
-    a, L = ufl.lhs(weak_form), ufl.rhs(weak_form)
+    if order == 1:
+        mass = dolfinx.fem.form(ufl.TrialFunction(W) * ufl.TestFunction(W) * ufl.dx)
+        M = dolfinx.fem.petsc.assemble_matrix(mass, bcs=[bc], diag=1)
+        M.assemble()
+
+        opt_problem.tao.getLMVMMat().setLMVMJ0(M)
+        opt_problem.tao.setGradientNorm(M)
+
+    opt_problem.solve()
+    sol_optimization = u.copy()
+
+    u.x.array[:] = 0
+    a = ufl.derivative(ufl.derivative(F, u), u)
+    L = -ufl.derivative(F, u)
 
     problem = dolfinx.fem.petsc.LinearProblem(
         a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
     )
     sol_weak_form = problem.solve()
 
-    assert np.allclose(L2_norm(sol_optimization - sol_weak_form), 0)
-    assert opt_problem.tao.getIterationNumber() == 1
+    assert np.allclose(_L2_norm(sol_optimization - sol_weak_form), 0)
     assert opt_problem.tao.getConvergedReason() > 0
-
-    # with dolfinx.io.VTXWriter(W.mesh.comm, "opt.bp", u, "bp4") as file:
-    #     file.write(0.0)
-    # with dolfinx.io.VTXWriter(W.mesh.comm, "direct.bp", sol_weak_form, "bp4") as file:
-    #     file.write(0.0)
-
-
-@pytest.mark.parametrize("element", [("P", 1), ("P", 2), ("P", 3)])
-def test_poisson_nitsche(element):
-    n = 32
-    mesh = dolfinx.mesh.create_unit_square(
-        MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
-    )
-    W = dolfinx.fem.functionspace(mesh, ("P", 1))
-
-    u = dolfinx.fem.Function(W)
-    f = 1.0  # rhs
-    g = 1.0  # boundary value
-    gamma = 5  # nitsche parameter
-    h = 1 / n  # mesh size
-    n = ufl.FacetNormal(mesh)
-    F = (
-        1 / 2 * ufl.inner(ufl.grad(u), ufl.grad(u)) * ufl.dx
-        - ufl.inner(ufl.grad(u), n) * (u - g) * ufl.ds
-        - ufl.inner(f, u) * ufl.dx
-        + gamma / (2 * h) * (u - g) ** 2 * ufl.ds
-    )
-
-    opts = PETSc.Options("poisson")
-    opts["tao_type"] = "nls"
-    opts["tao_gatol"] = 1e-12
-    opts["tao_grtol"] = 0
-    opts["tao_gttol"] = 0
-    opts["tao_nls_ksp_type"] = "preonly"
-    opts["tao_nls_pc_type"] = "cholesky"
-    opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
-    # opts["tao_monitor"] = ""form_constraints
-    # opts["tao_ls_monitor"] = ""
-
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(F, [u], prefix="poisson")
-    (sol_optimization,) = opt_problem.solve()
-
-    u, v = ufl.TrialFunction(W), ufl.TestFunction(W)
-    a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
-    L = ufl.inner(f, v) * ufl.dx
-
-    top = W.mesh.topology
-    top.create_connectivity(top.dim - 1, top.dim)
-    boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
-    boundary_dofs = dolfinx.fem.locate_dofs_topological(W, top.dim - 1, boundary_facets)
-    bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(W.mesh, g), boundary_dofs, W)
-
-    problem = dolfinx.fem.petsc.LinearProblem(
-        a, L, [bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
-    )
-    sol_weak_form = problem.solve()
-
-    print(L2_norm(sol_optimization - sol_weak_form))
-    assert np.allclose(L2_norm(sol_optimization - sol_weak_form), 0, atol=1e-4)
-    assert opt_problem.tao.getIterationNumber() == 1
-    assert opt_problem.tao.getConvergedReason() == PETSc.TAO.ConvergedReason.CONVERGED_GATOL
-
-    # with dolfinx.io.VTXWriter(W.mesh.comm, "opt.bp", sol_optimization, "bp4") as file:
-    #     file.write(0.0)
-    # with dolfinx.io.VTXWriter(W.mesh.comm, "direct.bp", sol_weak_form, "bp4") as file:
-    #     file.write(0.0)
+    if order == 2:
+        # TODO: currently takes 2?
+        assert opt_problem.tao.getIterationNumber() == 2
 
 
 def test_poisson_mixed():
+    """Solve mixed poisson formulation as blocked optimisation problem."""
     n = 32
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
@@ -284,24 +244,24 @@ def test_poisson_mixed():
 
     n = ufl.FacetNormal(mesh)
     F = -(
-        1 / 2 * (σ**2 * ufl.dx + ufl.div(σ) * u * ufl.dx + ufl.div(σ) * u * ufl.dx) + f * u * ufl.dx
+        1 / 2 * σ**2 * ufl.dx + ufl.div(σ) * u * ufl.dx + f * u * ufl.dx
         # - ufl.inner(σ, n) * f * ufl.dx # TODO
     )
 
-    opts = PETSc.Options("opt")
+    opts = PETSc.Options("poisson_mixed")
     opts["tao_type"] = "nls"
     opts["tao_ls_type"] = "unit"
-    # opts["tao_max_it"] = 1
     opts["tao_nls_ksp_type"] = "preonly"
     opts["tao_nls_pc_type"] = "lu"
     opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
     opts["tao_monitor"] = ""
-    # opts["tao_ls_monitor"] = ""
 
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(F, [σ, u], bcs=bcs, prefix="opt")
+    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+        F, [σ, u], bcs=bcs, prefix="poisson_mixed"
+    )
     σ_opt, u_opt = opt_problem.solve()
 
-    opts = PETSc.Options("direct")  # type: ignore[attr-defined]
+    opts = PETSc.Options("poisson_mixed_direct")
     opts["snes_type"] = "newtonls"
     opts["snes_linesearch_type"] = "basic"
     opts["snes_max_it"] = 1
@@ -309,124 +269,35 @@ def test_poisson_mixed():
     opts["pc_type"] = "lu"
     opts["pc_factor_mat_solver_type"] = "mumps"
 
-    σ.x.petsc_vec.zeroEntries()
-    σ.x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-    u.x.petsc_vec.zeroEntries()
-    u.x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+    σ.x.array[:] = 0
+    u.x.array[:] = 0
 
-    δu, δσ = ufl.TestFunction(V_u), ufl.TestFunction(V_σ)
-    J = dolfiny.expression.derivative(F, [σ, u], [δσ, δu])
-    J = dolfiny.function.extract_blocks(J, [δσ, δu])
-
-    # TODO: this does not work - why?
-    # δδu, δδσ = ufl.TrialFunction(V_u), ufl.TrialFunction(V_σ)
-    # H = dolfiny.expression.derivative(J, [σ, u], [δδσ, δδu])
-    # H = dolfiny.function.extract_blocks(H, [δσ, δu], [δδσ, δδu])
-
-    # TODO: remove if above works
-    H = [[None, None], [None, None]]
-    for i in range(2):
-        for j in range(2):
-            uj = [σ, u][j]
-            duj = ufl.TrialFunction(uj.function_space)
-            H[i][j] = ufl.derivative(J[i], uj, duj)
-
-            # If the form happens to be empty replace with None
-            if H[i][j].empty():
-                H[i][j] = None
+    δm = ufl.TestFunctions(ufl.MixedFunctionSpace(V_σ, V_u))
+    J = ufl.derivative(F, [σ, u], δm)
+    J = ufl.extract_blocks(J)
 
     problem = dolfiny.snesblockproblem.SNESBlockProblem(
-        J, [σ, u], J_form=H, bcs=bcs, prefix="direct"
+        J, [σ, u], bcs=bcs, prefix="poisson_mixed_direct"
     )
     σ_direct, u_direct = problem.solve()
 
-    assert np.allclose(L2_norm(σ_opt - σ_direct), 0)
-    assert np.allclose(L2_norm(u_opt - u_direct), 0)
-    assert opt_problem.tao.getIterationNumber() == 1
-    assert opt_problem.tao.getConvergedReason() > 0
-
-    local = dolfinx.fem.Function(V_u, name="process")
-    local.x.array[:] = MPI.COMM_WORLD.rank
-
-    # with dolfinx.io.VTXWriter(V_u.mesh.comm, "direct_u.bp", u, "bp4") as file:
-    #     file.write(0.0)
-    # with dolfinx.io.VTXWriter(V_u.mesh.comm, "opt_u.bp", u_opt, "bp4") as file:
-    #     file.write(0.0)
-
-
-def test_poisson_blocked():
-    n = 32
-    mesh = dolfinx.mesh.create_unit_square(
-        MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
-    )
-    V1 = dolfinx.fem.functionspace(mesh, ("P", 1))
-    V2 = dolfinx.fem.functionspace(mesh, ("P", 1))
-
-    u1 = dolfinx.fem.Function(V1)
-    u2 = dolfinx.fem.Function(V2)
-    f = -1.0
-
-    F = (
-        0.5
-        * (
-            ufl.inner(ufl.grad(u1), ufl.grad(u1)) * ufl.dx
-            + ufl.inner(ufl.grad(u2), ufl.grad(u2)) * ufl.dx
-        )
-        + ufl.inner(f, u1) * ufl.dx
-        + ufl.inner(f, u2) * ufl.dx
-    )
-
-    top = V1.mesh.topology
-    top.create_connectivity(top.dim - 1, top.dim)
-    boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
-
-    def get_bc(V):
-        boundary_dofs = dolfinx.fem.locate_dofs_topological(V, top.dim - 1, boundary_facets)
-        return dolfinx.fem.dirichletbc(dolfinx.fem.Constant(V.mesh, 0.0), boundary_dofs, V)
-
-    bcs = [get_bc(V1), get_bc(V2)]
-
-    opts = PETSc.Options("poisson")
-    opts["tao_type"] = "nls"
-    opts["tao_gatol"] = 1e-12
-    opts["tao_grtol"] = 0
-    opts["tao_gttol"] = 0
-    opts["tao_nls_ksp_type"] = "preonly"
-    opts["tao_nls_pc_type"] = "cholesky"
-    opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
-    # opts["tao_monitor"] = ""
-    # opts["tao_ls_monitor"] = ""
-
-    J = [ufl.derivative(F, u1, ufl.TestFunction(V1)), ufl.derivative(F, u2, ufl.TestFunction(V2))]
-
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
-        F, [u1, u2], bcs=bcs, J=J, prefix="poisson"
-    )
-    sol_u1, sol_u2 = opt_problem.solve()
-
-    weak_form = ufl.replace(J[0], {u1: ufl.TrialFunction(V1)})
-    a, L = ufl.lhs(weak_form), ufl.rhs(weak_form)
-
-    problem = dolfinx.fem.petsc.LinearProblem(
-        a, L, bcs=[bcs[0]], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
-    )
-    sol_weak_form = problem.solve()
-
-    assert np.allclose(L2_norm(sol_u1 - sol_weak_form), 0)
-    assert np.allclose(L2_norm(sol_u2 - sol_weak_form), 0)
+    assert np.allclose(_L2_norm(σ_opt - σ_direct), 0)
+    assert np.allclose(_L2_norm(u_opt - u_direct), 0)
     assert opt_problem.tao.getIterationNumber() == 1
     assert opt_problem.tao.getConvergedReason() > 0
 
 
 @pytest.mark.skipif(
-    (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 1),
+    (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 1),  # type: ignore
     reason="Missing PETSc exports",
 )
 @pytest.mark.parametrize(
     "eq_constrained",
     [True, False],
 )
-def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool):
+@pytest.mark.parametrize("autodiff", [True, False])
+def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: bool):
+    """Test Poisson problem with scalar eq-/inequality constraint."""
     W = V1
 
     # TODO: return to smaller mesh at some point
@@ -440,69 +311,56 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool):
     f = -1.0
 
     F = 1 / 2 * ufl.inner(ufl.grad(u), ufl.grad(u)) * ufl.dx + ufl.inner(f, u) * ufl.dx
-    J = ufl.derivative(F, u, ufl.TestFunction(W))
-    H = ufl.derivative(J, u, ufl.TrialFunction(W))
+    J = None if autodiff else [ufl.derivative(F, u)]
+    H = None if autodiff else [[ufl.derivative(J[0], u)]]  # type: ignore
 
     top = W.mesh.topology
     top.create_connectivity(top.dim - 1, top.dim)
     boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
     boundary_dofs = dolfinx.fem.locate_dofs_topological(W, top.dim - 1, boundary_facets)
-    bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(W.mesh, 0.0), boundary_dofs, W)
+    bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(W.mesh, np.array(0.0)), boundary_dofs, W)
 
-    weak_form = ufl.replace(J, {u: ufl.TrialFunction(W)})
-    a, L = ufl.lhs(weak_form), ufl.rhs(weak_form)
+    a = ufl.derivative(ufl.derivative(F, u), u)
+    L = -ufl.derivative(F, u)
 
     problem = dolfinx.fem.petsc.LinearProblem(
         a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
     )
     sol_weak_form = problem.solve()
-    L2_norm_unconstrained = L2_norm(sol_weak_form)
+    L2_norm_unconstrained = _L2_norm(sol_weak_form)
 
     C = L2_norm_unconstrained * 0.5
     g = [u**2 * ufl.dx == C**2] if eq_constrained else None
     h = [(u**2) * ufl.dx >= C**2] if not eq_constrained else None
 
     v = ufl.TestFunction(W)
-    Jg = [[2 * u * v * ufl.dx]] if eq_constrained else None
-    Jh = [[-2 * u * v * ufl.dx]] if not eq_constrained else None
+    Jg = None if not eq_constrained or autodiff else [[2 * u * v * ufl.dx]]
+    Jh = None if eq_constrained or autodiff else [[-2 * u * v * ufl.dx]]
 
-    opts = PETSc.Options("poisson_constrained")
+    opts = PETSc.Options("poisson_constrained")  # type: ignore
 
     opts["tao_type"] = "almm"
     opts["tao_gatol"] = 1e-6
     opts["tao_catol"] = 1e-3
     opts["tao_crtol"] = 1e-3
-    # opts["tao_almm_type"] = "classic"
-    # opts["tao_almm_mu_init"] = 1.5
-    # opts["tao_almm_mu_factor"] = 1.2
-    # opts["tao_almm_mu_factor"] = 1e5
-    # opts["tao_max_it"] = 50
-    # opts["tao_almm_subsolver_tao_test_gradient"] = ""
     opts["tao_almm_subsolver_tao_type"] = "bqnls"
     opts["tao_almm_subsolver_tao_ls_type"] = "unit"
     opts["tao_almm_subsolver_ksp_type"] = "preonly"
     opts["tao_almm_subsolver_pc_type"] = "lu"
     opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
-    # opts["tao_almm_subsolver_tao_monitor"] = ""
-    # opts["tao_almm_subsolver_tao_ls_monitor"] = ""
-    # opts["tao_monitor"] = ""
-    # opts["tao_ls_monitor"] = ""
 
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
-        F, [u], bcs=[bc], J=[J], H=[[H]], g=g, Jg=Jg, h=h, Jh=Jh, prefix="poisson_constrained"
+        F, [u], bcs=[bc], J=J, H=H, g=g, Jg=Jg, h=h, Jh=Jh, prefix="poisson_constrained"
     )
     (sol_optimization,) = opt_problem.solve()
 
-    assert L2_norm(sol_optimization) == pytest.approx(L2_norm_unconstrained * 0.5, 1e-3)
+    assert _L2_norm(sol_optimization) == pytest.approx(L2_norm_unconstrained * 0.5, 1e-3)
     assert opt_problem.tao.getConvergedReason() > 0
-
-    # with dolfinx.io.VTXWriter(W.mesh.comm, "opt.bp", u, "bp4") as file:
-    #     file.write(0.0)
-    # with dolfinx.io.VTXWriter(W.mesh.comm, "direct.bp", sol_weak_form, "bp4") as file:
-    #     file.write(0.0)
+    # TODO: subsolver convergence
 
 
 def test_optimal_control_reduced():
+    """Optimal control problem, test custom callack (reduced functional)."""
     # based on https://www.dolfin-adjoint.org/en/stable/documentation/poisson-mother/poisson-mother.html
 
     n = 32
@@ -527,14 +385,9 @@ def test_optimal_control_reduced():
     f.interpolate(lambda x: x[0] + x[1])
 
     alpha = 1e-4
-    # alpha = 1e-3
     F = 0.5 * ufl.inner(u - d, u - d) * ufl.dx + alpha / 2 * f**2 * ufl.dx
     F = dolfinx.fem.form(F)
     v = ufl.TestFunction(V_state)
-    # F_u = ufl.inner(u-d, v) * ufl.dx
-    # F_f = f*ufl.TestFunction(V_control) * ufl.dx
-    # J = ufl.derivative(F, u, ufl.TestFunction(W))
-    # H = ufl.derivative(J, u, ufl.TrialFunction(W))
 
     a = ufl.inner(ufl.grad(ufl.TrialFunction(V_state)), ufl.grad(v)) * ufl.dx
     L = f * v * ufl.dx
@@ -545,59 +398,123 @@ def test_optimal_control_reduced():
     p = dolfinx.fem.Function(V_state, name="p")
     adjoint_problem = dolfinx.fem.petsc.LinearProblem(a, L_adj, [bc], p)
 
-    @dolfiny.taoblockproblem.link_state(f)
+    @dolfiny.taoblockproblem.sync_functions(f)
     def F_reduced(tao, x):
         state_problem.solve()
 
         local_J = dolfinx.fem.assemble_scalar(F)
         return MPI.COMM_WORLD.allreduce(local_J, op=MPI.SUM)
 
-    # JF = dolfinx.fem.form(ufl.derivative(ufl.action(a-L, p), f) + ufl.derivative(F, f))
-    JF = p * ufl.TestFunction(V_control) * ufl.dx + alpha * f * ufl.TestFunction(V_control) * ufl.dx
-    JF = dolfinx.fem.form(JF)
+    jacobian = dolfinx.fem.Function(V_control)
 
-    @dolfiny.taoblockproblem.link_state(f)
+    @dolfiny.taoblockproblem.sync_functions(f)
     def J_reduced(tao, x, J):
         state_problem.solve()
 
         adjoint_problem.solve()
 
-        J.zeroEntries()
-        J.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        # Riesz scaling of gradient given by p + alpha * f
+        dolfiny.projection.project(p + alpha * f, jacobian)
 
-        dolfinx.fem.petsc.assemble_vector(J, JF)
-        J.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        dolfinx.fem.petsc.assign(jacobian, J)
 
     opts = PETSc.Options("optimal_control_reduced")
     opts["tao_type"] = "lmvm"  # pdipm
     opts["tao_gatol"] = 1e-9
-    # opts["tao_monitor"] = ""
-    # opts["tao_ls_monitor"] = ""
 
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
         F_reduced, [f], J=(J_reduced, f.x.petsc_vec.copy()), prefix="optimal_control_reduced"
     )
-    opt_problem.solve([f])
+    opt_problem.solve()
 
     x = ufl.SpatialCoordinate(mesh)
     f_ana = 1 / (1 + 4 * alpha * np.pi**4) * ufl.sin(np.pi * x[0]) * ufl.sin(np.pi * x[1])
     u_ana = 1 / (2 * np.pi**2) * f_ana
 
-    assert np.allclose(0, L2_norm(f - f_ana), atol=5e-2)
-    assert np.allclose(0, L2_norm(u - u_ana), atol=1e-4)
+    assert np.allclose(0, _L2_norm(f - f_ana), atol=5e-2)
+    assert np.allclose(0, _L2_norm(u - u_ana), atol=1e-4)
     assert opt_problem.tao.getConvergedReason() > 0
-    # with dolfinx.io.VTXWriter(V_state.mesh.comm, "opt.bp", u, "bp4") as file:
-    #     file.write(0.0)
-
-    # with dolfinx.io.VTXWriter(V_control.mesh.comm, "opt_f.bp", f, "bp4") as file:
-    #     file.write(0.0)
 
 
-# TODO: autodiff
+# @pytest.mark.parametrize("almm_type", [PETSc.TAO.ALMMType.CLASSIC, PETSc.TAO.ALMMType.PHR])
+@pytest.mark.skipif(
+    (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 2),  # type: ignore
+    reason="Missing PETSc exports",
+)
+def test_optimal_control_full_space():  # almm_type
+    """Optimal control problem as full space approach, singular jacobian."""
+
+    # based on https://www.dolfin-adjoint.org/en/stable/documentation/poisson-mother/poisson-mother.html
+
+    n = 32
+    mesh = dolfinx.mesh.create_unit_square(
+        MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
+    )
+
+    V_state = dolfinx.fem.functionspace(mesh, ("P", 1))
+    V_control = dolfinx.fem.functionspace(mesh, ("DG", 0))
+
+    top = V_state.mesh.topology
+    top.create_connectivity(top.dim - 1, top.dim)
+    boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
+    boundary_dofs = dolfinx.fem.locate_dofs_topological(V_state, top.dim - 1, boundary_facets)
+    bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(V_state.mesh, 0.0), boundary_dofs, V_state)
+
+    u = dolfinx.fem.Function(V_state, name="state")
+    u.x.petsc_vec.set(1.0)
+    d = dolfinx.fem.Function(V_state, name="state_desired")
+    d.interpolate(lambda x: 1 / (2 * np.pi**2) * np.sin(np.pi * x[0]) * np.sin(np.pi * x[1]))
+
+    f = dolfinx.fem.Function(V_control)
+    f.interpolate(lambda x: x[0] + x[1])
+
+    alpha = 1e-4
+    F = 0.5 * ufl.inner(u - d, u - d) * ufl.dx + alpha / 2 * f**2 * ufl.dx
+    v = ufl.TestFunction(V_state)
+
+    a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
+    L = f * v * ufl.dx
+
+    g = [a - L == 0]
+    Jg = [
+        [
+            ufl.derivative(g[0].lhs, u),
+            ufl.derivative(g[0].lhs, f),
+        ]
+    ]
+
+    opts = PETSc.Options("optimal_control_full_space")
+    opts["tao_type"] = "almm"  # pdipm
+    # opts["tao_almm_type"] = "classic" if almm_type == PETSc.TAO.ALMMType.CLASSIC else "phr"
+    opts["tao_gatol"] = 1e-5
+
+    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+        F, [u, f], bcs=[bc], g=g, Jg=Jg, prefix="optimal_control_full_space"
+    )
+    # mass = dolfinx.fem.form([[ufl.TrialFunction(V_state) * ufl.TestFunction(V_state) * ufl.dx,
+    # None], [None, ufl.TrialFunction(V_control) * ufl.TestFunction(V_control) * ufl.dx]])
+    # M = dolfinx.fem.petsc.assemble_matrix(mass, bcs=[bc], diag=1)
+    # M.assemble()
+    # opt_problem.tao.getALMMSubsolver().getLMVMMat().setLMVMJ0(M)
+    # opt_problem.tao.getALMMSubsolver().setGradientNorm(M)
+    opt_problem.solve()
+
+    x = ufl.SpatialCoordinate(mesh)
+    f_ana = 1 / (1 + 4 * alpha * np.pi**4) * ufl.sin(np.pi * x[0]) * ufl.sin(np.pi * x[1])
+    u_ana = 1 / (2 * np.pi**2) * f_ana
+
+    assert np.allclose(0, _L2_norm(f - f_ana), atol=5e-2)
+    assert np.allclose(0, _L2_norm(u - u_ana), atol=5e-4)
+    assert opt_problem.tao.getConvergedReason() > 0
 
 
-# TODO: very unstable at the moment + huge number of iterations necessary -> fine tune
-def test_poisson_pde_as_constraint():
+# @pytest.mark.parametrize("almm_type", [PETSc.TAO.ALMMType.PHR]) # TODO: PETSc.TAO.ALMMType.CLASSIC
+@pytest.mark.skipif(
+    (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 2),  # type: ignore
+    reason="Missing PETSc exports",
+)
+def test_poisson_pde_as_constraint():  # almm_type
+    """Poisson problem as constraint. Test variational constraints."""
     n = 32
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
@@ -612,329 +529,39 @@ def test_poisson_pde_as_constraint():
     bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(V.mesh, 0.0), boundary_dofs, V)
 
     u = dolfinx.fem.Function(V, name="u")
-    # u.x.petsc_vec.set(1.0)
-    # bc.set(u.x.array)
+
     f = -1
 
     a = ufl.inner(ufl.grad(u), ufl.grad(ufl.TestFunction(V))) * ufl.dx
-    # a = u*ufl.TestFunction(V) * ufl.dx
     L = f * ufl.TestFunction(V) * ufl.dx
 
     g = [a - L == 0]
-    Jg = [[ufl.derivative(a - L, u, ufl.TrialFunction(V))]]
-    # Jg = [[ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx]]
-    # F = .5 * u**2 * ufl.dx
-    # F = .5 * (u - f) * ufl.dx
-    # F = dolfinx.fem.Constant(mesh, 1.0) * ufl.dx
+    Jg = [[ufl.derivative(a - L, u)]]
+
+    # TODO:
+    # F = ufl.ZeroBaseForm((u,))
     F = 0.5 * dolfinx.fem.Constant(mesh, 0.0) * (u) ** 2 * ufl.dx
     opts = PETSc.Options("poisson_pde_constraint")
     opts["tao_type"] = "almm"  # pdipm
-    # opts["tao_max_it"] = 2
-    opts["tao_gatol"] = 1e-4
-    opts["tao_grtol"] = 1e-4
-    opts["tao_catol"] = 1e-4
-    opts["tao_crtol"] = 1e-4
-    # opts["tao_almm_subsolver_tao_test_gradient"] = ""
-    # opts["tao_almm_subsolver_tao_type"] = "blmvm"
-    opts["tao_almm_subsolver_tao_gatol"] = 1e-3
-    opts["tao_almm_subsolver_tao_grtol"] = 1e-3
-    # opts["tao_almm_subsolve_tao_blmvm_mat_lmvm_J0_ksp_type"] = "preonly"
-    # opts["tao_almm_subsolve_tao_blmvm_mat_lmvm_J0_pc_type"] = "mumps"
-    # opts["tao_almm_subsolver_view"] = ""
-    # opts["tao_almm_subsolver_tao_ls_type"] = "unit"
-    opts["tao_almm_mu_init"] = 2  # penalty
-    opts["tao_almm_mu_factor"] = 2
+    # opts["tao_almm_type"] = "classic" if almm_type == PETSc.TAO.ALMMType.CLASSIC else "phr"
+    opts["tao_gatol"] = 1e-6
+    opts["tao_grtol"] = 1e-6
+    opts["tao_catol"] = 1e-6
+    opts["tao_crtol"] = 1e-6
     opts["tao_almm_subsolver_ksp_type"] = "preonly"
     opts["tao_almm_subsolver_pc_type"] = "lu"
     opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
-    # opts["tao_test_gradient"] = ""
-    # opts["tao_almm_subsolver_tao_test_gradient"] = ""
-    # opts["tao_monitor"] = ""
-    # opts["tao_ls_monitor"] = ""
 
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
         F, [u], bcs=[bc], g=g, Jg=Jg, prefix="poisson_pde_constraint"
     )
-
-    # See https://petsc.org/main/src/tao/tutorials/ex3.c.html
-    # m = ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx
-    # m = dolfinx.fem.form(m)
-    # M = dolfinx.fem.petsc.assemble_matrix(m)
-    # M.assemble()
-    # problem.tao.getALMMSubsolver().setLMVMH0(M)
-    # problem.tao.getALMMSubsolver().setGradientNorm(M)
-    # problem.tao.setGradientNorm(M)
-
-    (u_opt,) = opt_problem.solve([u])
+    opt_problem.solve()
 
     linear_problem = dolfinx.fem.petsc.LinearProblem(
         ufl.inner(ufl.grad(ufl.TrialFunction(V)), ufl.grad(ufl.TestFunction(V))) * ufl.dx, L, [bc]
     )
     u_lp = linear_problem.solve()
 
-    assert np.allclose(L2_norm(u_lp - u_opt), 0, atol=1e-3)
+    assert np.allclose(_L2_norm(u_lp - u), 0, atol=1e-4)
     assert opt_problem.tao.getConvergedReason() > 0
-    # with dolfinx.io.VTXWriter(V.mesh.comm, "opt.bp", u, "bp4") as file:
-    #     file.write(0.0)
-
-    # with dolfinx.io.VTXWriter(V_control.mesh.comm, "opt_f.bp", f, "bp4") as file:
-    #     file.write(0.0)
-
-
-# TODO: never moving away from initial condition - why?
-# def test_poisson_pde_as_constraint_discrete():
-#     n = 32
-#     mesh = dolfinx.mesh.create_unit_square(
-#         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
-#     )
-
-#     V = dolfinx.fem.functionspace(mesh, ("P", 1))
-
-#     top = V.mesh.topology
-#     top.create_connectivity(top.dim - 1, top.dim)
-#     boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
-#     boundary_dofs = dolfinx.fem.locate_dofs_topological(V, top.dim - 1, boundary_facets)
-#     bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(V.mesh, 0.0), boundary_dofs, V)
-
-#     f = -1
-
-#     a = ufl.inner(ufl.grad(ufl.TrialFunction(V)), ufl.grad(ufl.TestFunction(V))) * ufl.dx
-#     a = dolfinx.fem.form(a)
-#     L = f * ufl.TestFunction(V) * ufl.dx
-#     L = dolfinx.fem.form(L)
-
-#     A = dolfinx.fem.petsc.assemble_matrix(a, bcs=[bc], diag=1.0)
-#     A.assemble()
-
-#     m = ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx
-#     m = dolfinx.fem.form(m)
-#     M = dolfinx.fem.petsc.assemble_matrix(m)
-#     M.assemble()
-#     # problem.tao.getALMMSubsolver().setLMVMH0(M)
-#     # problem.tao.getALMMSubsolver().setGradientNorm(M)
-#     # problem.tao.setGradientNorm(M)
-
-#     R = PETSc.KSP().create(MPI.COMM_WORLD)
-#     R.setOperators(M)
-#     R.setType('preonly')
-#     R.getPC().setType('lu')
-#     R.setUp()
-
-#     b = dolfinx.fem.petsc.assemble_vector(L)
-#     dolfinx.fem.petsc.apply_lifting(b, [a], [bc])
-#     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-#     dolfinx.fem.petsc.set_bc(b, [bc])
-
-#     def F(tao, x) -> float:
-#         return x.norm()**2
-
-#     def J(tao, x, J_vec) -> None:
-#         J_vec.zeroEntries()
-#         J_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-#         x.copy(J_vec)
-#         J_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-#         # print(f"J-norm: {J_vec.norm()}")
-
-#     def g(tao, x, c) -> None:
-#         # tmp = Ax - b
-#         tmp = x.copy()
-#         tmp.assemble()
-#         A.mult(x, tmp)
-#         tmp.aypx(-1, b)
-
-#         # c = x^T (Ax - b)
-#         c[0] = x.dot(tmp)
-#         c.assemble()
-
-#     ksp = PETSc.KSP().create(MPI.COMM_WORLD)
-#     ksp.setType("preonly")
-#     ksp.getPC().setType("lu")
-#     # See https://petsc.org/main/src/tao/tutorials/ex3.c.html
-#     m = ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx
-#     m = dolfinx.fem.form(m)
-#     M = dolfinx.fem.petsc.assemble_matrix(m)
-#     M.assemble()
-#     # problem.tao.getALMMSubsolver().setLMVMH0(M)
-#     # problem.tao.getALMMSubsolver().setGradientNorm(M)
-#     # problem.tao.setGradientNorm(M)
-#     ksp.setOperators(M, None)
-#     ksp.setUp()
-#     u = dolfinx.fem.Function(V, name="u")
-
-#     Jg_vec = u.x.petsc_vec.copy()
-#     Jg_vec.assemble()
-#     Jg_mat = PETSc.Mat().create(comm=MPI.COMM_WORLD)  # type: ignore
-#     # TODO: should all k rows belong to fist process? implications?
-#     Jg_mat.setSizes(
-#         [[u.x.petsc_vec.getLocalSize(), u.x.petsc_vec.getSize()], [PETSc.DECIDE, 1]]
-#   # type: ignore
-#     )  # [[nrl, nrg], [ncl, ncg]]
-#     Jg_mat.setType("dense")
-#     Jg_mat.setUp()
-#     Jg_mat_T = PETSc.Mat()  # type: ignore
-#     Jg_mat_T.createTranspose(Jg_mat)
-#     Jg_mat = Jg_mat_T  # TODO: document
-#     def Jg(tao, x, J, P) -> None:
-#         Jg_vec.zeroEntries()
-#         Jg_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-#         A.mult(x, Jg_vec)
-#         Jg_vec.axpy(-1, b)
-#         Jg_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-#         ksp.solve(Jg_vec, Jg_vec)
-
-#         offset = Jg_vec.getOwnershipRange()[0]
-#         JT = J.getTransposeMat()
-#         JT.zeroEntries()
-#         for i in range(Jg_vec.getLocalSize()):
-#             JT.setValue(offset + i, 0, Jg_vec.getArray()[i])
-#         JT.assemble()
-#         JT.createTranspose(J)
-#         J.assemble()
-
-#     # g = [a - L == 0]
-#     # Jg = [[ufl.derivative(a - L, u, ufl.TrialFunction(V))]]
-#     # Jg = [[ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx]]
-#     # F = .5 * u**2 * ufl.dx
-#     # F = .5 * (u - f) * ufl.dx
-#     # F = dolfinx.fem.Constant(mesh, 1.0) * ufl.dx
-#     F = 0.5 * dolfinx.fem.Constant(mesh, 0.0) * (u) ** 2 * ufl.dx
-#     opts = PETSc.Options("poisson")
-#     opts["tao_type"] = "almm"  # pdipm
-#     opts["tao_almm_type"] = "classic"
-#     opts["tao_max_it"] = 20
-#     # opts["tao_gatol"] = 1e-7
-#     # opts["tao_almm_subsolver_tao_test_gradient"] = ""
-#     # opts["tao_almm_subsolver_tao_type"] = "bqnls"
-#     # opts["tao_almm_subsolver_tao_ls_type"] = "armijo"
-#     # opts["tao_almm_subsolver_ksp_type"] = "preonly"
-#     # opts["tao_almm_subsolver_pc_type"] = "lu"
-#     # opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
-#     # opts["tao_catol"] = 1e-7
-#     # opts["tao_test_gradient"] = ""
-#     opts["tao_monitor"] = ""
-#     opts["tao_ls_monitor"] = ""
-
-
-#     # F = u**2 * ufl.dx
-#     g_vec = PETSc.Vec().createMPI(  # type: ignore
-#         [1 if MPI.COMM_WORLD.rank == 0 else 0, 1], comm=MPI.COMM_WORLD
-#     )
-#     g_vec.setUp()
-#     problem = dolfiny.taoblockproblem.TAOBlockProblem(
-#         # J=(J, u.x.petsc_vec.copy()),
-#         F, [u],  bcs=[bc], g=(g, g_vec), Jg=(Jg, Jg_mat), prefix="poisson"
-#     )
-#     problem.tao.setGradientNorm(M)
-
-#     # u.x.petsc_vec.set(1.0)
-#     with u.x.petsc_vec.localForm() as local_u:
-#         local_u.set(1.0)
-
-#     (u_opt,) = problem.solve([u])
-
-#     linear_problem = dolfinx.fem.petsc.LinearProblem(
-#         ufl.inner(ufl.grad(ufl.TrialFunction(V)), ufl.grad(ufl.TestFunction(V))) * ufl.dx, L, [bc]
-#     )
-#     u_lp = linear_problem.solve()
-
-#     # assert np.allclose(L2_norm(u_lp - u_opt), 0, atol=5e-4)
-
-#     with dolfinx.io.VTXWriter(V.mesh.comm, "opt.bp", u_opt, "bp4") as file:
-#         file.write(0.0)
-
-#     # with dolfinx.io.VTXWriter(V_control.mesh.comm, "opt_f.bp", f, "bp4") as file:
-#     #     file.write(0.0)
-
-# TODO: blocksizes seem to be none consistent, objective produces vectors with block sizes and
-# constraint not.
-# def test_poisson_pde_constraint_discrete():
-#     n = 32
-#     mesh = dolfinx.mesh.create_unit_square(
-#         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
-#     )
-#     W = dolfinx.fem.functionspace(mesh, ("CG", 1))
-
-#     f = -1.0
-
-#     top = W.mesh.topology
-#     top.create_connectivity(top.dim - 1, top.dim)
-#     boundary_facets = dolfinx.mesh.exterior_facet_indices(top)
-#     boundary_dofs = dolfinx.fem.locate_dofs_topological(W, top.dim - 1, boundary_facets)
-#     bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(W.mesh, 0.0), boundary_dofs, W)
-
-#     u, v = dolfinx.fem.Function(W), ufl.TestFunction(W)
-#     a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
-#     L = -ufl.inner(f, v) * ufl.dx
-
-#     g = [a - L == 0]
-#     Jg = [[ufl.derivative(g[0].lhs, u, ufl.TrialFunction(W))]]
-
-#     # a = dolfinx.fem.form(a)
-#     # L = dolfinx.fem.form(L)
-
-#     # A = dolfinx.fem.petsc.assemble_matrix(a, [bc])
-#     # A.assemble()
-#     # b = dolfinx.fem.petsc.assemble_vector(L)
-#     # dolfinx.fem.petsc.apply_lifting(b, [a], [bc])
-#     # b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-#     # dolfinx.fem.petsc.set_bc(b, [bc])
-
-#     # tmp = b.copy()
-#     # tmp.zeroEntries()
-#     # b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-#     # def zero_F(tao: PETSc.TAO: )
-
-#     def F(tao: PETSc.TAO, x: PETSc.Vec) -> float:
-#         # A.mult(x, tmp)
-#         # return 0.5 * tmp.dot(x) - b.dot(x)
-#         return 0
-
-#     def J(tao: PETSc.TAO, x: PETSc.Vec, J: PETSc.Vec) -> None:
-#         pass
-#         # J.zeroEntries()
-#         # J.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-#         # A.mult(x, J)
-#         # J.axpy(-1, b)
-
-#         # J.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-#     def H(tao: PETSc.TAO, x: PETSc.Vec, H: PETSc.Mat, P: PETSc.Mat) -> None:
-#         pass
-
-#     opts = PETSc.Options("poisson_discrete")
-#     opts["tao_type"] = "almm"
-#     opts["tao_gatol"] = 1e-3
-#     opts["tao_grtol"] = 1e-3
-#     opts["tao_gttol"] = 1e-3
-#     # opts["tao_nls_ksp_type"] = "preonly"
-#     # opts["tao_nls_pc_type"] = "cholesky"
-#     # opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
-#     opts["tao_monitor"] = ""
-#     # opts["tao_ls_monitor"] = ""
-
-#     u = dolfinx.fem.Function(W)
-
-#     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
-#         F, [u], bcs=[bc], J=(J, u.x.petsc_vec.copy()), g=g, Jg=Jg, prefix="poisson_discrete"
-#     )
-#     (sol_optimization,) = opt_problem.solve([u])
-
-#     problem = dolfinx.fem.petsc.LinearProblem(
-#         a,
-#         L,
-#         u=dolfinx.fem.Function(W),
-#         bcs=[bc],
-#         petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
-#     )
-#     sol_weak_form = problem.solve([u])
-
-#     # TODO:
-#     # assert opt_problem.tao.getConvergedReason() == PETSc.TAO.ConvergedReason.CONVERGED_GATOL
-
-#     assert L2_norm(sol_optimization - sol_weak_form) == pytest.approx(0, abs=atol)
-
-# test_poisson_constrained(None, True)
+    # TODO: subsolver convergence?

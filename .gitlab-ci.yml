@@ -31,8 +31,8 @@ mypy:
    image: dolfinx/dolfinx:nightly
    script:
       - pip install .[typing]
-      # - mypy -p dolfiny
-      # - mypy test/ demo/
+      - mypy -p dolfiny
+      - mypy test/ demo/
 
 image build:
    stage: image
