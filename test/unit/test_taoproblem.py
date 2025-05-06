@@ -593,10 +593,11 @@ def test_optimal_control_reduced():
     #     file.write(0.0)
 
 
-# TODO: autodiff
-
-
-# TODO: very unstable at the moment + huge number of iterations necessary -> fine tune
+# TODO: check release aligns with bugfix of https://gitlab.com/petsc/petsc/-/issues/1757
+@pytest.mark.skipif(
+    (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 2),
+    reason="Missing PETSc bug fix",
+)
 def test_poisson_pde_as_constraint():
     n = 32
     mesh = dolfinx.mesh.create_unit_square(
@@ -612,8 +613,7 @@ def test_poisson_pde_as_constraint():
     bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(V.mesh, 0.0), boundary_dofs, V)
 
     u = dolfinx.fem.Function(V, name="u")
-    # u.x.petsc_vec.set(1.0)
-    # bc.set(u.x.array)
+
     f = -1
 
     a = ufl.inner(ufl.grad(u), ufl.grad(ufl.TestFunction(V))) * ufl.dx
@@ -622,48 +622,23 @@ def test_poisson_pde_as_constraint():
 
     g = [a - L == 0]
     Jg = [[ufl.derivative(a - L, u, ufl.TrialFunction(V))]]
-    # Jg = [[ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx]]
-    # F = .5 * u**2 * ufl.dx
-    # F = .5 * (u - f) * ufl.dx
-    # F = dolfinx.fem.Constant(mesh, 1.0) * ufl.dx
+
     F = 0.5 * dolfinx.fem.Constant(mesh, 0.0) * (u) ** 2 * ufl.dx
     opts = PETSc.Options("poisson_pde_constraint")
     opts["tao_type"] = "almm"  # pdipm
-    # opts["tao_max_it"] = 2
-    opts["tao_gatol"] = 1e-4
-    opts["tao_grtol"] = 1e-4
-    opts["tao_catol"] = 1e-4
-    opts["tao_crtol"] = 1e-4
-    # opts["tao_almm_subsolver_tao_test_gradient"] = ""
-    # opts["tao_almm_subsolver_tao_type"] = "blmvm"
-    opts["tao_almm_subsolver_tao_gatol"] = 1e-3
-    opts["tao_almm_subsolver_tao_grtol"] = 1e-3
-    # opts["tao_almm_subsolve_tao_blmvm_mat_lmvm_J0_ksp_type"] = "preonly"
-    # opts["tao_almm_subsolve_tao_blmvm_mat_lmvm_J0_pc_type"] = "mumps"
-    # opts["tao_almm_subsolver_view"] = ""
-    # opts["tao_almm_subsolver_tao_ls_type"] = "unit"
-    opts["tao_almm_mu_init"] = 2  # penalty
-    opts["tao_almm_mu_factor"] = 2
+    opts["tao_gatol"] = 1e-6
+    opts["tao_grtol"] = 1e-6
+    opts["tao_catol"] = 1e-6
+    opts["tao_crtol"] = 1e-6
     opts["tao_almm_subsolver_ksp_type"] = "preonly"
     opts["tao_almm_subsolver_pc_type"] = "lu"
     opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
-    # opts["tao_test_gradient"] = ""
-    # opts["tao_almm_subsolver_tao_test_gradient"] = ""
     # opts["tao_monitor"] = ""
     # opts["tao_ls_monitor"] = ""
 
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
         F, [u], bcs=[bc], g=g, Jg=Jg, prefix="poisson_pde_constraint"
     )
-
-    # See https://petsc.org/main/src/tao/tutorials/ex3.c.html
-    # m = ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx
-    # m = dolfinx.fem.form(m)
-    # M = dolfinx.fem.petsc.assemble_matrix(m)
-    # M.assemble()
-    # problem.tao.getALMMSubsolver().setLMVMH0(M)
-    # problem.tao.getALMMSubsolver().setGradientNorm(M)
-    # problem.tao.setGradientNorm(M)
 
     (u_opt,) = opt_problem.solve([u])
 
@@ -672,11 +647,11 @@ def test_poisson_pde_as_constraint():
     )
     u_lp = linear_problem.solve()
 
-    assert np.allclose(L2_norm(u_lp - u_opt), 0, atol=1e-3)
+    assert np.allclose(L2_norm(u_lp - u_opt), 0, atol=1e-4)
     assert opt_problem.tao.getConvergedReason() > 0
+
     # with dolfinx.io.VTXWriter(V.mesh.comm, "opt.bp", u, "bp4") as file:
     #     file.write(0.0)
-
     # with dolfinx.io.VTXWriter(V_control.mesh.comm, "opt_f.bp", f, "bp4") as file:
     #     file.write(0.0)
 
