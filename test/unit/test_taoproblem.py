@@ -598,7 +598,8 @@ def test_optimal_control_reduced():
     (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 2),
     reason="Missing PETSc bug fix",
 )
-def test_poisson_pde_as_constraint():
+@pytest.mark.parametrize("almm_type", [PETSc.TAO.ALMMType.PHR])  # TODO: PETSc.TAO.ALMMType.CLASSIC
+def test_poisson_pde_as_constraint(almm_type):
     n = 32
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
@@ -626,6 +627,7 @@ def test_poisson_pde_as_constraint():
     F = 0.5 * dolfinx.fem.Constant(mesh, 0.0) * (u) ** 2 * ufl.dx
     opts = PETSc.Options("poisson_pde_constraint")
     opts["tao_type"] = "almm"  # pdipm
+    opts["tao_almm_type"] = "classic" if almm_type == PETSc.TAO.ALMMType.CLASSIC else "phr"
     opts["tao_gatol"] = 1e-6
     opts["tao_grtol"] = 1e-6
     opts["tao_catol"] = 1e-6
@@ -647,6 +649,7 @@ def test_poisson_pde_as_constraint():
     )
     u_lp = linear_problem.solve()
 
+    # TODO: subsolver convergence?
     assert np.allclose(L2_norm(u_lp - u_opt), 0, atol=1e-4)
     assert opt_problem.tao.getConvergedReason() > 0
 
