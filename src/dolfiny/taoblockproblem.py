@@ -269,7 +269,7 @@ class TAOBlockProblem:
 
         @link_state(u)
         def _Jg_callback(tao, x, J, P) -> None:
-            assert len(Jg) == 1  # TODO!
+            # assert len(Jg) == 1  # TODO!
 
             if Jg[0][0].rank == 2:
                 J.zeroEntries()
