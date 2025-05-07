@@ -131,8 +131,22 @@ def test_poisson_discrete(n, order, atol, element):
     #     file.write(0.0)
 
 
-@pytest.mark.parametrize("autodiff", [True])
-def test_poisson(autodiff: bool):
+# TODO: verify patch date aligns with https://gitlab.com/petsc/petsc/-/merge_requests/8386
+@pytest.mark.parametrize("autodiff", [True, False])
+@pytest.mark.parametrize(
+    "order",
+    [
+        pytest.param(
+            1,
+            marks=pytest.mark.skipif(
+                (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 2),
+                reason="Missing PETSc exports",
+            ),
+        ),
+        2,
+    ],
+)
+def test_poisson(autodiff: bool, order: int):
     n = 32
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
@@ -154,27 +168,30 @@ def test_poisson(autodiff: bool):
 
     opts = PETSc.Options("poisson")
     opts["info"] = ""
-    opts["tao_type"] = "bqnkls"
-    opts["tao_recycle"]= ""
-    opts["tao_gatol"] = 1e-8
+    opts["tao_type"] = "bqnls" if order == 1 else "nls"
+    opts["tao_recycle"] = ""
+    opts["tao_gatol"] = 1e-10
     opts["tao_monitor"] = ""
     opts["tao_max_it"] = 1000
     opts["tao_ls_monitor"] = ""
+    opts["tao_monitor"] = ""
 
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
         F, [u], bcs=[bc], J=J, H=H, prefix="poisson"
     )
-    V = W
-    mass = dolfinx.fem.form(ufl.TrialFunction(V) * ufl.TestFunction(V) * ufl.dx)
-    M = dolfinx.fem.petsc.assemble_matrix(mass, bcs=[bc], diag=1)
-    M.assemble()
 
-    opt_problem.tao.getLMVMMat().setLMVMJ0(M)
-    opt_problem.tao.setGradientNorm(M)
+    if order == 1:
+        mass = dolfinx.fem.form(ufl.TrialFunction(W) * ufl.TestFunction(W) * ufl.dx)
+        M = dolfinx.fem.petsc.assemble_matrix(mass, bcs=[bc], diag=1)
+        M.assemble()
+
+        opt_problem.tao.getLMVMMat().setLMVMJ0(M)
+        opt_problem.tao.setGradientNorm(M)
 
     (sol_optimization,) = opt_problem.solve()
 
     # TODO: if derivative stay consistent: two derivatives no replace.
+    # weak_form = ufl.derivative(ufl.derivative(F, u, ufl.TestFunction(W)), u, ufl.TrialFunction(W))
     weak_form = ufl.replace(ufl.derivative(F, u, ufl.TestFunction(W)), {u: ufl.TrialFunction(W)})
     a, L = ufl.lhs(weak_form), ufl.rhs(weak_form)
 
@@ -184,8 +201,10 @@ def test_poisson(autodiff: bool):
     sol_weak_form = problem.solve()
 
     assert np.allclose(L2_norm(sol_optimization - sol_weak_form), 0)
-    # assert opt_problem.tao.getIterationNumber() == 1
     assert opt_problem.tao.getConvergedReason() > 0
+    if order == 2:
+        # TODO: currently takes 2?
+        assert opt_problem.tao.getIterationNumber() == 2
 
     # with dolfinx.io.VTXWriter(W.mesh.comm, "opt.bp", u, "bp4") as file:
     #     file.write(0.0)
