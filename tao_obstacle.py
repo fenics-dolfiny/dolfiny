@@ -1,9 +1,32 @@
+# %% [markdown]
+# # Obstacle problem
+# This demo showcases how to solve obstacle problems with PETSc TAO's optimziation algorithms
+# with the Dolfiny 🐬 interface.
+# Both linear and non-linear formulations are demonstrated.
+
+# ## Obstacle problems
+# Let us take a surface $\mathcal{F} \subset \mathbb{R}^3$ which is parametrized by a regular
+# paramatetrization $\Psi$ over $B \subset \mathbb{R}^2$, i.e. $\mathcal{F} = \Psi(B)$.
+# The *suface area* of $\mathcal{F}$ is then given by
+# $$
+#   \int_\mathcal{F} 1 \, \text{d} x
+#   = \int_{\Psi(B)} 1 \, \text{d} x
+#   = \int_{B} | \det ( D\Psi(x) ) | \, \text{d} x
+#   = \int_{B} \left| \frac{\partial \Psi}{\partial x} \times \frac{\partial \Psi}{\partial y} \right| \, \text{d} x.
+# $$
+# Let us now choose the coordinates $\Psi_1 = (x, y, g(x, y))$ and $\Psi_2 = (x, y, )$ TODO: continue
+#
+# ## Minimizing Dirichlet Energy
+# TODO: another option where obstacle problems show up naturely
+# %%
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
+import dolfinx.fem.petsc
 import ufl
 from dolfinx import fem, io, mesh
-import dolfinx.fem.petsc
+
 import numpy as np
 
 # import dolfiny
@@ -43,11 +66,12 @@ F = fem.form(F)
 JF = fem.form(JF)
 HF = fem.form(HF)
 
+
 def assemble_F(tao, x) -> float:
     # x.copy(u.x.petsc_vec)
     # x.assemble()
     # TODO: copying here directyl the petsc level data structures does not work, why?
-    u.x.array[:] = x.getArray(readonly=True)[:] # = x.copy()
+    u.x.array[:] = x.getArray(readonly=True)[:]  # = x.copy()
     # print(x == u.x.petsc_vec)
 
     print(f"norm u: {u.x.petsc_vec.norm()}")
@@ -56,7 +80,6 @@ def assemble_F(tao, x) -> float:
     # offset += size_local
     # u[i].x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT,
     #                                 mode=PETSc.ScatterMode.FORWARD)
-
 
     # dolfiny.function.vec_to_functions(x, [u])
     return fem.assemble_scalar(F)
@@ -79,6 +102,7 @@ def assemble_JF(tao, x, J):
     print(f"norm J: {J.norm()}")
     # J.assemble()
 
+
 def assemble_HF(tao, x, H, P):
     u.x.array[:] = x.getArray(readonly=True)[:]
 
@@ -91,6 +115,7 @@ def assemble_HF(tao, x, H, P):
     if P != H:
         P.assign(H)
 
+
 # ineq constraint u >= h
 x = ufl.SpatialCoordinate(msh)
 h = ufl.conditional((x[0] - 0.5) ** 2 + (x[1] - 0.5) ** 2 <= 0.2**2, 1, 0)
@@ -101,9 +126,10 @@ Jh = PETSc.Mat().createAIJ([u.x.array.size, u.x.array.size])
 Jh.setUp()
 for i in range(u.x.array.size):
     Jh.setValue(i, i, 1.0)
-Jh.assemblyBegin() # Assembling the matrix makes it "useable".
+Jh.assemblyBegin()  # Assembling the matrix makes it "useable".
 Jh.assemblyEnd()
 # Jh.transpose()
+
 
 # print(u.x.petsc_vec.getLocalSize())
 # print(u.x.petsc_vec.getSize())
@@ -120,6 +146,7 @@ def assemble_h(tao, x, c):
     c.aypx(-1, interpolation_h.x.petsc_vec)
     # c.assemble()
 
+
 def assemble_Jh(tao, x, J, P):
     # print(f"assemble_Jh J size: {J.getSize()} (row x col)")
     # print(f"assemble_Jh P size: {P.getSize()} (row x col")
@@ -127,6 +154,7 @@ def assemble_Jh(tao, x, J, P):
     if J != P:
         P.assign(J)
     print(f"Jh: {J.norm()}")
+
 
 opts = PETSc.Options()
 # opts.setValue("tao_type", "almm")
@@ -186,3 +214,5 @@ with io.XDMFFile(msh.comm, "out_obstacle/data.xdmf", "w") as file:
 
     file.write_function(interpolation_h)
     file.write_function(u)
+
+# %%
