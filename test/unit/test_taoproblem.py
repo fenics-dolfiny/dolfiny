@@ -679,6 +679,11 @@ def test_optimal_control_full_space(almm_type):
     opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
         F, [u, f], bcs=[bc], g=g, Jg=Jg, prefix="optimal_control_full_space"
     )
+    # mass = dolfinx.fem.form([[ufl.TrialFunction(V_state) * ufl.TestFunction(V_state) * ufl.dx, None], [None, ufl.TrialFunction(V_control) * ufl.TestFunction(V_control) * ufl.dx]])
+    # M = dolfinx.fem.petsc.assemble_matrix(mass, bcs=[bc], diag=1)
+    # M.assemble()
+    # opt_problem.tao.getALMMSubsolver().getLMVMMat().setLMVMJ0(M)
+    # opt_problem.tao.getALMMSubsolver().setGradientNorm(M)
     (u, f) = opt_problem.solve([u, f])
 
     x = ufl.SpatialCoordinate(mesh)
