@@ -4,6 +4,7 @@ from mpi4py import MPI
 from petsc4py import PETSc
 from petsc4py.typing import (
     TAOConstraintsFunction,
+    TAOConstraintsJacobianFunction,
     TAOHessianFunction,
     TAOJacobianFunction,
     TAOObjectiveFunction,
@@ -17,9 +18,6 @@ import ufl
 import dolfiny
 import dolfiny.inequality
 from dolfiny.function import functions_to_vec, vec_to_functions
-
-# replace after: https://gitlab.com/petsc/petsc/-/merge_requests/8342 is merged
-TAOConstraintsJacobianFunction = Callable[[PETSc.TAO, PETSc.Vec, PETSc.Mat, PETSc.Mat], None]  # type: ignore
 
 
 # TODO: improve naming, especially for PDE constrained state implies something incorrect here
