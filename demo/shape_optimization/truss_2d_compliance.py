@@ -81,21 +81,19 @@ E = dolfinx.fem.Constant(mesh, 200e3)
 # S = dolfinx.fem.Constant(mesh, 1.0)
 S = dolfinx.fem.Function(Vs, name="Cross-section area")
 S.x.array[:] = 1.0
-S.x.array[:] = np.random.default_rng(seed=42).random(S.x.array.size)
+# S.x.array[:] = np.random.default_rng(seed=42).random(S.x.array.size)
 
-
-def strain(u):
-    return ufl.dot(ufl.dot(ufl.grad(u), t_ufl), t_ufl)
-
-
-def normal_force(u):
-    return E * S * strain(u)
-
-
-a_form = dolfinx.fem.form(ufl.inner(normal_force(du), strain(u_)) * ufl.dx)
+ε = ufl.dot(ufl.dot(ufl.grad(u), t_ufl), t_ufl)  # strain
+N = E * S * ε  # normal_force
 
 F0 = dolfinx.fem.Constant(mesh, np.zeros(2))
-L_form = dolfinx.fem.form(ufl.dot(F0, u_) * ufl.dx)
+J = 1 / 2 * ufl.inner(N, ε) * ufl.dx - ufl.inner(F0, u) * ufl.dx
+
+R = ufl.derivative(J, u, ufl.TestFunction(V))
+R = ufl.replace(R, {u: ufl.TrialFunction(V)})
+a, L = ufl.lhs(R), ufl.rhs(R)
+a_form = dolfinx.fem.form(a)
+L_form = dolfinx.fem.form(L)
 
 A = dolfinx.fem.petsc.assemble_matrix(a_form, bcs=bcs)
 A.assemble()
@@ -112,7 +110,7 @@ solver.solve(b, u.x.petsc_vec)
 u.x.scatter_forward()
 
 V0 = dolfinx.fem.functionspace(mesh, ("DG", 0))
-N_exp = dolfinx.fem.Expression(normal_force(u), V0.element.interpolation_points)
+N_exp = dolfinx.fem.Expression(N, V0.element.interpolation_points)
 N = dolfinx.fem.Function(V0, name="Normal_force")
 N.interpolate(N_exp)
 
@@ -127,7 +125,7 @@ u_3D[:, :2] = u.x.array.reshape(-1, 2)
 # )
 grid.point_data["Deflection"] = u_3D
 grid.cell_data[S.name] = S.x.array
-plotter.add_mesh(grid, show_edges=True, color="black", opacity=0.5)  # render_lines_as_tubes=True
+plotter.add_mesh(grid, show_edges=True, color="black", opacity=1.0)  # render_lines_as_tubes=True
 
 warped = grid.warp_by_vector("Deflection", factor=2000.0)
 
@@ -139,12 +137,13 @@ plotter.add_mesh(
     # line_width=5.0, # TODO: bug!
     clim=[0, 1],
     scalar_bar_args={"vertical": False},  # TODO: overlapping after zoom
+    opacity=0.7,
 )
 
 for point in mesh.geometry.x[fixed_vertices]:
     circle = pv.Circle(radius=0.2 / n)
     circle = circle.translate(point)
-    plotter.add_mesh(circle, color="red", opacity=0.7)
+    plotter.add_mesh(circle, color="red", opacity=1.0)
 
 
 # TODO: warp vector start
