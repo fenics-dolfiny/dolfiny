@@ -42,7 +42,7 @@ def create_truss_x_bracing_mesh(mesh: dolfinx.mesh.Mesh) -> dolfinx.mesh.Mesh:
     return dolfinx.mesh.create_mesh(MPI.COMM_WORLD, new_cells, new_x, element)
 
 
-n = 10
+n = 10  # 5
 mesh = dolfinx.mesh.create_rectangle(
     MPI.COMM_WORLD,
     [[0, 0], [2, 1]],
@@ -120,7 +120,6 @@ def C(tao, x) -> float:
     A.assemble()
 
     state_solver.solve(b, u.x.petsc_vec)
-    print(f.dot(u.x.petsc_vec))
     return f.dot(u.x.petsc_vec)
 
 
@@ -147,8 +146,8 @@ def JC(tao, x, J):
     dolfinx.fem.petsc.assemble_vector(J, gx)
 
 
-g = [S * ufl.dx <= 50]
-Jg = [[ufl.TrialFunction(Vs) * ufl.dx]]
+g = [S * ufl.dx <= 50]  # 25
+Jg = [[ufl.TestFunction(Vs) * ufl.dx]]
 # S.x.array[:] = 1
 
 # print(dolfinx.fem.assemble_scalar(dolfinx.fem.form(g[0].lhs)))
@@ -157,9 +156,12 @@ Jg = [[ufl.TrialFunction(Vs) * ufl.dx]]
 
 opts = PETSc.Options("truss")
 opts["tao_type"] = "almm"
+opts["tao_almm_type"] = "classic"
 opts["tao_almm_subsolver_tao_monitor"] = ""
 opts["tao_monitor"] = ""
 opts["tao_grtol"] = 0.0
+opts["tao_gatol"] = 1e-6
+opts["tao_catol"] = 1e-3
 problem = dolfiny.taoblockproblem.TAOBlockProblem(
     C, [S], bcs=bcs, J=(JC, S.x.petsc_vec.copy()), h=g, Jh=Jg, prefix="truss"
 )
@@ -182,7 +184,7 @@ dolfinx.fem.petsc.assemble_matrix(A, a_form, bcs)
 A.assemble()
 
 state_solver.solve(b, u.x.petsc_vec)
-# print(dolfinx.fem.assemble_scalar(dolfinx.fem.form(g[0].lhs)))
+print(dolfinx.fem.assemble_scalar(dolfinx.fem.form(g[0].lhs)))
 # exit()
 
 V0 = dolfinx.fem.functionspace(mesh, ("DG", 0))
@@ -201,7 +203,7 @@ u_3D[:, :2] = u.x.array.reshape(-1, 2)
 # )
 grid.point_data["Deflection"] = u_3D
 grid.cell_data[S.name] = S.x.array
-plotter.add_mesh(grid, show_edges=True, color="black", opacity=1.0)  # render_lines_as_tubes=True
+plotter.add_mesh(grid, show_edges=True, color="black", opacity=0.0)  # render_lines_as_tubes=True
 
 warped = grid.warp_by_vector("Deflection", factor=2000.0)
 
