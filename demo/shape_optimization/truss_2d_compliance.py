@@ -37,13 +37,36 @@ def create_truss_x_bracing_mesh(mesh: dolfinx.mesh.Mesh) -> dolfinx.mesh.Mesh:
     return dolfinx.mesh.create_mesh(MPI.COMM_WORLD, new_cells, new_x, element)
 
 
-mesh = dolfinx.mesh.create_unit_square(
-    MPI.COMM_WORLD, 2, 2, cell_type=dolfinx.mesh.CellType.quadrilateral
+n = 10
+mesh = dolfinx.mesh.create_rectangle(
+    MPI.COMM_WORLD,
+    [[0, 0], [2, 1]],
+    n * np.array([2, 1]),
+    cell_type=dolfinx.mesh.CellType.quadrilateral,
 )
 mesh = create_truss_x_bracing_mesh(mesh)
 
+fixed_vertices = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], 0))
+load_vertex = dolfinx.mesh.locate_entities(
+    mesh, 0, lambda x: np.isclose(x[0], 2) & np.isclose(x[1], 0)
+)
+
 grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
 plotter = pv.Plotter()
-plotter.add_mesh(grid, show_edges=True, color="lightblue")  # render_lines_as_tubes=True
+
+plotter.add_mesh(grid, show_edges=True, color="black")  # render_lines_as_tubes=True
+
+for point in mesh.geometry.x[fixed_vertices]:
+    circle = pv.Circle(radius=0.2 / n)
+    circle = circle.translate(point)
+    plotter.add_mesh(circle, color="red", opacity=0.7)
+
+
+load = pv.Arrow(
+    start=mesh.geometry.x[load_vertex], direction=(0, -1, 0), scale=2 / n
+)  # TODO use f later
+plotter.add_mesh(load, color="green")
+
 plotter.add_axes()
+plotter.view_xy()
 plotter.show()
