@@ -9,6 +9,9 @@ import ufl
 import numpy as np
 import pyvista as pv
 
+import dolfiny
+import dolfiny.taoblockproblem
+
 if MPI.COMM_WORLD.size > 1:
     raise RuntimeError("Parallelization not supported.")
 
@@ -62,9 +65,7 @@ t_ufl = dx_dX / ufl.sqrt(ufl.inner(dx_dX, dx_dX))
 t = dolfinx.fem.Function(Vv, name="Tangent_vector")
 t.interpolate(dolfinx.fem.Expression(t_ufl, Vv.element.interpolation_points))
 
-# To apply point loads on the truss nodes, it will be more convenient to define a piecewise linear function `F` and set the corresponding degrees of freedom with the corresponding nodal forces. In this case, we apply vertical downwards concentrated forces of intensity 1 on the bottom nodes which we retrieve from the facet tag `1`. We also retrieve the left and right dofs for applying Dirichlet boundary conditions
 
-# +
 F = dolfinx.fem.Function(V)
 mesh.topology.create_connectivity(0, 1)
 load_dofs = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, load_vertex)
@@ -73,41 +74,116 @@ F.x.array[load_dofs] = -1
 dofs_fixed = dolfinx.fem.locate_dofs_topological(V, 0, fixed_vertices)
 bcs = [dolfinx.fem.dirichletbc(np.zeros(2), dofs_fixed, V)]
 
-du = ufl.TrialFunction(V)
-u_ = ufl.TestFunction(V)
+
 u = dolfinx.fem.Function(V, name="Displacement")
 
 E = dolfinx.fem.Constant(mesh, 200e3)
 # S = dolfinx.fem.Constant(mesh, 1.0)
 S = dolfinx.fem.Function(Vs, name="Cross-section area")
-S.x.array[:] = 1.0
+S.x.array[:] = 0.5
 # S.x.array[:] = np.random.default_rng(seed=42).random(S.x.array.size)
 
 ε = ufl.dot(ufl.dot(ufl.grad(u), t_ufl), t_ufl)  # strain
 N = E * S * ε  # normal_force
 
-F0 = dolfinx.fem.Constant(mesh, np.zeros(2))
-J = 1 / 2 * ufl.inner(N, ε) * ufl.dx - ufl.inner(F0, u) * ufl.dx
+# F0 = dolfinx.fem.Constant(mesh, np.zeros(2))
+J = 1 / 2 * ufl.inner(N, ε) * ufl.dx  #  - ufl.inner(F, u) * ufl.dx
 
 R = ufl.derivative(J, u, ufl.TestFunction(V))
 R = ufl.replace(R, {u: ufl.TrialFunction(V)})
 a, L = ufl.lhs(R), ufl.rhs(R)
 a_form = dolfinx.fem.form(a)
-L_form = dolfinx.fem.form(L)
+# L_form = dolfinx.fem.form(L)
+
+f = u.x.petsc_vec.copy()
+f[load_dofs] = -1
+f.assemble()
+
 
 A = dolfinx.fem.petsc.assemble_matrix(a_form, bcs=bcs)
 A.assemble()
-b = dolfinx.fem.petsc.create_vector(L_form)
 
-b.array[:] = F.x.array[:]
+state_solver = PETSc.KSP().create(mesh.comm)
+state_solver.setOperators(A)
+state_solver.setType(PETSc.KSP.Type.PREONLY)
+state_solver.getPC().setType(PETSc.PC.Type.LU)
 
-solver = PETSc.KSP().create(mesh.comm)
-solver.setOperators(A)
-solver.setType(PETSc.KSP.Type.PREONLY)
-solver.getPC().setType(PETSc.PC.Type.LU)
+b = u.x.petsc_vec.copy()
+b.zeroEntries()
+b[load_dofs] = -1
 
-solver.solve(b, u.x.petsc_vec)
-u.x.scatter_forward()
+
+@dolfiny.taoblockproblem.link_state(S)
+def C(tao, x) -> float:
+    A.zeroEntries()
+    dolfinx.fem.petsc.assemble_matrix(A, a_form, bcs)
+    A.assemble()
+
+    state_solver.solve(b, u.x.petsc_vec)
+    print(f.dot(u.x.petsc_vec))
+    return f.dot(u.x.petsc_vec)
+
+
+# gx = dolfinx.fem.form(ufl.derivative(a, S, ufl.TestFunction(Vs)))
+# p = -u
+p = dolfinx.fem.Function(V)
+gx = dolfinx.fem.form(ufl.derivative(ufl.action(ufl.derivative(J, u), p), S, ufl.TestFunction(Vs)))
+Gx = dolfinx.fem.assemble_vector(gx)
+
+
+@dolfiny.taoblockproblem.link_state(S)
+def JC(tao, x, J):
+    # state_solver.solve(b, u.x.petsc_vec) # TODO: remove?
+    A.zeroEntries()
+    dolfinx.fem.petsc.assemble_matrix(A, a_form, bcs)
+    A.assemble()
+
+    state_solver.solve(b, u.x.petsc_vec)
+
+    J.zeroEntries()
+    u.x.petsc_vec.copy(p.x.petsc_vec)
+    p.x.petsc_vec.scale(-1)
+
+    dolfinx.fem.petsc.assemble_vector(J, gx)
+
+
+g = [S * ufl.dx <= 50]
+Jg = [[ufl.TrialFunction(Vs) * ufl.dx]]
+# S.x.array[:] = 1
+
+# print(dolfinx.fem.assemble_scalar(dolfinx.fem.form(g[0].lhs)))
+# exit()
+
+
+opts = PETSc.Options("truss")
+opts["tao_type"] = "almm"
+opts["tao_almm_subsolver_tao_monitor"] = ""
+opts["tao_monitor"] = ""
+opts["tao_grtol"] = 0.0
+problem = dolfiny.taoblockproblem.TAOBlockProblem(
+    C, [S], bcs=bcs, J=(JC, S.x.petsc_vec.copy()), h=g, Jh=Jg, prefix="truss"
+)
+
+ub = dolfinx.fem.Function(Vs, name="upper_bound")
+ub.x.array[:] = 1
+# bc.set(ub.x.array, alpha=1)
+
+lb = dolfinx.fem.Function(Vs, name="lower_bound")
+lb.x.array[:] = 1e-1
+# bc.set(lb.x.array, alpha=1)
+
+# TODO: move into problem
+problem.tao.setVariableBounds(lb.x.petsc_vec, ub.x.petsc_vec)
+problem.solve([lb])
+
+
+A.zeroEntries()
+dolfinx.fem.petsc.assemble_matrix(A, a_form, bcs)
+A.assemble()
+
+state_solver.solve(b, u.x.petsc_vec)
+# print(dolfinx.fem.assemble_scalar(dolfinx.fem.form(g[0].lhs)))
+# exit()
 
 V0 = dolfinx.fem.functionspace(mesh, ("DG", 0))
 N_exp = dolfinx.fem.Expression(N, V0.element.interpolation_points)
