@@ -9,6 +9,7 @@ description = "High-level and convenience wrappers for DOLFINx, the FEniCS libra
 authors = [
       {name = "Andreas Zilian", email = "andreas.zilian@uni.lu"},
       {name = "Michal Habera", email = "michal.habera@gmail.com"},
+      {name = "Paul T. Kühner"},
 ]
 readme = "README.md"
 requires-python = ">=3.10.0"
