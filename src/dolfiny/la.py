@@ -26,7 +26,12 @@ def scipy_to_petsc(A):
     return mat
 
 
-def is_symmetric(A, rtol=1e-06, atol=1e-08):
+def is_symmetric(
+    A: PETSc.Mat,
+    rtol: float = 1e-06,
+    atol: float = 1e-08,
+    normtype: PETSc.NormType = PETSc.NormType.INFINITY,
+) -> bool:
     """Test for symmetry of operator A."""
 
     assert isinstance(A, PETSc.Mat)
@@ -37,12 +42,12 @@ def is_symmetric(A, rtol=1e-06, atol=1e-08):
         return True
     else:
         asymA = 0.5 * (A - PETSc.Mat().createTranspose(A))
-        norm_asymA = asymA.norm(2)
+        norm_asymA = asymA.norm(normtype)
         asymA.destroy()
 
         import dolfiny
 
         dolfiny.utils.pprint(f"absolute asymmetry measure = {norm_asymA:.3e}")
-        dolfiny.utils.pprint(f"relative asymmetry measure = {norm_asymA / A.norm(2):.3e}")
+        dolfiny.utils.pprint(f"relative asymmetry measure = {norm_asymA / A.norm(normtype):.3e}")
 
-        return norm_asymA < atol or norm_asymA / A.norm(2) < rtol
+        return norm_asymA < atol or norm_asymA / A.norm(normtype) < rtol
