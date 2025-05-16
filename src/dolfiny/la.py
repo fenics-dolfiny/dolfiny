@@ -26,12 +26,7 @@ def scipy_to_petsc(A):
     return mat
 
 
-def is_symmetric(
-    A,
-    rtol: float = 1e-06,
-    atol: float = 1e-08,
-    normtype=PETSc.NormType.INFINITY,
-) -> bool:
+def is_symmetric(A, rtol=1e-06, atol=1e-08, normtype=PETSc.NormType.INFINITY):
     """Test for symmetry of operator A."""
 
     assert isinstance(A, PETSc.Mat)
