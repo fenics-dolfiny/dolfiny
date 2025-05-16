@@ -27,10 +27,10 @@ def scipy_to_petsc(A):
 
 
 def is_symmetric(
-    A: PETSc.Mat,
+    A,
     rtol: float = 1e-06,
     atol: float = 1e-08,
-    normtype: PETSc.NormType = PETSc.NormType.INFINITY,
+    normtype=PETSc.NormType.INFINITY,
 ) -> bool:
     """Test for symmetry of operator A."""
 
