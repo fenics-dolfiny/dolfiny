@@ -66,8 +66,9 @@ Presentations about `dolfiny` functionality:
 
 # Authors
 
-- Michal Habera, Rafinex, Luxembourg.
-- Andreas Zilian, University of Luxembourg, Luxembourg.
+- Michal Habera, University of Luxembourg / Rafinex, Luxembourg
+- Paul T. Kühner, University of Luxembourg, Luxembourg
+- Andreas Zilian, University of Luxembourg, Luxembourg
 
 # Contributing
 
