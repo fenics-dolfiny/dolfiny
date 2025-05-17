@@ -22,3 +22,6 @@ dist
 .mypy_cache
 .pytest_cache
 .ruff_cache
+
+# book build
+book/_build

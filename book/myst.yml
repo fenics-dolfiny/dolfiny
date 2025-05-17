@@ -1,0 +1,16 @@
+# See docs at: https://mystmd.org/guide/frontmatter
+version: 1
+project:
+  id: e9fddbc8-1467-4c50-a56f-c7d663551eee
+  title: Dolfiny
+  # description:
+  # keywords: []
+  # authors: []
+  github: https://github.com/fenics-dolfiny/dolfiny
+  toc:
+    - file: index.md
+site:
+  template: book-theme
+  # options:
+  #   favicon: favicon.ico
+  #   logo: site_logo.png
