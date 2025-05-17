@@ -98,12 +98,11 @@ u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
 w_ = dolfinx.fem.Function(Wf, name="w_")
 r_ = dolfinx.fem.Function(Rf, name="r_")
 
-δu = ufl.TestFunction(Uf)
-δw = ufl.TestFunction(Wf)
-δr = ufl.TestFunction(Rf)
+W = ufl.MixedFunctionSpace(Uf, Wf, Rf)
+δu, δw, δr = δm = ufl.TestFunctions(W)
 
 # Define state as (ordered) list of functions
-m, δm = [u, w, r], [δu, δw, δr]
+m = [u, w, r]
 
 # GEOMETRY -------------------------------------------------------------------
 # Coordinates of undeformed configuration
@@ -172,9 +171,9 @@ def GRAD(u):
 κ = κ_elast = κ_total
 
 # Variation of elastic Green-Lagrange strains
-δε = dolfiny.expression.derivative(ε, m, δm)
-δγ = dolfiny.expression.derivative(γ, m, δm)
-δκ = dolfiny.expression.derivative(κ, m, δm)
+δε = ufl.derivative(ε, m, δm)
+δγ = ufl.derivative(γ, m, δm)
+δκ = ufl.derivative(κ, m, δm)
 
 # Stress resultants
 N = s(ε) * A
@@ -205,7 +204,7 @@ form = (
 # form = dolfiny.expression.linearise(form, m)  # linearise around zero state
 
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
