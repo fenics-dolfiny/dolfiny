@@ -246,3 +246,31 @@ demo/beltrami:
    script:
       - cd demo/beltrami 
       - mpirun -n 4 python3 solid_stressonly.py
+
+book/build:
+   stage: test
+   image: $CONTAINER_COMMIT_IMAGE-amd64
+   tags:
+      - saas-linux-large-amd64
+   script:
+      - apt-get update
+      - apt-get install -y nodejs npm
+      - pip install jupyter-book==v2.0.0-a3
+      - cd book
+      - jupyter book build --html
+   artifacts:
+    paths:
+      - book/_build/
+
+book/deploy:
+   stage: release
+   image: busybox:latest
+   script:
+      - mv book/_build/html public
+   artifacts:
+      paths:
+         - public
+   pages:
+      publish: public
+   rules:
+      - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
