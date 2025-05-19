@@ -177,8 +177,8 @@ def block_inner(a1, a2):
     for mi in m:
         b1.append(dolfinx.fem.Function(mi.function_space, name=mi.name))
         b2.append(dolfinx.fem.Function(mi.function_space, name=mi.name))
-    restrc.vec_to_functions(a1, b1)  # restriction handles transfer
-    restrc.vec_to_functions(a2, b2)
+    restrc.assign(a1, b1)  # restriction handles transfer
+    restrc.assign(a2, b2)
     inner = 0.0
     for b1i, b2i in zip(b1, b2):
         inner += dolfiny.expression.assemble(ufl.inner(b1i, b2i), ufl.dx(mesh))

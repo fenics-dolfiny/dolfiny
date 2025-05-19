@@ -3,13 +3,13 @@ from petsc4py import PETSc
 import basix
 import dolfinx
 import dolfinx.fem.forms
+import dolfinx.fem.petsc
 import ufl
 
 import numba
 import numpy as np
 
 import dolfiny
-from dolfiny.function import vec_to_functions
 
 c_signature = numba.types.void(
     numba.types.CPointer(numba.typeof(PETSc.ScalarType())),  # type: ignore[attr-defined]
@@ -144,9 +144,12 @@ def test_linear_elasticity(squaremesh_5):
         # problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         # dolfinx.fem.petsc.set_bc(problem.xloc, [], x0=problem.xloc, alpha=-1.0)
         problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-        vec_to_functions(
+        dolfinx.fem.petsc.assign(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
         )
+
+        for idx in problem.localsolver.local_spaces_id:
+            problem.u[idx].x.scatter_forward()
 
     cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
     exterior_facets = dict(
@@ -311,9 +314,12 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
         dolfinx.fem.petsc.assemble_vector(problem.xloc, problem.local_form)
         problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         dolfinx.fem.petsc.set_bc(problem.xloc, [], x0=problem.xloc, alpha=-1.0)
-        vec_to_functions(
+        dolfinx.fem.petsc.assign(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
         )
+
+        for idx in problem.localsolver.local_spaces_id:
+            problem.u[idx].x.scatter_forward()
 
     cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
     exterior_facets = dict(
@@ -479,9 +485,12 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
         # )
         # problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         # dolfinx.fem.petsc.set_bc(problem.xloc, [], x0=problem.xloc, alpha=-1.0)
-        vec_to_functions(
+        dolfinx.fem.petsc.assign(
             problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
         )
+
+        for idx in problem.localsolver.local_spaces_id:
+            problem.u[idx].x.scatter_forward()
 
     cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
     exterior_facets = dict(

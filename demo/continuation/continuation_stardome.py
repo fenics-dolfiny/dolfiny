@@ -5,6 +5,7 @@ from petsc4py import PETSc
 
 import basix
 import dolfinx
+import dolfinx.fem.petsc
 import ufl
 from dolfinx import default_scalar_type as scalar
 
@@ -156,8 +157,11 @@ def block_inner(a1, a2):
     for mi in m:
         b1.append(dolfinx.fem.Function(mi.function_space, name=mi.name))
         b2.append(dolfinx.fem.Function(mi.function_space, name=mi.name))
-    dolfiny.function.vec_to_functions(a1, b1)
-    dolfiny.function.vec_to_functions(a2, b2)
+    dolfinx.fem.petsc.assign(a1, b1)
+    dolfinx.fem.petsc.assign(a2, b2)
+
+    [b.x.scatter_forward() for b in b1 + b2]
+
     inner = 0.0
     for b1i, b2i in zip(b1, b2):
         inner += dolfiny.expression.assemble(ufl.inner(b1i, b2i), ufl.dx(mesh))

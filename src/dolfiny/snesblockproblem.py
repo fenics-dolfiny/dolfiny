@@ -5,11 +5,11 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 import dolfinx
+import dolfinx.fem.petsc
 import ufl
 
 import numpy as np
 
-from dolfiny.function import functions_to_vec, vec_to_functions
 from dolfiny.localsolver import LocalSolver
 from dolfiny.utils import attributes_to_dict, pprint, prefixify
 
@@ -197,10 +197,13 @@ class SNESBlockProblem:
         """Update solution functions from the stored vector x"""
 
         if self.restriction is not None:
-            self.restriction.vec_to_functions(x, [self.u[idx] for idx in self.global_spaces_id])
-            functions_to_vec([self.u[idx] for idx in self.global_spaces_id], self.x)
+            self.restriction.assign(x, [self.u[idx] for idx in self.global_spaces_id])
+            dolfinx.fem.petsc.assign([self.u[idx] for idx in self.global_spaces_id], self.x)
         else:
-            vec_to_functions(x, [self.u[idx] for idx in self.global_spaces_id])
+            dolfinx.fem.petsc.assign(x, [self.u[idx] for idx in self.global_spaces_id])
+
+            for idx in self.global_spaces_id:
+                self.u[idx].x.scatter_forward()
 
             x.copy(self.x)
             self.x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
@@ -242,7 +245,8 @@ class SNESBlockProblem:
             self.F.copy(F)
 
     def _F_nest(self, snes, x, F):
-        vec_to_functions(x, self.u)
+        dolfinx.fem.petsc.assign(x, self.u)
+        [u.x.scatter_forward() for u in self.u]
         x = x.getNestSubVecs()
 
         bcs1 = dolfinx.fem.bcs.bcs_by_block(
@@ -470,26 +474,31 @@ class SNESBlockProblem:
 
     def solve(self, u_init=None):
         if u_init is not None:
-            functions_to_vec(u_init, self.x0)
+            dolfinx.fem.petsc.assign(u_init, self.x0)
+            self.x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         self.snes.getKSP().setMonitor(self._monitor_ksp)
 
         if self.restriction is not None:
             self.snes.solve(None, self.rx)
-            self.restriction.vec_to_functions(
-                self.rx, [self.solution[idx] for idx in self.global_spaces_id]
-            )
+            self.restriction.assign(self.rx, [self.solution[idx] for idx in self.global_spaces_id])
         else:
             self.snes.solve(None, self.x0)
-            vec_to_functions(self.x0, [self.solution[idx] for idx in self.global_spaces_id])
+            dolfinx.fem.petsc.assign(self.x0, [self.solution[idx] for idx in self.global_spaces_id])
+
+            for idx in self.global_spaces_id:
+                self.solution[idx].x.scatter_forward()
 
         if self.localsolver is not None:
             with self.snes.getSolutionUpdate().localForm() as dx_local:
                 dx_local.set(0.0)  # converged solution (fix for single step solves)
             self.localsolver.local_update(self)  # ensure final local update
-            vec_to_functions(
+            dolfinx.fem.petsc.assign(
                 self.xloc, [self.solution[idx] for idx in self.localsolver.local_spaces_id]
             )
+
+            for idx in self.localsolver.local_spaces_id:
+                self.solution[idx].x.scatter_forward()
 
         self.snes.getKSP().cancelMonitor()
 

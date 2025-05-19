@@ -5,6 +5,7 @@ from petsc4py import PETSc
 
 import basix
 import dolfinx
+import dolfinx.fem.petsc
 import ufl
 
 import mesh_notched
@@ -257,25 +258,22 @@ def local_update(problem):
     with problem.xloc.localForm() as x_local:
         x_local.set(0.0)
 
-    dolfiny.function.vec_to_functions(
+    dolfinx.fem.petsc.assign(
         problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
     )
 
+    for idx in problem.localsolver.local_spaces_id:
+        problem.u[idx].x.scatter_forward()
+
     # Assemble into local vector and scatter to functions
     dolfinx.fem.petsc.assemble_vector(problem.xloc, problem.local_form)
-    # No bcs, so no lifting/set_bc necessary
-    # dolfinx.fem.petsc.assemble_vector_block(
-    #     problem.xloc,
-    #     problem.local_form,
-    #     [[problem.J_form[0][0] for i in range(2)] for i in range(2)],
-    #     [],
-    #     x0=problem.xloc,
-    #     alpha=-1.0,
-    # )
     problem.xloc.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-    dolfiny.function.vec_to_functions(
+    dolfinx.fem.petsc.assign(
         problem.xloc, [problem.u[idx] for idx in problem.localsolver.local_spaces_id]
     )
+
+    for idx in problem.localsolver.local_spaces_id:
+        problem.u[idx].x.scatter_forward()
 
 
 cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
