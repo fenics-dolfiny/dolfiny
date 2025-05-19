@@ -82,7 +82,7 @@ class Restriction:
 
         return subx
 
-    def vec_to_functions(self, rx: PETSc.Vec, f: list):
+    def assign(self, rx: PETSc.Vec, f: list):
         """Update Functions using restricted DOF indices."""
         rdof_offset = 0
         for i, fi in enumerate(f):

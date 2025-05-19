@@ -1,8 +1,5 @@
 # mypy: disable-error-code="attr-defined"
 
-from petsc4py import PETSc
-
-import dolfinx
 import ufl
 
 import numpy as np
@@ -67,41 +64,6 @@ def extract_blocks(
             blocks[i] = ufl.replace(form, to_null)
 
     return blocks
-
-
-def functions_to_vec(u: list[dolfinx.fem.Function], x):
-    """Copies functions into block vector."""
-    if x.getType() == "nest":
-        for i, subvec in enumerate(x.getNestSubVecs()):
-            u[i].x.petsc_vec.copy(subvec)
-            subvec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-    else:
-        offset = 0
-        for i in range(len(u)):
-            size_local = u[i].x.petsc_vec.getLocalSize()
-            with x.localForm() as loc:
-                loc.array[offset : offset + size_local] = u[i].x.petsc_vec.array_r
-            offset += size_local
-            x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
-
-def vec_to_functions(x, u: list[dolfinx.fem.Function]):
-    """Copies block vector into functions."""
-    if x.getType() == "nest":
-        for i, subvec in enumerate(x.getNestSubVecs()):
-            subvec.copy(u[i].x.petsc_vec)
-            u[i].x.petsc_vec.ghostUpdate(
-                addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD
-            )
-    else:
-        offset = 0
-        for i in range(len(u)):
-            size_local = u[i].x.petsc_vec.getLocalSize()
-            u[i].x.petsc_vec.array[:] = x.array_r[offset : offset + size_local]
-            offset += size_local
-            u[i].x.petsc_vec.ghostUpdate(
-                addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD
-            )
 
 
 def unroll_dofs(dofs, block_size):

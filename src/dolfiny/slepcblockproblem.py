@@ -1,9 +1,8 @@
 import dolfinx
+import dolfinx.fem.petsc
 import ufl
 
 from slepc4py import SLEPc
-
-from dolfiny.function import vec_to_functions
 
 
 class SLEPcBlockProblem:
@@ -42,7 +41,7 @@ class SLEPcBlockProblem:
         then this problem is called generalized (linear) eigenvalue problem.
 
         """
-        self.F_form = F_form
+        self.F_form = dolfinx.fem.form(F_form)
         self.u = u
         self.lmbda = lmbda
         self.comm = u[0].function_space.mesh.comm
@@ -124,11 +123,17 @@ class SLEPcBlockProblem:
         self.eps.solve()
 
     def getEigenpair(self, i):
-        xr, xi = self.A.getVecs()
+        xr = dolfinx.fem.petsc.create_vector(self.F_form, kind="mpi")
+        xi = xr.duplicate()
         eigval = self.eps.getEigenpair(i, xr, xi)
 
-        vec_to_functions(xr, self.ur)
-        vec_to_functions(xi, self.ui)
+        dolfinx.fem.petsc.assign(xr, self.ur)
+        dolfinx.fem.petsc.assign(xi, self.ui)
+
+        [u.x.scatter_forward() for u in self.ur + self.ui]
+
+        xr.destroy()
+        xi.destroy()
 
         return (eigval, self.ur, self.ui)
 
