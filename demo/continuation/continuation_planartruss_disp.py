@@ -63,11 +63,12 @@ r = dolfinx.fem.Function(Rf, name="r")  # constraint, Lagrange multiplier
 k = dolfinx.fem.Function(Kf, name="k")  # axial stiffness
 s = dolfinx.fem.Function(Sf, name="s")  # internal force
 u_ = dolfinx.fem.Function(Uf, name="u_")  # displacement, inhomogeneous (bc)
-δu = ufl.TestFunction(Uf)
-δr = ufl.TestFunction(Rf)
+
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf, Rf))
+δu, δr = δm
 
 # Define state as (ordered) list of functions
-m, δm = [u, r], [δu, δr]
+m = [u, r]
 
 # System properties
 k.x.array[dolfiny.mesh.locate_dofs_topological(Kf, subdomains, lower)] = (
@@ -108,7 +109,7 @@ Em = P * (λm**2 - 1) / 2 * P  # Green-Lagrange strain
 # Em = P * (λm - 1) * P  # Biot strain
 
 # Virtual membrane strain
-dEm = dolfiny.expression.derivative(Em, m, δm)
+dEm = ufl.derivative(Em, m, δm)
 
 # Membrane stress
 Sm = k * Em
@@ -120,10 +121,10 @@ Sm = k * Em
 c = ufl.inner(r, λ * d - u)
 
 # Weak form
-form = -ufl.inner(dEm, Sm) * dx + dolfiny.expression.derivative(c, m, δm) * ds(verytop)
+form = -ufl.inner(dEm, Sm) * dx + ufl.derivative(c, m, δm) * ds(verytop)
 
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")

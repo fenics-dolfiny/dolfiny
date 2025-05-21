@@ -33,86 +33,39 @@ def test_expression_evaluate(V1, V2, squaremesh_5):
     assert dolfiny.expression.evaluate([u1 * dx, u2 * dx], [u1, u2], [v1, v2]) == [v1 * dx, v2 * dx]
 
 
-def test_expression_derivative(V1, V2, squaremesh_5):
-    u1, du1, v1 = dolfinx.fem.Function(V1), ufl.TrialFunction(V1), ufl.TestFunction(V1)
-    u2, du2, v2 = dolfinx.fem.Function(V2), ufl.TrialFunction(V2), ufl.TestFunction(V2)
-
-    dx = ufl.dx(squaremesh_5)
-
-    # Test derivative of expressions
-
-    assert dolfiny.expression.derivative(1 * u1, u1, du1) == 1 * du1
-    assert dolfiny.expression.derivative(2 * u1 + u2, u1, du1) == 2 * du1
-    assert dolfiny.expression.derivative(u1**2 + u2, u1, du1) == du1 * 2 * u1
-
-    assert dolfiny.expression.derivative(u1 + u2, [u1, u2], [v1, v2]) == v1 + v2
-    assert dolfiny.expression.derivative([u1, u2], u1, v1) == [v1, 0]
-    assert dolfiny.expression.derivative([u1, u2], [u1, u2], [v1, v2]) == [v1, v2]
-
-    # Test derivative of forms
-
-    assert dolfiny.expression.derivative(1 * u1 * dx, u1, du1) == 1 * du1 * dx
-    assert dolfiny.expression.derivative(2 * u1 * dx + u2 * dx, u1, du1) == 2 * du1 * dx
-    assert dolfiny.expression.derivative(u1**2 * dx + u2 * dx, u1, du2) == du2 * 2 * u1 * dx
-
-    assert dolfiny.expression.derivative(u1 * dx + u2 * dx, [u1, u2], [v1, v2]) == v1 * dx + v2 * dx
-    assert dolfiny.expression.derivative([u1 * dx, u2 * dx], u1, v1) == [
-        v1 * dx,
-        ufl.Form([]),
-    ]
-    assert dolfiny.expression.derivative([u1 * dx, u2 * dx], [u1, u2], [v1, v2]) == [
-        v1 * dx,
-        v2 * dx,
-    ]
-
-    # Test derivative of expressions at u0
-
-    u10, u20 = dolfinx.fem.Function(V1), dolfinx.fem.Function(V2)
-
-    assert dolfiny.expression.derivative(1 * u1, u1, du1, u10) == 1 * du1
-    assert dolfiny.expression.derivative(2 * u1 + u2, u1, du1, u10) == 2 * du1
-    assert dolfiny.expression.derivative(u1**2 + u2, u1, du1, u10) == du1 * 2 * u10
-
-    assert (
-        dolfiny.expression.derivative(u1**2 + u2**2, [u1, u2], [v1, v2], [u10, u20])
-        == v1 * 2 * u10 + v2 * 2 * u20
-    )
-    assert dolfiny.expression.derivative([u1**2, u2], u1, v1, u10) == [v1 * 2 * u10, 0]
-    assert dolfiny.expression.derivative([u1**2 + u2, u2], [u1, u2], [v1, v2], [u10, u20]) == [
-        v1 * 2 * u10 + v2,
-        v2,
-    ]
-
-
 def test_expression_linearise(V1, V2, squaremesh_5):
-    u1, u10 = dolfinx.fem.Function(V1), dolfinx.fem.Function(V1)
-    u2, u20 = dolfinx.fem.Function(V2), dolfinx.fem.Function(V2)
-
-    dx = ufl.dx(squaremesh_5)
+    u1, u10 = dolfinx.fem.Function(V1, name="u1"), dolfinx.fem.Function(V1, name="u10")
+    u2, u20 = dolfinx.fem.Function(V2, name="u2"), dolfinx.fem.Function(V2, name="u20")
 
     # Test linearisation of expressions at u0
-
     assert dolfiny.expression.linearise(1 * u1, u1, u10) == u10 + (u1 + (-1) * u10)
     assert dolfiny.expression.linearise(2 * u1 + u2, u1, u10) == (u2 + 2 * u10) + (
         2 * u1 + (-1) * (2 * u10)
     )
+
     assert dolfiny.expression.linearise(u1**2 + u2, u1, u10) == (
         u10 * (2 * u1) + (-1) * (u10 * 2 * u10)
     ) + (u10**2 + u2)
 
     assert dolfiny.expression.linearise(u1**2 + u2**2, [u1, u2], [u10, u20]) == (
-        u10 * (2 * u1) + u20 * (2 * u2) + (-1) * (u10 * (2 * u10) + u20 * (2 * u20))
-    ) + (u10**2 + u20**2)
+        (
+            ((u10 * (2 * u1)) + (-1 * (u10 * (2 * u10))))
+            + ((u20 * (2 * u2)) + (-1 * (u20 * (2 * u20))))
+        )
+        + (u10**2 + u20**2)
+    )
+
     assert dolfiny.expression.linearise([u1**2, u2], u1, u10) == [
         (u10 * (2 * u1) + (-1) * (u10 * 2 * u10)) + u10**2,
         u2,
     ]
+
     assert dolfiny.expression.linearise([u1**2 + u2, u2], [u1, u2], [u10, u20]) == [
-        (u10 * (2 * u1) + u2 + (-1) * (u10 * (2 * u10) + u20)) + (u10**2 + u20),
-        (u2 + (-1) * u20) + u20,
+        ((u2 + (-1) * u20) + (u10 * (2 * u1) + (-1) * (u10 * (2 * u10)))) + (u20 + u10**2),
+        u20 + (u2 + (-1) * u20),
     ]
 
-    # Test linearisation of forms at u0
+    dx = ufl.dx(squaremesh_5)
 
     assert dolfiny.expression.linearise(1 * u1 * dx, u1, u10) == u10 * dx + (
         u1 * dx + (-1) * u10 * dx

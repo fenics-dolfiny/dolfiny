@@ -111,13 +111,12 @@ Bo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), na
 So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="S")
 ho = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0)), name="h")
 
-δu = ufl.TestFunction(Uf)
-δP = ufl.TestFunction(Tf)
-δh = ufl.TestFunction(Hf)
-δB = ufl.TestFunction(Tf.clone())  # to be distinct from δP
+# clone to be distinct from Tf
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf, Tf, Hf, Tf.clone()))
+δu, δP, δh, δB = δm
 
 # Define state and variation of state as (ordered) list of functions
-m, δm = [u, P, h, B], [δu, δP, δh, δB]
+m = [u, P, h, B]
 
 
 def rJ2(A):
@@ -161,7 +160,7 @@ df = (
 S, B, h = S.expression(), B.expression(), h.expression()
 
 # Variation of Green-Lagrange strain
-δE = dolfiny.expression.derivative(E, m, δm)
+δE = ufl.derivative(E, m, δm)
 
 # Plastic multiplier (J2 plasticity: closed-form solution for return-map)
 dλ = ufl.max_value(f, 0)  # ppos = MacAuley bracket
@@ -175,7 +174,7 @@ form = (
 )
 
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")

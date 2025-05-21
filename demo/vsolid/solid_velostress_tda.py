@@ -81,11 +81,11 @@ St = dolfinx.fem.Function(Sf, name="St")
 
 v_ = dolfinx.fem.Function(Vf, name="v_")  # boundary conditions
 
-δv = ufl.TestFunction(Vf)
-δS = ufl.TestFunction(Sf)
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Vf, Sf))
+δv, δS = δm
 
 # Define state and rate as (ordered) list of functions
-m, mt, δm = [v, S], [vt, St], [δv, δS]
+m, mt = [v, S], [vt, St]
 
 # Create other functions
 u = dolfinx.fem.Function(Vf, name="u")
@@ -115,7 +115,7 @@ dotE = 1 / 2 * (dotF.T * F + F.T * dotF)
 dotEs = 1 / (2 * mu) * St - la / (2 * mu * (3 * la + 2 * mu)) * ufl.tr(St) * I
 
 # Variation of rate of Green-Lagrange strain (discretised in time to ensure proper variation)
-δdotE = dolfiny.expression.derivative(odeint.discretise_in_time(dotE), m, δm)
+δdotE = ufl.derivative(odeint.discretise_in_time(dotE), m, δm)
 
 # Weak form (as one-form)
 form = (
@@ -132,7 +132,7 @@ form = (
 # Overall form (as one-form)
 form = odeint.discretise_in_time(form)
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
