@@ -132,9 +132,9 @@ opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
 
 # FFCx options (facilitate improved form compile times, primarily on arm64)
-jit_options = dict(cffi_extra_compile_args=["-fdisable-rtl-combine",
-                                            "-fno-schedule-insns",
-                                            "-fno-schedule-insns2"])
+jit_options = dict(
+    cffi_extra_compile_args=["-fdisable-rtl-combine", "-fno-schedule-insns", "-fno-schedule-insns2"]
+)
 
 # Create nonlinear problem: SNES
 problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, prefix=name, jit_options=jit_options)
