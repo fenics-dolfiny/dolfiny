@@ -1,7 +1,7 @@
+from collections.abc import Sequence
+
 import dolfinx
 import ufl
-from ufl.algorithms.apply_algebra_lowering import apply_algebra_lowering
-from ufl.algorithms.apply_derivatives import apply_derivatives
 from ufl.algorithms.map_integrands import map_integrand_dags
 from ufl.algorithms.replace import Replacer
 from ufl.corealg.multifunction import MultiFunction
@@ -23,67 +23,26 @@ def evaluate(e, u, u0):
 
     """
 
-    if isinstance(u, list) and isinstance(u0, list):
-        repmap = {v: v0 for v, v0 in zip(u, u0)}
-    elif not isinstance(u, list) and not isinstance(u0, list):
-        repmap = {u: u0}
-    else:
-        raise RuntimeError("Incompatible functions (list-of-functions and function) provided.")
+    u_list = u if isinstance(u, Sequence) else [u]
+    u0_list = u0 if isinstance(u0, Sequence) else [u0]
 
+    if len(u_list) != len(u0_list):
+        raise ValueError("Incompatible number of functions provided.")
+
+    repmap = {v: v0 for v, v0 in zip(u_list, u0_list)}
     replacer = Replacer(repmap)
 
-    if isinstance(e, list):
-        e0 = [map_integrand_dags(replacer, e_) for e_ in e]
+    def replace_single(expr):
+        # Apply derivatives is needed to replace u in d/du expr(u).
+        expr = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(expr)
+        expr = ufl.algorithms.apply_derivatives.apply_derivatives(expr)
+        # Apply replacements
+        return map_integrand_dags(replacer, expr)
+
+    if isinstance(e, Sequence):
+        return [replace_single(e_) for e_ in e]
     else:
-        e0 = map_integrand_dags(replacer, e)
-
-    return e0
-
-
-def derivative(e, u, du, u0=None):
-    """Generate the functional derivative of UFL expression (or list of expressions) for the
-       given function(s) u in the direction of function(s) du and at u0.
-
-       Example (first variation): δe = dolfiny.expression.derivative(e, m, δm)
-
-    Parameters
-    ----------
-    e: UFL Expr or list of UFL expressions/forms
-    u: UFL Function or list of UFL functions
-    du: UFL Function or list of UFL functions
-    u0: UFL Function or list of UFL functions, defaults to u
-
-    Returns
-    -------
-    Expression (or list of expressions) with functional derivative.
-
-    """
-
-    u0 = u if u0 is None else u0
-    e0 = evaluate(e, u, u0)
-
-    def compute_derivative(expr, u0, du):
-        if isinstance(u0, list) and isinstance(du, list):
-            assert len(u0) == len(du), "Incompatible fct lists in multivariate Gateaux derivative."
-            return sum(ufl.derivative(expr, v0, dv) for v0, dv in zip(u0, du))  # multivariate
-        elif not isinstance(u0, list) and not isinstance(du, list):
-            return ufl.derivative(expr, u0, du)  # univariate
-        else:
-            raise RuntimeError("Mismatching input for u0 and du.")
-
-    if isinstance(e0, list):
-        de0 = [compute_derivative(e0_, u0, du) for e0_ in e0]
-    else:
-        de0 = compute_derivative(e0, u0, du)
-
-    if isinstance(de0, list):
-        de0 = [apply_algebra_lowering(de0_) for de0_ in de0]
-        de0 = [apply_derivatives(de0_) for de0_ in de0]
-    else:
-        de0 = apply_algebra_lowering(de0)
-        de0 = apply_derivatives(de0)
-
-    return de0
+        return replace_single(e)
 
 
 def linearise(e, u, u0=None):
@@ -104,25 +63,32 @@ def linearise(e, u, u0=None):
     1st order Taylor series expansion of expression/form (or list of expressions/forms).
 
     """
+    if isinstance(e, Sequence):
+        return [linearise(e[i], u, u0) for i in range(len(e))]
 
     if u0 is None:
-        if isinstance(u, list):
+        if isinstance(u, Sequence):
             u0 = []
             for v in u:
                 u0.append(dolfinx.fem.Function(v.function_space, name=v.name + "_0"))
         else:
             u0 = dolfinx.fem.Function(u.function_space, name=u.name + "_0")
 
+    # Convert to lists if not already
+    u = u if isinstance(u, Sequence) else [u]
+    u0 = u0 if isinstance(u0, Sequence) else [u0]
+
+    # For multivariate case, we need to linearize around each variable
     e0 = evaluate(e, u, u0)
-    deu = derivative(e, u, u, u0)
-    deu0 = derivative(e, u, u0, u0)
+    lin_e = e0
+    lin_e += sum(
+        ufl.derivative(e0, u0_i, u_i) - ufl.derivative(e0, u0_i, u0_i) for u_i, u0_i in zip(u, u0)
+    )
 
-    if isinstance(e, list):
-        de = [e0_ + (deu_ - deu0_) for e0_, deu_, deu0_ in zip(e0, deu, deu0)]
-    else:
-        de = e0 + (deu - deu0)
+    lin_e = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(lin_e)
+    lin_e = ufl.algorithms.apply_derivatives.apply_derivatives(lin_e)
 
-    return de
+    return lin_e
 
 
 def assemble(e, dx):

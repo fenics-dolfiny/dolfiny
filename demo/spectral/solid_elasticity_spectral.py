@@ -51,10 +51,11 @@ u = dolfinx.fem.Function(Uf, name="u")
 
 u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
 
-δu = ufl.TestFunction(Uf)
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf))
+(δu,) = δm
 
 # Define state as (ordered) list of functions
-m, δm = [u], [δu]
+m = [u]
 
 # output / visualisation
 vorder = mesh.geometry.cmap.degree
@@ -69,7 +70,7 @@ c, _ = dolfiny.invariants.eigenstate(F.T * F)  # spectral decomposition of C
 c = ufl.as_vector(c)  # squares of principal stretches
 c = ufl.variable(c)
 # Variation of strain measure (squares of principal stretches)
-δc = dolfiny.expression.derivative(c, m, δm)
+δc = ufl.derivative(c, m, δm)
 
 # Elasticity parameters
 E = dolfinx.fem.Constant(mesh, scalar(1.0))  # [MPa]
@@ -117,7 +118,7 @@ svm = ufl.sqrt(3 / 2 * ufl.inner(ufl.dev(ufl.diag(s)), ufl.dev(ufl.diag(s))))
 form = -0.5 * ufl.inner(δc, s) * dx + ufl.inner(δu, t) * ds(surface_upper)
 
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Options for PETSc backend
 opts = PETSc.Options(name)  # type: ignore[attr-defined]

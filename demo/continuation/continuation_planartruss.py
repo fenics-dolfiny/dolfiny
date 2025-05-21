@@ -56,10 +56,11 @@ Uf = dolfinx.fem.functionspace(mesh, Ue)
 # Define functions
 u = dolfinx.fem.Function(Uf, name="u")
 u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
-δu = ufl.TestFunction(Uf)
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf))
+(δu,) = δm
 
 # Define state as (ordered) list of functions
-m, δm = [u], [δu]
+m = [u]
 
 # System properties
 K = dolfinx.fem.Constant(mesh, scalar(1.0))  # axial stiffness, lower
@@ -98,7 +99,7 @@ F = I + ufl.grad(u)
 Em = P * (λ - 1) * P  # Biot strain
 
 # Virtual membrane strain
-dEm = dolfiny.expression.derivative(Em, m, δm)
+dEm = ufl.derivative(Em, m, δm)
 
 # Membrane stress
 Sm = K * Em
@@ -111,7 +112,7 @@ form = -ufl.inner(dEm, Sm) * dx(lower) - β * ufl.inner(dEm, Sm) * dx(upper)
 form += λ * ufl.inner(δu, p) * ds(verytop)
 
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
