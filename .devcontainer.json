@@ -19,20 +19,22 @@
                 "ruff.nativeServer": true,
                 "mypy-type-checker.preferDaemon": true,
                 "mypy-type-checker.reportingScope": "workspace",
-                "python.analysis.extraPaths": ["test"],
+                "python.analysis.extraPaths": [
+                    "test"
+                ],
                 "python.venvPath": "/dolfinx-env"
             }
         }
     },
-    "image": "dolfinx/dolfinx:nightly",
+    "build": {
+        "dockerfile": "docker/Dockerfile",
+        "context": ".",
+        "options": [
+            "--progress",
+            "plain"
+        ]
+    },
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {}
-    },
-    "remoteUser": "ubuntu",
-    "remoteEnv": {
-       "PIP_INDEX_URL": "https://gitlab.com/api/v4/projects/59503118/packages/pypi/simple",
-       "EXTRA_CLING_ARGS": "-O2",
-       "PYTHONPYCACHEPREFIX": "/home/ubuntu/.cache/cpython"
-    },
-    "postCreateCommand": "sudo chown ubuntu:ubuntu -R /dolfinx-env && pip3 install --editable .[all] && python3 -c 'import cppyy'"
+    }
 }
