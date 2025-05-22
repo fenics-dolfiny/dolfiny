@@ -18,7 +18,7 @@ def extract_blocks(
 
     Returns
     -------
-    Splitted UFL form in the order determined by the passed test and trial functions.
+    Split UFL form in the order determined by the passed test and trial functions.
     If no `trial_functions` are provided returns a list, otherwise returns list of lists.
 
     """

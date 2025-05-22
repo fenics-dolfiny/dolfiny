@@ -70,7 +70,7 @@ def mesh_spanner_gmshapi(
         # Synchronize
         gmsh.model.occ.synchronize()
 
-        # Get model entites
+        # Get model entities
         points, lines, surfaces, volumes = (gmsh.model.occ.get_entities(d) for d in [0, 1, 2, 3])
         boundaries = gmsh.model.get_boundary(volumes, oriented=False)
 
