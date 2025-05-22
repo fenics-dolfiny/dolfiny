@@ -38,7 +38,7 @@ def interpolate(expr, target_func):
         # If FunctionSpace of all donor and target functions are the same
         linear_comb_acc = {}
 
-        # Accumulate all repeated occurences of the same function
+        # Accumulate all repeated occurrences of the same function
         for func, scalar in linear_comb:
             if func in linear_comb_acc:
                 linear_comb_acc[func] += scalar

@@ -120,7 +120,7 @@ class LocalSolver:
             i for i in range(len(function_spaces)) if i not in self.local_spaces_id
         ]
 
-        # Initilize forms (and form-related info) to None.
+        # Initialize forms (and form-related info) to None.
         # At this point localsolver has no information about forms, these
         # get provided later once the localsolver is attached
         # to SNESBlockProblem.
@@ -617,7 +617,7 @@ class LocalSolver:
                         """
 
                     copy_code += f"""
-                    // Cast UFC kernel adrress to callable kernel and execute
+                    // Cast UFC kernel address to callable kernel and execute
                     J{i}{j}.array.setZero();
                     J{i}{j}.kernel(J{i}{j}.array.data(), J{i}{j}.w.data(), J{i}{j}.c.data(),
                                    J{i}{j}.coords.data(), J{i}{j}.entity_local_index.data(),
