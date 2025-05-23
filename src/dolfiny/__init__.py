@@ -15,6 +15,7 @@ from dolfiny import (
     restriction,
     slepcblockproblem,
     snesblockproblem,
+    taoblockproblem,
 )
 
 logger = logging.Logger("dolfiny")
@@ -34,4 +35,5 @@ __all__ = [
     "restriction",
     "slepcblockproblem",
     "snesblockproblem",
+    "taoblockproblem",
 ]
