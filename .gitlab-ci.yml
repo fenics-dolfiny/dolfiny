@@ -258,24 +258,32 @@ demo/beltrami:
       - mpirun -n 1 python3 solid_stressonly.py
       - mpirun -n 4 python3 solid_stressonly.py
 
+demo/membrane:
+   extends: .demo_template
+   script:
+      - cd demo/obstacle
+      - mpirun -n 1 python3 membrane.py
+      - mpirun -n 4 python3 membrane.py
+
 book build:
    stage: book
    image: $CONTAINER_COMMIT_IMAGE-amd64
    variables:
-      BASE_URL: $CI_PAGES_URL
-      JUPYTER_BOOK_VERSION: v2.0.0-a3
-   before_script:
-      - apt-get update
-      - apt-get install -y nodejs npm
-      - pip install jupyter-book==$JUPYTER_BOOK_VERSION
+      PAGES_PREFIX: ""
+      BASE_URL: $CI_PAGES_URL/$PAGES_PREFIX
    script:
       - cd book
+      - python bookstrap.py --install-dependencies
       - jupyter book build --html
    after_script:
       - mv book/_build/html public
    artifacts:
       paths:
          - public
+   rules:
+      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+        variables:
+            PAGES_PREFIX: "mr-${CI_MERGE_REQUEST_IID}"
 
 book release:
    stage: release
@@ -283,7 +291,7 @@ book release:
       PAGES_PREFIX: ""
       PAGES_EXPIRE: never
    script:
-      - echo "Book accessible at ${CI_PAGES_URL}/${PAGES_PREFIX}"
+      - echo "Book accessible at ${CI_PAGES_URL}"
    pages:
       path_prefix: $PAGES_PREFIX
       expire_in: $PAGES_EXPIRE
