@@ -7,6 +7,12 @@ ENV EXTRA_CLING_ARGS=${EXTRA_CLING_ARGS}
 ENV PIP_INDEX_URL=${PIP_INDEX_URL}
 ENV PYTHONPYCACHEPREFIX=/root/.cache/cpython
 
+# Install system dependencies
+RUN apt-get -qq update && \
+    apt-get -y install libosmesa6 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
 # Install prebuild wheels maintained at https://gitlab.com/uniluxembourg/fstm/doe/zed/tools/python/wheels
 RUN pip install \
         cppyy-cling==6.32.8 \
