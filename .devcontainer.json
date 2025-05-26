@@ -4,9 +4,10 @@
         "vscode": {
             "extensions": [
                 "charliermarsh.ruff",
+                "gitlab.gitlab-workflow",
                 "ms-python.mypy-type-checker",
-                "tamasfe.even-better-toml",
-                "gitlab.gitlab-workflow"
+                "ms-toolsai.jupyter",
+                "tamasfe.even-better-toml"
             ],
             "settings": {
                 "editor.defaultFormatter": "charliermarsh.ruff",

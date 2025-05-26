@@ -9,6 +9,7 @@ project:
   github: https://github.com/fenics-dolfiny/dolfiny
   toc:
     - file: index.md
+    - file: obstacle/membrane.ipynb
 site:
   template: book-theme
   # options:
