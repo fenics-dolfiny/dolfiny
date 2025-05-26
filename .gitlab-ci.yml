@@ -181,93 +181,93 @@ test/convergence:
       paths:
          - "demo/*/*"
       expire_in: 1 week
-
-demo/bingham:
-   extends: .demo_template
    script:
-      - cd demo/bingham
+      - cd demo/$DIRECTORY
       - |
-         for script in bingham_block.py bingham_lm_block.py; do
+         for script in $SCRIPTS; do
             mpirun -n 1 python3 $script
             mpirun -n 4 python3 $script
          done
 
-demo/beam:
+bingham:
    extends: .demo_template
-   script:
-      - cd demo/beam
-      - |
-         for script in beam_curved_finitestrain_bstar.py beam_curved_finitestrain_bzero.py; do
-            mpirun -n 1 python3 $script
-            mpirun -n 4 python3 $script
-         done
+   variables:
+      DIRECTORY: bingham
+      SCRIPTS: >
+         bingham_block.py
+         bingham_lm_block.py
 
-demo/vsolid:
+beam:
    extends: .demo_template
-   script:
-      - cd demo/vsolid
-      - |
-         for script in duffing.py solid_disp_tda.py solid_dispstress_tda.py solid_velostress_tda.py; do
-            mpirun -n 1 python3 $script
-            mpirun -n 4 python3 $script
-         done
+   variables:
+      DIRECTORY: beam
+      SCRIPTS: >
+         beam_curved_finitestrain_bstar.py
+         beam_curved_finitestrain_bzero.py
 
-demo/plasticity:
+vsolid:
    extends: .demo_template
-   script:
-      - cd demo/plasticity
-      - mpirun -n 1 python3 solid_plasticity_monolithic.py
-      - mpirun -n 4 python3 solid_plasticity_monolithic.py
+   variables:
+      DIRECTORY: vsolid
+      SCRIPTS: >
+         duffing.py
+         solid_disp_tda.py
+         solid_dispstress_tda.py
+         solid_velostress_tda.py
 
-demo/plasticity_rankine:
+plasticity:
    extends: .demo_template
-   script:
-      - cd demo/plasticity_rankine
-      - mpirun -n 1 python3 rankine.py
-      - mpirun -n 4 python3 rankine.py
+   variables:
+      DIRECTORY: plasticity
+      SCRIPTS: solid_plasticity_monolithic.py
 
-demo/spectral:
+plasticity_rankine:
    extends: .demo_template
-   script:
-      - cd demo/spectral
-      - |
-         for script in solid_elasticity_classic.py solid_elasticity_spectral.py; do
-            mpirun -n 1 python3 $script
-            mpirun -n 4 python3 $script
-         done
+   variables:
+      DIRECTORY: plasticity_rankine
+      SCRIPTS: rankine.py
 
-demo/continuation:
+spectral:
    extends: .demo_template
-   script:
-      - cd demo/continuation
-      - |
-         for script in continuation_planartruss.py continuation_planartruss_disp.py continuation_spatialtruss.py continuation_stardome.py continuation_schwedler.py; do
-            mpirun -n 1 python3 $script
-         done
+   variables:
+      DIRECTORY: spectral
+      SCRIPTS: >
+         solid_elasticity_classic.py
+         solid_elasticity_spectral.py
 
-demo/tdnns:
+continuation:
    extends: .demo_template
-   script:
-      - cd demo/tdnns
-      - |
-         for script in solid_tdnns_2d_cantilever.py solid_tdnns_3d_cantilever.py solid_tdnns_3d_spanner.py solid_displ_3d_spanner.py solid_mixed_3d_spanner.py; do
-            mpirun -n 1 python3 $script
-            mpirun -n 4 python3 $script
-         done
+   variables:
+      DIRECTORY: continuation
+      SCRIPTS: >
+         continuation_planartruss.py
+         continuation_planartruss_disp.py
+         continuation_spatialtruss.py
+         continuation_stardome.py
+         continuation_schwedler.py
 
-demo/beltrami:
+tdnns:
    extends: .demo_template
-   script:
-      - cd demo/beltrami
-      - mpirun -n 1 python3 solid_stressonly.py
-      - mpirun -n 4 python3 solid_stressonly.py
+   variables:
+      DIRECTORY: tdnns
+      SCRIPTS: >
+         solid_tdnns_2d_cantilever.py
+         solid_tdnns_3d_cantilever.py
+         solid_tdnns_3d_spanner.py
+         solid_displ_3d_spanner.py
+         solid_mixed_3d_spanner.py
 
-demo/membrane:
+beltrami:
    extends: .demo_template
-   script:
-      - cd demo/obstacle
-      - mpirun -n 1 python3 membrane.py
-      - mpirun -n 4 python3 membrane.py
+   variables:
+      DIRECTORY: beltrami
+      SCRIPTS: solid_stressonly.py
+
+obstacle:
+   extends: .demo_template
+   variables:
+      DIRECTORY: obstacle
+      SCRIPTS: membrane.py
 
 book build:
    stage: book
