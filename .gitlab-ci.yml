@@ -56,7 +56,7 @@ image build:
                .
    parallel:
       matrix:
-         - ARCH: [amd64, arm64]
+         - ARCH: [amd64]
 
 image release:
    stage: release
@@ -110,7 +110,7 @@ wheel release:
       - echo "Apply optional runtime hot-fixes here."
    parallel:
       matrix:
-         - ARCH: [amd64, arm64]
+         - ARCH: [amd64]
 
 .test_template:
    stage: test
@@ -182,70 +182,80 @@ demo/bingham:
    extends: .demo_template
    script:
       - cd demo/bingham
-      - mpirun -n 4 python3 bingham_block.py
-      - mpirun -n 4 python3 bingham_lm_block.py
+      - |
+         for script in bingham_block.py bingham_lm_block.py; do
+            mpirun -n 1 python3 $script
+            mpirun -n 4 python3 $script
+         done
 
 demo/beam:
    extends: .demo_template
    script:
       - cd demo/beam
-      - mpirun -n 4 python3 beam_curved_finitestrain_bstar.py
-      - mpirun -n 1 python3 beam_curved_finitestrain_bstar.py
-      - mpirun -n 4 python3 beam_curved_finitestrain_bzero.py
-      - mpirun -n 1 python3 beam_curved_finitestrain_bzero.py
+      - |
+         for script in beam_curved_finitestrain_bstar.py beam_curved_finitestrain_bzero.py; do
+            mpirun -n 1 python3 $script
+            mpirun -n 4 python3 $script
+         done
 
 demo/vsolid:
    extends: .demo_template
    script:
       - cd demo/vsolid
-      - mpirun -n 4 python3 duffing.py
-      - mpirun -n 4 python3 solid_disp_tda.py
-      - mpirun -n 4 python3 solid_dispstress_tda.py
-      - mpirun -n 4 python3 solid_velostress_tda.py
+      - |
+         for script in duffing.py solid_disp_tda.py solid_dispstress_tda.py solid_velostress_tda.py; do
+            mpirun -n 1 python3 $script
+            mpirun -n 4 python3 $script
+         done
 
 demo/plasticity:
    extends: .demo_template
    script:
-      - cd demo/plasticity 
+      - cd demo/plasticity
+      - mpirun -n 1 python3 solid_plasticity_monolithic.py
       - mpirun -n 4 python3 solid_plasticity_monolithic.py
 
 demo/plasticity_rankine:
    extends: .demo_template
    script:
       - cd demo/plasticity_rankine
+      - mpirun -n 1 python3 rankine.py
       - mpirun -n 4 python3 rankine.py
 
 demo/spectral:
    extends: .demo_template
    script:
-      - cd demo/spectral 
-      - mpirun -n 4 python3 solid_elasticity_classic.py
-      - mpirun -n 4 python3 solid_elasticity_spectral.py
+      - cd demo/spectral
+      - |
+         for script in solid_elasticity_classic.py solid_elasticity_spectral.py; do
+            mpirun -n 1 python3 $script
+            mpirun -n 4 python3 $script
+         done
 
 demo/continuation:
    extends: .demo_template
    script:
       - cd demo/continuation
-      - mpirun -n 1 python3 continuation_planartruss.py
-      - mpirun -n 1 python3 continuation_planartruss_disp.py
-      - mpirun -n 1 python3 continuation_spatialtruss.py
-      - mpirun -n 1 python3 continuation_stardome.py
-      - mpirun -n 1 python3 continuation_schwedler.py
+      - |
+         for script in continuation_planartruss.py continuation_planartruss_disp.py continuation_spatialtruss.py continuation_stardome.py continuation_schwedler.py; do
+            mpirun -n 1 python3 $script
+         done
 
 demo/tdnns:
    extends: .demo_template
    script:
-      - cd demo/tdnns 
-      - mpirun -n 4 python3 solid_tdnns_2d_cantilever.py
-      - mpirun -n 4 python3 solid_tdnns_3d_cantilever.py
-      - mpirun -n 4 python3 solid_tdnns_3d_spanner.py
-      - mpirun -n 4 python3 solid_displ_3d_spanner.py
-      - mpirun -n 4 python3 solid_mixed_3d_spanner.py
+      - cd demo/tdnns
+      - |
+         for script in solid_tdnns_2d_cantilever.py solid_tdnns_3d_cantilever.py solid_tdnns_3d_spanner.py solid_displ_3d_spanner.py solid_mixed_3d_spanner.py; do
+            mpirun -n 1 python3 $script
+            mpirun -n 4 python3 $script
+         done
 
 demo/beltrami:
    extends: .demo_template
    script:
-      - cd demo/beltrami 
+      - cd demo/beltrami
+      - mpirun -n 1 python3 solid_stressonly.py
       - mpirun -n 4 python3 solid_stressonly.py
 
 book build:
