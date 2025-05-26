@@ -148,9 +148,7 @@ opts["snes_max_it"] = 1
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
-opts["mat_mumps_icntl_6"] = 1
-opts["mat_mumps_icntl_8"] = 1
-opts["mat_mumps_icntl_14"] = 150
+opts["mat_mumps_icntl_14"] = 200  # percentage of max. memory increase during numerical phase
 opts["mat_mumps_icntl_24"] = 1
 
 # Create nonlinear problem: SNES
