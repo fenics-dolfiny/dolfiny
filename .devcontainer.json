@@ -36,5 +36,6 @@
     },
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {}
-    }
+    },
+    "postCreateCommand": "pip3 install --editable .[all]"
 }
