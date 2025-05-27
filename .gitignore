@@ -24,4 +24,4 @@ dist
 .ruff_cache
 
 # book build
-book/_build
+book/*/
