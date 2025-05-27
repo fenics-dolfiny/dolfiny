@@ -181,12 +181,16 @@ test/convergence:
       paths:
          - "demo/*/*"
       expire_in: 1 week
+   variables:
+      PARALLEL: True
    script:
       - cd demo/$DIRECTORY
       - |
          for script in $SCRIPTS; do
             mpirun -n 1 python3 $script
-            mpirun -n 4 python3 $script
+            if $PARALLEL; then
+               mpirun -n 4 python3 $script
+            fi
          done
 
 bingham:
@@ -239,6 +243,7 @@ continuation:
    extends: .demo_template
    variables:
       DIRECTORY: continuation
+      PARALLEL: False
       SCRIPTS: >
          continuation_planartruss.py
          continuation_planartruss_disp.py
