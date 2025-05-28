@@ -14,7 +14,7 @@ to user-provided C++ kernels.
 # Installation
 
 ```
-pip3 install dolfiny
+pip install dolfiny
 ```
 
 Certain functionality (see [demos](demo/) and [unit tests](test/)) relies on 
@@ -26,7 +26,7 @@ the availability of external packages such as
 
 Install `dolfiny` with these dependencies by running 
 ```
-pip3 install dolfiny[all]
+pip install dolfiny[all]
 ```
 
 For ARM-based architectures (`aarch64`/`arm64` on Linux) we recommend to fallback to our
