@@ -33,7 +33,7 @@ ADD . /src/dolfiny/
 
 RUN cd /src/dolfiny \
     && \
-    pip3 install ".[all]" -v \
+    pip install ".[all]" -v \
     && \
     find / -type f -name 'allDict.cxx*' -delete \
     && \
