@@ -12,6 +12,7 @@ project:
     - file: obstacle/membrane.ipynb
 site:
   template: book-theme
-  # options:
+  options:
+    folders: true
   #   favicon: favicon.ico
   #   logo: site_logo.png
