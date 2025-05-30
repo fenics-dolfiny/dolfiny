@@ -278,8 +278,7 @@ book build:
    stage: book
    image: $CONTAINER_COMMIT_IMAGE-amd64
    variables:
-      PAGES_PREFIX: ""
-      BASE_URL: $CI_PAGES_URL/$PAGES_PREFIX
+      BASE_URL: $CI_PAGES_URL
    script:
       - cd book
       - python bookstrap.py --install-dependencies
@@ -293,6 +292,7 @@ book build:
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
         variables:
             PAGES_PREFIX: "mr-${CI_MERGE_REQUEST_IID}"
+            BASE_URL: $CI_PAGES_URL/$PAGES_PREFIX
       - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
 
 book release:
