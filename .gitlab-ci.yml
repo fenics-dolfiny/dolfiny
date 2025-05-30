@@ -144,7 +144,7 @@ wheel release:
 test/unit/serial:
    extends: .test_template
    script:
-      - coverage run -m pytest -n auto -vsx test/unit
+      - coverage run -m pytest -n $(nproc) -vsx test/unit
 
 test/unit/parallel:
    extends: .test_template
@@ -154,8 +154,8 @@ test/unit/parallel:
 test/convergence:
    extends: .test_template
    script:
-      - coverage run -m pytest -n auto -m 'convergence' -vsx test/convergence
-      - coverage run -m pytest -n auto -m 'postprocess' -vsx test/convergence
+      - coverage run -m pytest -n $(nproc) -m 'convergence' -vsx test/convergence
+      - coverage run -m pytest -n $(nproc) -m 'postprocess' -vsx test/convergence
    rules:
       - if: ($DOLFINY_TEST_CONVERGENCE == "yes")
       - exists:
