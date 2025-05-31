@@ -159,10 +159,7 @@ def test_poisson(autodiff: bool, order: int):
     opts["tao_type"] = "bqnls" if order == 1 else "nls"
     opts["tao_recycle"] = ""
     opts["tao_gatol"] = 1e-10
-    opts["tao_monitor"] = ""
     opts["tao_max_it"] = 1000
-    opts["tao_ls_monitor"] = ""
-    opts["tao_monitor"] = ""
 
     opt_problem = dolfiny.taoproblem.TAOProblem(
         F, [u], bcs=[bc], lb=lb, ub=ub, J=J, H=H, prefix="poisson"
