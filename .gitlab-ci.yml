@@ -53,6 +53,7 @@ image build:
       - docker pull $CONTAINER_COMMIT_IMAGE-$ARCH || true
       - docker build
                --cache-from $CONTAINER_COMMIT_IMAGE-$ARCH
+               --build-arg BUILDKIT_INLINE_CACHE=1
                --pull
                --push
                --tag $CONTAINER_COMMIT_IMAGE-$ARCH
@@ -277,11 +278,9 @@ obstacle:
 book build:
    stage: book
    image: $CONTAINER_COMMIT_IMAGE-amd64
-   variables:
-      BASE_URL: $CI_PAGES_URL
    script:
       - cd book
-      - python bookstrap.py --install-dependencies
+      - python bookstrap.py
       - jupyter book build --html
    after_script:
       - mv book/_build/html public
@@ -289,17 +288,14 @@ book build:
       paths:
          - public
    rules:
-      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-        variables:
-            PAGES_PREFIX: "mr-${CI_MERGE_REQUEST_IID}"
-            BASE_URL: $CI_PAGES_URL/$PAGES_PREFIX
       - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+      - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
+            ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
+        variables:
+            BASE_URL: "/mr-${CI_MERGE_REQUEST_IID}"
 
 book release:
    stage: release
-   variables:
-      PAGES_PREFIX: ""
-      PAGES_EXPIRE: never
    script:
       - echo "Book accessible at ${CI_PAGES_URL}"
    pages:
@@ -311,6 +307,9 @@ book release:
       auto_stop_in: 1 week
    rules:
       - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+        variables:
+           PAGES_PREFIX: ""
+           PAGES_EXPIRE: never
       - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
             ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
         variables:
