@@ -58,3 +58,63 @@ def prefixify(n: int, prefixes=[" ", "k", "m", "b"]) -> str:
     e = i - (10**i > n)
     e //= 3
     return f"{n // 10 ** (3 * e):>3d}{prefixes[e]}"
+
+
+class ANSI(int):
+    class Code(str):
+        def __new__(cls, code: int):
+            ESC = "\033"
+            escape_sequence = f"{ESC}[{code}m"
+            return super().__new__(cls, escape_sequence)
+
+        def __init__(self, code: int):
+            super().__init__()
+            self._code = code
+
+        @property
+        def code(self) -> int:
+            return self._code
+
+    # text styles
+    reset = Code(0)
+    bold = Code(1)
+    bold = Code(1)
+    low_intensity = Code(2)
+    italic = Code(3)
+    underline = Code(4)
+    blinking = Code(5)
+    revers = Code(6)
+    background = Code(7)
+    invisible = Code(8)
+
+    # colors
+    black = Code(30)
+    red = Code(31)
+    green = Code(32)
+    yellow = Code(33)
+    blue = Code(34)
+    magenta = Code(35)
+    cyan = Code(36)
+    white = Code(37)
+    white = Code(37)
+
+    # background
+    bblack = Code(40)
+    bred = Code(41)
+    bgreen = Code(42)
+    byellow = Code(43)
+    bblue = Code(44)
+    bmagenta = Code(45)
+    bcyan = Code(46)
+    bwhite = Code(47)
+
+    # bright-colors
+    bright_black = Code(90)
+    bright_red = Code(91)
+    bright_green = Code(92)
+    bright_yellow = Code(93)
+    bright_blue = Code(94)
+    bright_magenta = Code(95)
+    bright_cyan = Code(96)
+    bright_white = Code(97)
+    bright_white = Code(97)

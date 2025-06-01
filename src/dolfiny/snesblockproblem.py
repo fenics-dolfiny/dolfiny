@@ -11,7 +11,7 @@ import ufl
 import numpy as np
 
 from dolfiny.localsolver import LocalSolver
-from dolfiny.utils import attributes_to_dict, pprint, prefixify
+from dolfiny.utils import ANSI, attributes_to_dict, pprint, prefixify
 
 
 class SNESBlockProblem:
@@ -329,9 +329,9 @@ class SNESBlockProblem:
         ksp_info = ""
 
         if ksp.reason < 0:
-            ksp_info += "\033[91m"  # bright red
+            ksp_info += ANSI.bright_red
             ksp_info += f"failure = {SNESBlockProblem.reasons_ksp[ksp.reason]:s}"
-            ksp_info += "\033[00m"
+            ksp_info += ANSI.reset
 
         return ksp_info
 
@@ -339,9 +339,9 @@ class SNESBlockProblem:
         snes_info = ""
 
         if snes.reason < 0:
-            snes_info = "\033[31m"  # red
+            snes_info = ANSI.red
             snes_info += f"failure = {SNESBlockProblem.reasons_snes[snes.reason]:s}"
-            snes_info += "\033[00m"
+            snes_info += ANSI.reset
 
         return snes_info
 
@@ -350,18 +350,16 @@ class SNESBlockProblem:
 
         snes_it = self.snes.getIterationNumber()
 
-        message = "\033[90m"  # bright black
+        message = ANSI.bright_black
         message += f"# SNES iteration {snes_it:2d}, KSP iteration {ksp_it:3d}       |r|={ksp_norm:9.3e} {ksp_info:s}"  # noqa: E501
-        message += "\033[00m"
+        message += ANSI.reset
 
         pprint(message) if self.verbose["ksp"] else None
 
     def _monitor_snes(self, snes, snes_it, snes_norm):
         snes_info = self._info_snes(snes)
 
-        message = "\033[00m"  # normal
-        message += f"# SNES iteration {snes_it:2d} {snes_info:s}"
-        message += "\033[00m"
+        message = f"# SNES iteration {snes_it:2d} {snes_info:s}"
 
         pprint(message) if self.verbose["snes"] else None
 
