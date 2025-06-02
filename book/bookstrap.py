@@ -10,7 +10,7 @@ if os.getcwd() != os.path.dirname(os.path.abspath(__file__)):
 
 for demo in demo_files:
     notebook = pathlib.Path(demo).with_suffix(".ipynb")
-    print(f"♻️ {demo} → {notebook}")
+    print(f"♻️ {demo} → {notebook}", flush=True)
     subprocess.run(["mkdir", "-p", notebook.parent], check=True)
     subprocess.run(
         ["jupytext", f"../demo/{demo}", "--to", "ipynb", "--output", notebook], check=True
@@ -18,7 +18,7 @@ for demo in demo_files:
 
 for demo in demo_files:
     notebook = pathlib.Path(demo).with_suffix(".ipynb")
-    print(f"🚧 {notebook}")
+    print(f"🚧 {notebook}", flush=True)
     subprocess.run(
         [
             "jupyter",
