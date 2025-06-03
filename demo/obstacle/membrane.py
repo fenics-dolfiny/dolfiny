@@ -93,7 +93,7 @@ import numpy as np
 import pyvista
 
 import dolfiny
-import dolfiny.taoblockproblem
+import dolfiny.taoproblem
 
 comm = MPI.COMM_WORLD
 
@@ -118,16 +118,14 @@ opts["tao_max_it"] = "100"
 
 g_linear = dolfinx.fem.Function(V, name="g_linear")
 S_linear = (1 + 0.5 * ufl.inner(ufl.grad(g_linear), ufl.grad(g_linear))) * ufl.dx
-linear_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+linear_problem = dolfiny.taoproblem.TAOProblem(
     S_linear, [g_linear], [bc], lb=[lb], ub=np.inf, prefix="obstacle"
 )
 linear_problem.solve()
 
 g = dolfinx.fem.Function(V, name="g")
 S = ufl.sqrt(1 + ufl.inner(ufl.grad(g), ufl.grad(g))) * ufl.dx
-problem = dolfiny.taoblockproblem.TAOBlockProblem(
-    S, [g], [bc], lb=[lb], ub=np.inf, prefix="obstacle"
-)
+problem = dolfiny.taoproblem.TAOProblem(S, [g], [bc], lb=[lb], ub=np.inf, prefix="obstacle")
 problem.solve()
 
 dolfiny.utils.pprint(f"S_linear(g) = {linear_problem.tao.getFunctionValue():.4f}")
