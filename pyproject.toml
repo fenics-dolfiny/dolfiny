@@ -83,3 +83,6 @@ addopts = "--color=yes --junitxml=report.xml"
 parallel = true
 branch = true
 source = ["dolfiny"]
+
+[tool.typos.default]
+extend-ignore-identifiers-re = ["Ue", "2nd"]
