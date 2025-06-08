@@ -16,7 +16,7 @@ requires-python = ">=3.10.0"
 dependencies = ["fenics-dolfinx>=0.10.0.dev0,<0.11.0"]
 
 [project.optional-dependencies]
-dev = ["dolfiny[typing]", "ruff"]
+dev = ["dolfiny[typing]", "typos", "ruff"]
 vis = ["matplotlib", "pyvista[jupyter]>=0.45.0"]
 jit = ["numba", "cppyy>=3.1.0"]
 test = ["dolfiny[jit,vis]", "pytest-xdist", "coverage", "scipy"]
