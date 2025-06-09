@@ -16,6 +16,7 @@ dist
 *.vtk
 *.xml
 *.coverage*
+*.DS_Store
 
 # tool caches
 .gitlab-ci-local
