@@ -282,6 +282,13 @@ obstacle:
       DIRECTORY: obstacle
       SCRIPTS: membrane.py
 
+structural_optimisation:
+   extends: .demo_template
+   variables:
+      DIRECTORY: structural_optimisation
+      PARALLEL: False
+      SCRIPTS: truss_sizing.py
+
 book build:
    stage: book
    image: $CONTAINER_COMMIT_IMAGE-amd64
