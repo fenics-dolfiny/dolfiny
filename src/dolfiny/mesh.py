@@ -2,6 +2,9 @@ import logging
 
 from mpi4py import MPI
 
+import basix
+import dolfinx.mesh
+import ufl
 from dolfinx import cpp, default_real_type
 from dolfinx.cpp.mesh import CellType
 from dolfinx.graph import adjacencylist
@@ -450,3 +453,87 @@ def merge_meshtags(mesh, mts, dim):
     mt = meshtags(mesh, dim, indices, values[pos])
 
     return mt, keys
+
+
+def create_truss_x_braced_mesh(mesh: dolfinx.mesh.Mesh) -> dolfinx.mesh.Mesh:
+    """Create truss (interval) mesh with x-bracings from quad or hex mesh.
+
+    Parameters
+    ----------
+    mesh:
+        Mesh with quadrilateral (tdim=2) or hexahedral (tdim=3) elements.
+
+    Returns
+    -------
+    Truss mesh with all possible bracings.
+    """
+    cell_type = mesh.topology.cell_type
+    if cell_type not in (dolfinx.mesh.CellType.quadrilateral, dolfinx.mesh.CellType.hexahedron):
+        raise RuntimeError("Truss x-braced mesh can only be constructed on quads or hexs.")
+
+    if mesh.comm.size > 1:
+        # TODO: limited by https://github.com/FEniCS/dolfinx/issues/3733
+        raise RuntimeError("Ghost construction of branching meshes not supported in parallel.")
+
+    if mesh.geometry.cmap.degree != 1:
+        raise RuntimeError("Only 1st order coordinate elements are supported.")
+
+    top = mesh.topology
+    tdim = top.dim
+    geo = mesh.geometry
+    gdim = geo.dim
+
+    top.create_connectivity(1, 0)
+    e_to_v = top.connectivity(1, 0)
+    top.create_connectivity(tdim, 0)
+    c_to_v = top.connectivity(tdim, 0)
+
+    # baseline are all edges of input mesh
+    new_x = geo.x[:, :-1] if gdim == 2 else geo.x
+    cells = e_to_v.array.reshape(-1, 2)
+
+    if cell_type is dolfinx.mesh.CellType.quadrilateral:
+        # 2----3
+        # |    |
+        # |    |
+        # 0----1
+        v = c_to_v.array.reshape(-1, 4)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 2]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 3]], axis=1), axis=0)
+    else:
+        #     6----------7
+        #    /|         /|
+        #   / |        / |
+        #  /  |       /  |
+        # 4----------5   |
+        # |   |      |   |
+        # |   2------+---3
+        # |  /       |  /
+        # | /        | /
+        # |/         |/
+        # 0----------1
+        v = c_to_v.array.reshape(-1, 8)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 3]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 2]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 2], v[:, 7]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 3], v[:, 6]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 6]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 2], v[:, 4]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 7]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 3], v[:, 5]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 5]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 4]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 4], v[:, 7]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 5], v[:, 6]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 7]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 3], v[:, 4]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 6]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 2], v[:, 5]], axis=1), axis=0)
+
+        # remove duplicate edges (only exist for hexahedron)
+        cells = np.unique(cells, axis=0)
+
+    cells = cells.astype(np.int64)  # promote to global indices
+
+    element = ufl.Mesh(basix.ufl.element("Lagrange", "interval", 1, shape=(gdim,)))
+    return dolfinx.mesh.create_mesh(MPI.COMM_WORLD, cells, new_x, element)
