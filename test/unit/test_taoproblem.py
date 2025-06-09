@@ -360,7 +360,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
 
 
 def test_optimal_control_reduced():
-    """Optimal control problem, test custom callack (reduced functional)."""
+    """Optimal control problem, test custom callback (reduced functional)."""
     # based on https://www.dolfin-adjoint.org/en/stable/documentation/poisson-mother/poisson-mother.html
 
     n = 32

@@ -14,7 +14,7 @@
 #   \Psi(x,y) = (x, y, g(x, y)).
 # $$
 #
-# The *suface area* of $\mathcal{F}$ is then given by
+# The *surface area* of $\mathcal{F}$ is then given by
 #
 # $$
 # \begin{align*}

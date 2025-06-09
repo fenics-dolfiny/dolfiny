@@ -38,6 +38,13 @@ mypy:
       - mypy -p dolfiny
       - mypy test/ demo/
 
+typos:
+   stage: lint
+   image: python:3.13-slim
+   script:
+      - pip install typos
+      - typos
+
 image build:
    stage: image
    image: docker:git
