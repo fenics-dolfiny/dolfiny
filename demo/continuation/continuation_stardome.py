@@ -171,7 +171,7 @@ def block_inner(a1, a2):
 
 
 # Create nonlinear problem context
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, bcs, prefix="continuation")
+problem = dolfiny.snesproblem.SNESProblem(forms, m, bcs, prefix="continuation")
 
 # Create continuation problem context
 continuation = dolfiny.continuation.Crisfield(problem, λ, inner=block_inner)

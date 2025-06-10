@@ -14,7 +14,7 @@ from dolfiny import (
     projection,
     restriction,
     slepcblockproblem,
-    snesblockproblem,
+    snesproblem,
     taoproblem,
 )
 
@@ -34,6 +34,6 @@ __all__ = [
     "projection",
     "restriction",
     "slepcblockproblem",
-    "snesblockproblem",
+    "snesproblem",
     "taoproblem",
 ]

@@ -103,7 +103,7 @@ opts["snes_atol"] = 1.0e-12
 opts["snes_rtol"] = 1.0e-12
 
 # Create nonlinear problem
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m)
+problem = dolfiny.snesproblem.SNESProblem(forms, m)
 
 # Book-keeping of results
 v_, vt_, s_, st_, u_ = (np.zeros(nT + 1) for w in [v, vt, s, st, u])

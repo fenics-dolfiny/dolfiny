@@ -274,9 +274,7 @@ def test_poisson_mixed():
     J = ufl.derivative(F, [σ, u], δm)
     J = ufl.extract_blocks(J)
 
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(
-        J, [σ, u], bcs=bcs, prefix="poisson_mixed_direct"
-    )
+    problem = dolfiny.snesproblem.SNESProblem(J, [σ, u], bcs=bcs, prefix="poisson_mixed_direct")
     σ_direct, u_direct = problem.solve()
 
     assert np.allclose(_L2_norm(σ_opt - σ_direct), 0)

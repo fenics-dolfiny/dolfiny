@@ -302,7 +302,7 @@ opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
 
-problem = dolfiny.snesblockproblem.SNESBlockProblem(
+problem = dolfiny.snesproblem.SNESProblem(
     [F0, F1, F2], [u, dP, dl], bcs=bcs, prefix=name, localsolver=ls
 )
 

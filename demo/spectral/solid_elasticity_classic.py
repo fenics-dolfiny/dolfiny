@@ -136,7 +136,7 @@ opts["pc_factor_mat_solver_type"] = "mumps"
 jit_options = dict(cffi_extra_compile_args=["-g0"])
 
 # Create nonlinear problem: SNES
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, prefix=name, jit_options=jit_options)
+problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix=name, jit_options=jit_options)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
 b_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_lower)

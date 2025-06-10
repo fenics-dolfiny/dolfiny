@@ -98,7 +98,7 @@ def test_coupled_poisson():
     opts["pc_factor_mat_solver_type"] = "mumps"
     opts["mat_mumps_icntl_24"] = 1
 
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(
+    problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1, F2], [w0, w1, lam], bcs=bcs, restriction=r, prefix="poisson"
     )
     s0, s1, s2 = problem.solve()
@@ -207,7 +207,7 @@ def test_sloped_stokes():
     opts["pc_factor_mat_solver_type"] = "mumps"
     opts["mat_mumps_icntl_24"] = 1
 
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(
+    problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1, F2], [u, p, lam], bcs=bcs, restriction=r, prefix="stokes"
     )
     s0, s1, s2 = problem.solve()
@@ -343,7 +343,7 @@ def test_pipes_stokes():
     opts["pc_type"] = "lu"
     opts["pc_factor_mat_solver_type"] = "mumps"
 
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(
+    problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1, F2], [u, p, lam], bcs=bcs, restriction=r, prefix="pipes"
     )
     s0, s1, s2 = problem.solve()

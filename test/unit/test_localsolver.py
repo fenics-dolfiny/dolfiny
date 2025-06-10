@@ -183,7 +183,7 @@ def test_linear_elasticity(squaremesh_5):
     opts["pc_type"] = "cholesky"
     opts["pc_factor_mat_solver_type"] = "mumps"
 
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(
+    problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1], [sigma0, u0], [bc], prefix="linear_elasticity", localsolver=ls
     )
     sigma1, u1 = problem.solve()
@@ -353,7 +353,7 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
     opts["pc_type"] = "cholesky"
     opts["pc_factor_mat_solver_type"] = "mumps"
 
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(
+    problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1], [sigma0, u0], [bc], prefix="nonlinear_elasticity_schur", localsolver=ls
     )
     sigma1, u1 = problem.solve()
@@ -528,7 +528,7 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
     rdofsU = np.arange(Usize, dtype=np.int32)
     r = dolfiny.restriction.Restriction([U], [rdofsU])
 
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(
+    problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1],
         [sigma0, u0],
         [bc],
