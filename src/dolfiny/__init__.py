@@ -13,7 +13,7 @@ from dolfiny import (
     odeint,
     projection,
     restriction,
-    slepcblockproblem,
+    slepcproblem,
     snesproblem,
     taoproblem,
 )
@@ -33,7 +33,7 @@ __all__ = [
     "odeint",
     "projection",
     "restriction",
-    "slepcblockproblem",
+    "slepcproblem",
     "snesproblem",
     "taoproblem",
 ]

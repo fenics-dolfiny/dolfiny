@@ -5,7 +5,7 @@ import ufl
 from slepc4py import SLEPc
 
 
-class SLEPcBlockProblem:
+class SLEPcProblem:
     def __init__(
         self,
         F_form: list,
