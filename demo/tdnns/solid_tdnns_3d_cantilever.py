@@ -155,7 +155,7 @@ opts["mat_mumps_icntl_14"] = 200  # percentage of max. memory increase during nu
 opts["mat_mumps_icntl_24"] = 1
 
 # Create nonlinear problem: SNES
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, bcs, prefix=name)
+problem = dolfiny.snesproblem.SNESProblem(forms, m, bcs, prefix=name)
 
 # Solve problem
 problem.solve()

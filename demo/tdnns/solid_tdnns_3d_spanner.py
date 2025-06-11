@@ -158,7 +158,7 @@ opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
 
 # Create nonlinear problem: SNES
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, bcs, prefix=name)
+problem = dolfiny.snesproblem.SNESProblem(forms, m, bcs, prefix=name)
 
 # Solve problem
 problem.solve()

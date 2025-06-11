@@ -141,7 +141,7 @@ opts["ksp_rtol"] = 1.0e-10
 opts["pc_type"] = "bjacobi"
 
 # Create nonlinear problem: SNES (convenience choice here)
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, bcs, prefix=name)
+problem = dolfiny.snesproblem.SNESProblem(forms, m, bcs, prefix=name)
 
 # Solve problem
 problem.solve()

@@ -181,7 +181,7 @@ opts["pc_type"] = "lu"
 opts["pc_factor_mat_solver_type"] = "mumps"
 
 # Create nonlinear problem: SNES
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, prefix="bingham")
+problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix="bingham")
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
 ring_outer_dofs_Vf = dolfiny.mesh.locate_dofs_topological(Vf, interfaces, ring_outer)

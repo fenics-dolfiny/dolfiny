@@ -1,12 +1,12 @@
 import dolfinx
 import ufl
 
-from dolfiny.snesblockproblem import SNESBlockProblem
+from dolfiny.snesproblem import SNESProblem
 from dolfiny.utils import pprint
 
 
 class Crisfield:
-    def __init__(self, problem: SNESBlockProblem, λ: ufl.Constant, monitor=None, inner=None):
+    def __init__(self, problem: SNESProblem, λ: ufl.Constant, monitor=None, inner=None):
         self.problem = problem
         self.monitor = monitor
         self.inner = inner if inner is not None else lambda v1, v2: v1.dot(v2)

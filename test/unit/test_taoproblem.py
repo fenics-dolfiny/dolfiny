@@ -11,7 +11,7 @@ import pytest
 
 import dolfiny
 import dolfiny.inequality
-import dolfiny.taoblockproblem
+import dolfiny.taoproblem
 
 
 def _L2_norm(u: dolfinx.fem.Function) -> float:
@@ -100,7 +100,7 @@ def test_poisson_discrete(n, order, atol, element):
     opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
 
     u = dolfinx.fem.Function(W)
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+    opt_problem = dolfiny.taoproblem.TAOProblem(
         F, [u], bcs=[bc], J=(J, u.x.petsc_vec.copy()), H=(H, A), prefix="poisson_discrete"
     )
     opt_problem.solve()
@@ -176,7 +176,7 @@ def test_poisson(autodiff: bool, order: int):
     opts["tao_ls_monitor"] = ""
     opts["tao_monitor"] = ""
 
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+    opt_problem = dolfiny.taoproblem.TAOProblem(
         F, [u], bcs=[bc], lb=lb, ub=ub, J=J, H=H, prefix="poisson"
     )
 
@@ -256,9 +256,7 @@ def test_poisson_mixed():
     opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
     opts["tao_monitor"] = ""
 
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
-        F, [σ, u], bcs=bcs, prefix="poisson_mixed"
-    )
+    opt_problem = dolfiny.taoproblem.TAOProblem(F, [σ, u], bcs=bcs, prefix="poisson_mixed")
     σ_opt, u_opt = opt_problem.solve()
 
     opts = PETSc.Options("poisson_mixed_direct")
@@ -276,9 +274,7 @@ def test_poisson_mixed():
     J = ufl.derivative(F, [σ, u], δm)
     J = ufl.extract_blocks(J)
 
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(
-        J, [σ, u], bcs=bcs, prefix="poisson_mixed_direct"
-    )
+    problem = dolfiny.snesproblem.SNESProblem(J, [σ, u], bcs=bcs, prefix="poisson_mixed_direct")
     σ_direct, u_direct = problem.solve()
 
     assert np.allclose(_L2_norm(σ_opt - σ_direct), 0)
@@ -349,7 +345,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     opts["tao_almm_subsolver_pc_type"] = "lu"
     opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
 
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+    opt_problem = dolfiny.taoproblem.TAOProblem(
         F, [u], bcs=[bc], J=J, H=H, g=g, Jg=Jg, h=h, Jh=Jh, prefix="poisson_constrained"
     )
     (sol_optimization,) = opt_problem.solve()
@@ -398,7 +394,7 @@ def test_optimal_control_reduced():
     p = dolfinx.fem.Function(V_state, name="p")
     adjoint_problem = dolfinx.fem.petsc.LinearProblem(a, L_adj, [bc], p)
 
-    @dolfiny.taoblockproblem.sync_functions(f)
+    @dolfiny.taoproblem.sync_functions(f)
     def F_reduced(tao, x):
         state_problem.solve()
 
@@ -407,7 +403,7 @@ def test_optimal_control_reduced():
 
     jacobian = dolfinx.fem.Function(V_control)
 
-    @dolfiny.taoblockproblem.sync_functions(f)
+    @dolfiny.taoproblem.sync_functions(f)
     def J_reduced(tao, x, J):
         state_problem.solve()
 
@@ -422,7 +418,7 @@ def test_optimal_control_reduced():
     opts["tao_type"] = "lmvm"  # pdipm
     opts["tao_gatol"] = 1e-9
 
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+    opt_problem = dolfiny.taoproblem.TAOProblem(
         F_reduced, [f], J=(J_reduced, f.x.petsc_vec.copy()), prefix="optimal_control_reduced"
     )
     opt_problem.solve()
@@ -488,7 +484,7 @@ def test_optimal_control_full_space():  # almm_type
     # opts["tao_almm_type"] = "classic" if almm_type == PETSc.TAO.ALMMType.CLASSIC else "phr"
     opts["tao_gatol"] = 1e-5
 
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+    opt_problem = dolfiny.taoproblem.TAOProblem(
         F, [u, f], bcs=[bc], g=g, Jg=Jg, prefix="optimal_control_full_space"
     )
     # mass = dolfinx.fem.form([[ufl.TrialFunction(V_state) * ufl.TestFunction(V_state) * ufl.dx,
@@ -552,7 +548,7 @@ def test_poisson_pde_as_constraint():  # almm_type
     opts["tao_almm_subsolver_pc_type"] = "lu"
     opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
 
-    opt_problem = dolfiny.taoblockproblem.TAOBlockProblem(
+    opt_problem = dolfiny.taoproblem.TAOProblem(
         F, [u], bcs=[bc], g=g, Jg=Jg, prefix="poisson_pde_constraint"
     )
     opt_problem.solve()

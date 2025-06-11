@@ -255,7 +255,7 @@ def wrap_constraint_callbacks(
     return (_g_callback, g_vec), (_Jg_callback, Jg_mat)
 
 
-class TAOBlockProblem:
+class TAOProblem:
     def __init__(
         self,
         F: TAOObjectiveFunction | ufl.Form,

@@ -197,7 +197,7 @@ opts["pc_type"] = "lu"  # NOTE: this monolithic formulation is not symmetric
 opts["pc_factor_mat_solver_type"] = "mumps"
 
 # Create nonlinear problem: SNES
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, prefix=name)
+problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix=name)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
 surface_1_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_1)

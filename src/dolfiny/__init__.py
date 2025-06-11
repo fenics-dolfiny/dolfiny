@@ -13,9 +13,9 @@ from dolfiny import (
     odeint,
     projection,
     restriction,
-    slepcblockproblem,
-    snesblockproblem,
-    taoblockproblem,
+    slepcproblem,
+    snesproblem,
+    taoproblem,
 )
 
 logger = logging.Logger("dolfiny")
@@ -33,7 +33,7 @@ __all__ = [
     "odeint",
     "projection",
     "restriction",
-    "slepcblockproblem",
-    "snesblockproblem",
-    "taoblockproblem",
+    "slepcproblem",
+    "snesproblem",
+    "taoproblem",
 ]

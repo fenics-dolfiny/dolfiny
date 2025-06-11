@@ -123,7 +123,7 @@ class LocalSolver:
         # Initialize forms (and form-related info) to None.
         # At this point localsolver has no information about forms, these
         # get provided later once the localsolver is attached
-        # to SNESBlockProblem.
+        # to SNESProblem.
         self.F_ufc = None
         self.J_ufc = None
         self.F_ufl = None

@@ -54,8 +54,8 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
     # Overall form (as list of forms)
     F = dolfiny.function.extract_blocks(F, [δu])
 
-    # Create problem (although having a linear ODE we use the dolfiny.snesblockproblem API)
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(F, [u])
+    # Create problem (although having a linear ODE we use the dolfiny.snesproblem API)
+    problem = dolfiny.snesproblem.SNESProblem(F, [u])
 
     # Silence SNES monitoring during test
     problem.verbose = dict(snes=False, ksp=False)
@@ -145,7 +145,7 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
     opts["snes_rtol"] = 1.0e-12
 
     # Create nonlinear problem
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(F, [u])
+    problem = dolfiny.snesproblem.SNESProblem(F, [u])
 
     # Silence SNES monitoring during test
     problem.verbose = dict(snes=False, ksp=False)
@@ -232,8 +232,8 @@ def ode_2nd_linear_odeint(a=12.0, b=1000.0, c=1000.0, u_0=0.5, du_0=0.0, nT=100,
     # Overall form (as list of forms)
     F = dolfiny.function.extract_blocks(F, [δu])
 
-    # Create problem (although having a linear ODE we use the dolfiny.snesblockproblem API)
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(F, [u])
+    # Create problem (although having a linear ODE we use the dolfiny.snesproblem API)
+    problem = dolfiny.snesproblem.SNESProblem(F, [u])
 
     # Silence SNES monitoring during test
     problem.verbose = dict(snes=False, ksp=False)
@@ -327,7 +327,7 @@ def ode_2nd_nonlinear_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwargs):
     opts["snes_rtol"] = 1.0e-12
 
     # Create nonlinear problem
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(F, [u])
+    problem = dolfiny.snesproblem.SNESProblem(F, [u])
 
     # Silence SNES monitoring during test
     problem.verbose = dict(snes=False, ksp=False)
@@ -456,7 +456,7 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
     opts["snes_rtol"] = 1.0e-12
 
     # Create nonlinear problem
-    problem = dolfiny.snesblockproblem.SNESBlockProblem(F, m)
+    problem = dolfiny.snesproblem.SNESProblem(F, m)
 
     # Silence SNES monitoring during test
     problem.verbose = dict(snes=False, ksp=False)

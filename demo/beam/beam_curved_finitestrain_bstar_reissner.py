@@ -226,7 +226,7 @@ opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
 
 # Create nonlinear problem: SNES
-problem = dolfiny.snesblockproblem.SNESBlockProblem(forms, m, prefix="beam")
+problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix="beam")
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
 beg_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, beg)

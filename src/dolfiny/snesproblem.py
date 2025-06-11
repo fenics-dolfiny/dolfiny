@@ -14,7 +14,7 @@ from dolfiny.localsolver import LocalSolver
 from dolfiny.utils import ANSI, attributes_to_dict, pprint, prefixify
 
 
-class SNESBlockProblem:
+class SNESProblem:
     reasons_ksp = attributes_to_dict(PETSc.KSP.ConvergedReason, invert=True)
     reasons_snes = attributes_to_dict(PETSc.SNES.ConvergedReason, invert=True)
 
@@ -330,7 +330,7 @@ class SNESBlockProblem:
 
         if ksp.reason < 0:
             ksp_info += ANSI.bright_red
-            ksp_info += f"failure = {SNESBlockProblem.reasons_ksp[ksp.reason]:s}"
+            ksp_info += f"failure = {SNESProblem.reasons_ksp[ksp.reason]:s}"
             ksp_info += ANSI.reset
 
         return ksp_info
@@ -340,7 +340,7 @@ class SNESBlockProblem:
 
         if snes.reason < 0:
             snes_info = ANSI.red
-            snes_info += f"failure = {SNESBlockProblem.reasons_snes[snes.reason]:s}"
+            snes_info += f"failure = {SNESProblem.reasons_snes[snes.reason]:s}"
             snes_info += ANSI.reset
 
         return snes_info
