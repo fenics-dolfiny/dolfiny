@@ -4,6 +4,7 @@ import dolfinx
 import ufl
 
 import numpy as np
+import pytest
 
 import dolfiny
 
@@ -77,3 +78,20 @@ def test_simple_triangle():
 
     val = mesh.comm.allreduce(val, op=MPI.SUM)
     assert np.isclose(val, 1.0 + np.pi * 0.5**2 / 2.0, rtol=1.0e-3)
+
+
+@pytest.mark.parametrize("gdim", (2, 3))
+def test_truss_x_braced(gdim):
+    orig_mesh = (
+        dolfinx.mesh.create_unit_square(MPI.COMM_SELF, 1, 1, dolfinx.mesh.CellType.quadrilateral)
+        if gdim == 2
+        else dolfinx.mesh.create_unit_cube(MPI.COMM_SELF, 1, 1, 1, dolfinx.mesh.CellType.hexahedron)
+    )
+    mesh = dolfiny.mesh.create_truss_x_braced_mesh(orig_mesh)
+
+    assert mesh.geometry.x.shape == orig_mesh.geometry.x.shape  # equal up to reorder
+    mesh.topology.create_connectivity(0, 1)
+    v_to_e = mesh.topology.connectivity(0, 1)
+    for i in range(v_to_e.num_nodes):
+        links = v_to_e.links(i)
+        assert links.size == (3 if gdim == 2 else 7)  # connected to all vertices up to self
