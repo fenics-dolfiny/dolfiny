@@ -3,7 +3,7 @@ version: 1
 project:
   id: e9fddbc8-1467-4c50-a56f-c7d663551eee
   title: Dolfiny
-  # description:
+  subtitle: Convenience wrappers for DOLFINx
   # keywords: []
   authors:
     - name: Andreas Zilian
