@@ -5,7 +5,30 @@ project:
   title: Dolfiny
   # description:
   # keywords: []
-  # authors: []
+  authors:
+    - name: Andreas Zilian
+      email: andreas.zilian@uni.lu
+      corresponding: true
+      url: https://www.uni.lu/fstm-en/people/andreas-zilian/
+      affiliations:
+        - id: unilu
+          institution: University of Luxembourg
+          department: Department of Engineering
+          url: https://www.uni.lu/fstm-en/research-departments/department-of-engineering/
+    - name: Michal Habera
+      email: michal.habera@gmail.com
+      corresponding: true
+      url: https://www.uni.lu/fstm-en/people/michal-habera/
+      affiliations:
+        - id: unilu
+        - id: rafinex
+          institution: Rafinex
+          url: https://rafinex.com
+    - name: Paul T. Kühner
+      email: paul.kuehner@uni.lu
+      corresponding: true
+      url: https://www.uni.lu/fstm-en/people/paul-theodor-kuehner/
+      affiliation: unilu
   github: https://github.com/fenics-dolfiny/dolfiny
   toc:
     - file: index.md
