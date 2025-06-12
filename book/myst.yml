@@ -5,6 +5,7 @@ project:
   title: Dolfiny
   subtitle: Convenience wrappers for DOLFINx
   # keywords: []
+  license: LGPL-3.0-or-later
   authors:
     - name: Andreas Zilian
       email: andreas.zilian@uni.lu
