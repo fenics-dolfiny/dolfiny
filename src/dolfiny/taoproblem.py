@@ -261,8 +261,8 @@ class TAOProblem:
         F: TAOObjectiveFunction | ufl.Form,
         u: Sequence[dolfinx.fem.Function],
         bcs: Sequence[dolfinx.fem.DirichletBC] = [],
-        lb: float | Sequence[dolfinx.fem.Function] = PETSc.NINFINITY,  # type: ignore
-        ub: float | Sequence[dolfinx.fem.Function] = PETSc.INFINITY,  # type: ignore
+        lb: np.floating | Sequence[dolfinx.fem.Function] = PETSc.NINFINITY,  # type: ignore
+        ub: np.floating | Sequence[dolfinx.fem.Function] = PETSc.INFINITY,  # type: ignore
         J: Sequence[dolfinx.fem.Form] | None = None,
         H: Sequence[Sequence[dolfinx.fem.Form]] | None = None,
         g: Sequence[dolfiny.inequality.Inequality]  # type: ignore

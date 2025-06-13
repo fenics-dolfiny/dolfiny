@@ -4,7 +4,10 @@ import pathlib
 import re
 import subprocess
 
-demo_files = ["obstacle/membrane.py"]  # relative from demo/
+demo_files = [  # relative from demo/
+    "obstacle/membrane.py",
+    "structural_optimisation/truss_sizing.py",
+]
 
 parser = argparse.ArgumentParser("bookstrap")
 parser.add_argument(
