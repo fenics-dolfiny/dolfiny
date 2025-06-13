@@ -285,23 +285,16 @@ class SNESProblem:
         self.J.assemble()
 
     def _converged(self, snes, it, norms):
-        it = snes.getIterationNumber()
-
-        atol_x = []
-        rtol_x = []
-        atol_dx = []
-        rtol_dx = []
         atol_r = []
         rtol_r = []
+        stol_dx = []
 
         if self.nest:
             self.compute_norms_nest(self.snes)
         else:
             self.compute_norms_block(self.snes)
 
-        for gi, i in enumerate(self.global_spaces_id):
-            atol_x.append(self.norm_x[it][gi] < snes.atol)
-            atol_dx.append(self.norm_dx[it][gi] < snes.atol)
+        for gi, _ in enumerate(self.global_spaces_id):
             atol_r.append(self.norm_r[it][gi] < snes.atol)
 
             # In some cases, 0th residual of a subfield could be 0.0
@@ -310,17 +303,20 @@ class SNESProblem:
             if np.isclose(rtol_r0, 0.0):
                 rtol_r0 = 1.0
 
-            rtol_x.append(self.norm_x[it][gi] < self.norm_x[0][gi] * snes.rtol)
-            rtol_dx.append(self.norm_dx[it][gi] < self.norm_dx[0][gi] * snes.rtol)
             rtol_r.append(self.norm_r[it][gi] < rtol_r0 * snes.rtol)
+            stol_dx.append(self.norm_dx[it][gi] < self.norm_x[it][gi] * snes.stol)
 
         if it > snes.max_it:
+            # https://petsc.org/release/manualpages/SNES/SNES_DIVERGED_MAX_IT/
             return PETSc.SNES.ConvergedReason.DIVERGED_MAX_IT
         elif all(atol_r) and it > 0:
+            # https://petsc.org/release/manualpages/SNES/SNES_CONVERGED_FNORM_ABS/
             return PETSc.SNES.ConvergedReason.CONVERGED_FNORM_ABS
         elif all(rtol_r):
+            # https://petsc.org/release/manualpages/SNES/SNES_CONVERGED_FNORM_RELATIVE/
             return PETSc.SNES.ConvergedReason.CONVERGED_FNORM_RELATIVE
-        elif all(rtol_dx):
+        elif all(stol_dx) and it > 0:
+            # https://petsc.org/release/manualpages/SNES/SNES_CONVERGED_SNORM_RELATIVE/
             return PETSc.SNES.ConvergedReason.CONVERGED_SNORM_RELATIVE
         else:
             return PETSc.SNES.ConvergedReason.ITERATING
@@ -336,12 +332,16 @@ class SNESProblem:
         return ksp_info
 
     def _info_snes(self, snes):
-        snes_info = ""
-
         if snes.reason < 0:
             snes_info = ANSI.red
             snes_info += f"failure = {SNESProblem.reasons_snes[snes.reason]:s}"
             snes_info += ANSI.reset
+        elif snes.reason > 0:
+            snes_info = ANSI.green
+            snes_info += f"success = {SNESProblem.reasons_snes[snes.reason]:s}"
+            snes_info += ANSI.reset
+        else:
+            snes_info = ""
 
         return snes_info
 
