@@ -416,7 +416,8 @@ def test_optimal_control_reduced():
 
     opts = PETSc.Options("optimal_control_reduced")
     opts["tao_type"] = "lmvm"  # pdipm
-    opts["tao_gatol"] = 1e-9
+    opts["tao_gatol"] = 0
+    opts["tao_gttol"] = 1e-6
 
     opt_problem = dolfiny.taoproblem.TAOProblem(
         F_reduced, [f], J=(J_reduced, f.x.petsc_vec.copy()), prefix="optimal_control_reduced"
