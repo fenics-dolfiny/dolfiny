@@ -18,7 +18,7 @@ import numpy as np
 def gmsh_to_dolfin(
     gmsh_model, tdim: int, comm=MPI.COMM_WORLD, partitioner=None, prune_y=False, prune_z=False
 ):
-    """Converts gmsh model to mesh and mesh tags.
+    """Convert gmsh model to mesh and mesh tags.
 
     Converts a gmsh model object into `dolfinx.Mesh` and `dolfinx.MeshTags`
     for physical tags.
@@ -308,7 +308,7 @@ def msh_to_gmsh(msh_file, order=1, comm=MPI.COMM_WORLD):
 
 
 def locate_dofs_topological(V, meshtags, value, exclude_dofs=None, unroll=False):
-    """Identifies dofs of a given function space associated with a given meshtags value.
+    """Identify dofs of a given function space associated with a given meshtags value.
 
     Parameters
     ----------
@@ -353,7 +353,7 @@ def locate_dofs_topological(V, meshtags, value, exclude_dofs=None, unroll=False)
 
 
 def locate_dofs_geometrical(V, meshtags, value, exclude_dofs=None, unroll=False):
-    """Identifies dofs of a given function space associated with a given meshtags value.
+    """Identify dofs of a given function space associated with a given meshtags value.
 
     Parameters
     ----------

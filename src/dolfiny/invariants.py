@@ -13,7 +13,7 @@ def invariants_principal(A):
 
 
 def invariants_main(A):
-    """Main invariants of (real-valued) tensor A.
+    """Return main invariants of (real-valued) tensor A.
 
     https://doi.org/10.1007/978-3-7091-0174-2_3.
     """

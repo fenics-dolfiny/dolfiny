@@ -792,7 +792,7 @@ class LocalSolver:
         self.active_coeffs = np.arange(len(self.stacked_coefficients), dtype=np.int8)
 
     def view(self):
-        """Shows information about kernels, sizes of blocks and positions of Coefficient DOFs."""
+        """Show information about kernels, sizes of blocks and positions of Coefficient DOFs."""
         pprint(79 * "#")
         pprint(79 * "*")
         for i in range(len(self.F_ufl)):

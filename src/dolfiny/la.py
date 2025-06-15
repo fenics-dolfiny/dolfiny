@@ -4,7 +4,7 @@ from scipy.sparse import csr_matrix
 
 
 def petsc_to_scipy(A):
-    """Converts PETSc serial matrix to SciPy CSR matrix."""
+    """Convert PETSc serial matrix to SciPy CSR matrix."""
     ai, aj, av = A.getValuesCSR()
     mat = csr_matrix((av, aj, ai))
 
@@ -12,7 +12,7 @@ def petsc_to_scipy(A):
 
 
 def scipy_to_petsc(A):
-    """Converts SciPy CSR matrix to PETSc serial matrix."""
+    """Convert SciPy CSR matrix to PETSc serial matrix."""
     nrows = A.shape[0]
     ncols = A.shape[1]
 
