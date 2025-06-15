@@ -14,8 +14,11 @@ def extract_blocks(
     Parameters
     ----------
     form
+        Form to extract blocks from
     test_functions
+        Test functions in block order
     trial_functions: optional
+        Trial functions in block order
 
     Returns
     -------

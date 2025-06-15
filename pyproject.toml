@@ -61,7 +61,6 @@ select = [
 ignore = [
       "D1",   # undocumented
       "D401", # non-imperative-mood
-      "D417", # doced, but missing param
       "D203", # incompatible with D203 `no-blank-line-before-class`
       "D213", # incomptabile with D212 `multi-line-summary-first-line`
 ]

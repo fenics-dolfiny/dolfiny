@@ -40,16 +40,24 @@ class SNESProblem:
         u
             Current solution functions
         bcs
+            List of boundary conditions
         J_form
+            Jacobian forms
         nest: False
             True for 'matnest' data layout, False for 'aij'
         restriction: optional
             ``Restriction`` class used to provide information about degree-of-freedom
             indices for which this solver should solve. With ``LocalSolver`` only
             degrees-of-freedom for global fields must be considered.
+        prefix
+            Prefix for the PETSc options database
         localsolver: optional
             ``LocalSolver`` class providing context on elimination of local
             degrees-of-freedom.
+        form_compiler_options
+            Forwarded to FFCx
+        jit_options
+            Compiler flags to use for form compilation
 
         """
         self.u = u

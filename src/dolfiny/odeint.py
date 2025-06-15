@@ -50,15 +50,24 @@ class ODEInt:
 
         Parameters
         ----------
-        t: Stage time.
-        dt: Time step size.
-        x: Pointer to function describing the state.
-        xt: Pointer to function describing the rate of the state.
+        t:
+            Stage time.
+        dt:
+            Time step size.
+        x:
+            Pointer to function describing the state.
+        xt:
+            Pointer to function describing the rate of the state.
 
-        rho: Spectral radius rho_infinity for generalised alpha.
-        alpha_f: Specific value for alpha_f.
-        alpha_m: Specific value for alpha_m.
-        gamma: Specific value for gamma.
+        kwargs:
+            rho:
+                Spectral radius rho_infinity for generalised alpha.
+            alpha_f:
+                Specific value for alpha_f.
+            alpha_m:
+                Specific value for alpha_m.
+            gamma:
+                Specific value for gamma.
 
         """
         # Set stage time and time step
@@ -258,17 +267,28 @@ class ODEInt2:
 
         Parameters
         ----------
-        t: Stage time.
-        dt: Time step size.
-        x: Pointer to function describing the state.
-        xt: Pointer to function describing the rate of the state.
-        xtt: Pointer to function describing the rate of rate of the state.
+        t:
+            Stage time.
+        dt:
+            Time step size.
+        x:
+            Pointer to function describing the state.
+        xt:
+            Pointer to function describing the rate of the state.
+        xtt:
+            Pointer to function describing the rate of rate of the state.
 
-        rho: Spectral radius rho_infinity for generalised alpha.
-        alpha_f: Specific value for alpha_f.
-        alpha_m: Specific value for alpha_m.
-        gamma: Specific value for gamma.
-        beta: Specific value for beta.
+        kwargs:
+            rho:
+                Spectral radius rho_infinity for generalised alpha.
+            alpha_f:
+                Specific value for alpha_f.
+            alpha_m:
+                Specific value for alpha_m.
+            gamma:
+                Specific value for gamma.
+            beta:
+                Specific value for beta.
 
         """
         # Set stage time and time step

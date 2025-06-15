@@ -32,6 +32,8 @@ class SLEPcProblem:
             Override automatically derived A
         B_form, optional
             Override automatically derived B
+        prefix
+            Prefix of the PETSc options database
 
         Note
         ----

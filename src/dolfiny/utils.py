@@ -25,7 +25,8 @@ def attributes_to_dict(c, invert=False):
 
     Parameters
     ----------
-    s: Class
+    c: Class
+        Object to extract attributes of.
     invert: optional
         Invert key-value pair in dictionary
 
@@ -48,6 +49,7 @@ def prefixify(n: int, prefixes=[" ", "k", "m", "b"]) -> str:
     Parameters
     ----------
     n: integer
+        Number to convert
     prefixes: optional
         List of (metric) prefix characters
 

@@ -14,9 +14,12 @@ def evaluate(e, u, u0):
 
     Parameters
     ----------
-    e: UFL Expr or list of UFL expressions/forms
-    u: UFL Function or list of UFL functions
-    u0: UFL Function or list of UFL functions
+    e:
+        UFL Expr or list of UFL expressions/forms
+    u:
+        UFL Function or list of UFL functions
+    u0:
+        UFL Function or list of UFL functions
 
     Returns
     -------
@@ -56,9 +59,12 @@ def linearise(e, u, u0=None):
 
     Parameters
     ----------
-    e: UFL Expr/Form or list of UFL expressions/forms
-    u: UFL Function or list of UFL functions
-    u0: UFL Function or list of UFL functions, defaults to zero
+    e:
+        UFL Expr/Form or list of UFL expressions/forms
+    u:
+        UFL Function or list of UFL functions
+    u0:
+        UFL Function or list of UFL functions, defaults to zero
 
     Returns
     -------
@@ -100,8 +106,10 @@ def assemble(e, dx):
 
     Parameters
     ----------
-    e: UFL Expr
-    dx: UFL Measure
+    e:
+        UFL Expr
+    dx:
+        UFL Measure
 
     Returns
     -------

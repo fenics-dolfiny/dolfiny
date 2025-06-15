@@ -26,9 +26,11 @@ def gmsh_to_dolfin(
     Parameters
     ----------
     gmsh_model
+        Model to convert
     tdim
         Topological dimension of the mesh
     comm: optional
+        Communicator of the generated mesh
     partitioner: optional
         Use given partitioner.
     prune_y: optional
@@ -279,6 +281,7 @@ def msh_to_gmsh(msh_file, order=1, comm=MPI.COMM_WORLD):
     order: optional
         Adjust order of gmsh mesh cells
     comm: optional
+        Communicator over which the tdim is broadcasted
 
     Returns
     -------
@@ -309,11 +312,16 @@ def locate_dofs_topological(V, meshtags, value, exclude_dofs=None, unroll=False)
 
     Parameters
     ----------
-    V: FunctionSpace
-    meshtags: MeshTags object
-    value: mesh tag value
-    exclude_dofs: numpy array of dofs to exclude
-    unroll: unroll dofs
+    V:
+        FunctionSpace
+    meshtags:
+        MeshTags object
+    value:
+        mesh tag value
+    exclude_dofs:
+        numpy array of dofs to exclude
+    unroll:
+        unroll dofs
 
     Returns
     -------
@@ -349,11 +357,16 @@ def locate_dofs_geometrical(V, meshtags, value, exclude_dofs=None, unroll=False)
 
     Parameters
     ----------
-    V: FunctionSpace
-    meshtags: MeshTags object
-    value: mesh tag value
-    exclude_dofs: numpy array of dofs to exclude
-    unroll: unroll dofs
+    V:
+        FunctionSpace
+    meshtags:
+        MeshTags object
+    value:
+        mesh tag value
+    exclude_dofs:
+        numpy array of dofs to exclude
+    unroll:
+        unroll dofs
 
     Returns
     -------
@@ -417,6 +430,8 @@ def merge_meshtags(mesh, mts, dim):
 
     Parameters
     ----------
+    mesh:
+        Mesh associated with mesh tags
     mts:
         List of meshtags
     dim:
