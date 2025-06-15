@@ -136,7 +136,7 @@ class LocalSolver:
         self.active_coeffs = None
 
     def reduced_F_forms(self):
-        """Return list of forms used to assemble reduced residuals"""
+        """Return list of forms used to assemble reduced residuals."""
         F_form = []
 
         for gi, i in enumerate(self.global_spaces_id):
@@ -166,7 +166,7 @@ class LocalSolver:
         return F_form
 
     def reduced_J_forms(self):
-        """Return list of list of forms used to assemble reduced tangents"""
+        """Return list of list of forms used to assemble reduced tangents."""
         J_form = [
             [None for j in range(len(self.global_spaces_id))]
             for i in range(len(self.global_spaces_id))
@@ -665,7 +665,7 @@ class LocalSolver:
         return cppyy.ll.cast["intptr_t"](compiled_wrapper.kernel)
 
     def stack_data(self):
-        """Stack all Coefficients and Constants across all blocks in F and J forms"""
+        """Stack all Coefficients and Constants across all blocks in F and J forms."""
         stacked_coefficients = []
         stacked_constants = []
         coefficients = []

@@ -4,7 +4,7 @@ from scipy.sparse import csr_matrix
 
 
 def petsc_to_scipy(A):
-    """Converts PETSc serial matrix to SciPy CSR matrix"""
+    """Converts PETSc serial matrix to SciPy CSR matrix."""
     ai, aj, av = A.getValuesCSR()
     mat = csr_matrix((av, aj, ai))
 
@@ -28,7 +28,6 @@ def scipy_to_petsc(A):
 
 def is_symmetric(A, rtol=1e-06, atol=1e-08, normtype=PETSc.NormType.INFINITY):
     """Test for symmetry of operator A."""
-
     assert isinstance(A, PETSc.Mat)
 
     knows, fact = A.isSymmetricKnown()

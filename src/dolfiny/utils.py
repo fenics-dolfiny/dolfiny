@@ -16,7 +16,6 @@ def pprint(str="", end="", flush=True, comm=MPI.COMM_WORLD):
         MPI communicator
 
     """
-
     if comm.rank == 0:
         print(str, end, flush=flush)
 

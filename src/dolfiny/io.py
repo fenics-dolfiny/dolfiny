@@ -7,7 +7,7 @@ class XDMFFile(dolfinx.io.XDMFFile):
     KEYS_OF_MESHTAGS = "KeysOfMeshTags"
 
     def write_mesh_meshtags(self, mesh, mts=None):
-        """Write mesh and meshtags to XDMFFile
+        """Write mesh and meshtags to XDMFFile.
 
         Parameters
         ----------
@@ -36,7 +36,7 @@ class XDMFFile(dolfinx.io.XDMFFile):
             self.write_meshtags(mt, mesh.geometry)
 
     def read_mesh_meshtags(self, mesh_name="mesh"):
-        """Read mesh and meshtags from XDMFFile
+        """Read mesh and meshtags from XDMFFile.
 
         Parameters
         ----------
@@ -51,7 +51,6 @@ class XDMFFile(dolfinx.io.XDMFFile):
             The dict of meshtags
 
         """
-
         logger = logging.getLogger("dolfiny")
 
         logger.info("Reading mesh")

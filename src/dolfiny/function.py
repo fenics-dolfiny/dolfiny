@@ -95,6 +95,7 @@ def evaluate(f: dolfinx.fem.Function, x: np.ndarray, tdim: int | None = None) ->
     ------
     ValueError
         If the shape of x is not (3, n).
+
     """
     if x.ndim != 2 or x.shape[0] != 3:
         raise ValueError(f"Path coordinates x must have shape (3, n); received shape: {x.shape}.")

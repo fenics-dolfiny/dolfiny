@@ -18,7 +18,9 @@ import numpy as np
 def gmsh_to_dolfin(
     gmsh_model, tdim: int, comm=MPI.COMM_WORLD, partitioner=None, prune_y=False, prune_z=False
 ):
-    """Converts a gmsh model object into `dolfinx.Mesh` and `dolfinx.MeshTags`
+    """Converts gmsh model to mesh and mesh tags.
+
+    Converts a gmsh model object into `dolfinx.Mesh` and `dolfinx.MeshTags`
     for physical tags.
 
     Parameters
@@ -38,8 +40,8 @@ def gmsh_to_dolfin(
     ----
     User must call `geo.synchronize()` and `mesh.generate()` before passing the model into
     this method.
-    """
 
+    """
     rank = comm.rank
 
     logger = logging.getLogger("dolfiny")
@@ -268,7 +270,7 @@ def gmsh_to_dolfin(
 
 
 def msh_to_gmsh(msh_file, order=1, comm=MPI.COMM_WORLD):
-    """Read msh file with gmsh and return the gmsh model
+    """Read msh file with gmsh and return the gmsh model.
 
     Parameters
     ----------
@@ -286,7 +288,6 @@ def msh_to_gmsh(msh_file, order=1, comm=MPI.COMM_WORLD):
         The highest topological dimension of the mesh entities
 
     """
-
     if comm.rank == 0:
         import gmsh
 
@@ -319,7 +320,6 @@ def locate_dofs_topological(V, meshtags, value, exclude_dofs=None, unroll=False)
     The system dof indices.
 
     """
-
     from dolfinx import fem
 
     from numpy import setdiff1d, where
@@ -360,7 +360,6 @@ def locate_dofs_geometrical(V, meshtags, value, exclude_dofs=None, unroll=False)
     The system dof indices.
 
     """
-
     from dolfinx import fem
 
     from numpy import empty, int32, isclose, setdiff1d, where
@@ -466,6 +465,7 @@ def create_truss_x_braced_mesh(mesh: dolfinx.mesh.Mesh) -> dolfinx.mesh.Mesh:
     Returns
     -------
     Truss mesh with all possible bracings.
+
     """
     cell_type = mesh.topology.cell_type
     if cell_type not in (dolfinx.mesh.CellType.quadrilateral, dolfinx.mesh.CellType.hexahedron):

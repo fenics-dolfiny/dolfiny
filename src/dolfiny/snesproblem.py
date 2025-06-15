@@ -31,7 +31,7 @@ class SNESProblem:
         form_compiler_options: dict | None = None,
         jit_options: dict | None = None,
     ):
-        """SNES problem and solver wrapper
+        """SNES problem and solver wrapper.
 
         Parameters
         ----------
@@ -194,8 +194,7 @@ class SNESProblem:
         self.verbose = dict(snes=True, ksp=True)
 
     def _update_functions(self, x):
-        """Update solution functions from the stored vector x"""
-
+        """Update solution functions from the stored vector x."""
         if self.restriction is not None:
             self.restriction.assign(x, [self.u[idx] for idx in self.global_spaces_id])
             dolfinx.fem.petsc.assign([self.u[idx] for idx in self.global_spaces_id], self.x)
