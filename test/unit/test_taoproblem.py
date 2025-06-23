@@ -323,6 +323,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
         a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
     )
     sol_weak_form = problem.solve()
+    assert isinstance(sol_weak_form, dolfinx.fem.Function)
     L2_norm_unconstrained = _L2_norm(sol_weak_form)
 
     C = L2_norm_unconstrained * 0.5
