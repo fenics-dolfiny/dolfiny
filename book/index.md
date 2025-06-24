@@ -1,3 +1,1 @@
-# Dolfiny 🐬
-
-Coming soon...
+../README.md
