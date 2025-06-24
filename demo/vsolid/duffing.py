@@ -52,10 +52,10 @@ st = dolfinx.fem.Function(S, name="st")
 u = dolfinx.fem.Function(V, name="u")
 d = dolfinx.fem.Function(V, name="d")  # dummy
 
-δv = ufl.TestFunction(V)
-δs = ufl.TestFunction(S)
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(V, S))
+δv, δs = δm
 
-m, mt, δm = [v, s], [vt, st], [δv, δs]
+m, mt = [v, s], [vt, st]
 
 # Set initial conditions
 v.x.petsc_vec.set(v_0), vt.x.petsc_vec.set(-_s(u_0))
@@ -92,7 +92,7 @@ form = δv * r1 * dx + δs * r2 * dx
 # Overall form (as one-form)
 form = odeint.discretise_in_time(form)
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Options for PETSc backend
 opts = PETSc.Options()  # type: ignore[attr-defined]

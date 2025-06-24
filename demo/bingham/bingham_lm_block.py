@@ -91,10 +91,8 @@ pt = dolfinx.fem.Function(Pf, name="pt")
 nt = dolfinx.fem.Function(Nf, name="nt")
 tt = dolfinx.fem.Function(Tf, name="tt")
 
-δv = ufl.TestFunction(Vf)
-δp = ufl.TestFunction(Pf)
-δn = ufl.TestFunction(Nf)
-δt = ufl.TestFunction(Tf)
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Vf, Pf, Nf, Tf))
+δv, δp, δn, δt = δm
 
 # Define state as (ordered) list of functions
 m = [v, p, n, t]
@@ -169,7 +167,7 @@ form = (
 # Overall form (as one-form)
 form = odeint.discretise_in_time(form)
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
