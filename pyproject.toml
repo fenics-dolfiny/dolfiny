@@ -47,6 +47,7 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
+      "D",   # pydocstyle
       "E",   # pycodestyle
       "W",   # pycodestyle
       "F",   # pyflakes
@@ -57,7 +58,16 @@ select = [
       "NPY", # numpy-specific rules
       "FLY", # use f-string not static joins
 ]
+ignore = [
+      "D1",   # undocumented
+      "D203", # incompatible with D203 `no-blank-line-before-class`
+      "D213", # incomptabile with D212 `multi-line-summary-first-line`
+]
+
 allowed-confusables = ["σ", "×"]
+
+[tool.ruff.lint.per-file-ignores]
+"!src/**.py" = ["D"] # no docstring linting outside of src/
 
 [tool.ruff.lint.isort]
 known-first-party = ["dolfiny"]

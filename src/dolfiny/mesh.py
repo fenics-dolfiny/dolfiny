@@ -18,15 +18,19 @@ import numpy as np
 def gmsh_to_dolfin(
     gmsh_model, tdim: int, comm=MPI.COMM_WORLD, partitioner=None, prune_y=False, prune_z=False
 ):
-    """Converts a gmsh model object into `dolfinx.Mesh` and `dolfinx.MeshTags`
+    """Convert gmsh model to mesh and mesh tags.
+
+    Converts a gmsh model object into `dolfinx.Mesh` and `dolfinx.MeshTags`
     for physical tags.
 
     Parameters
     ----------
     gmsh_model
+        Model to convert
     tdim
         Topological dimension of the mesh
     comm: optional
+        Communicator of the generated mesh
     partitioner: optional
         Use given partitioner.
     prune_y: optional
@@ -38,8 +42,8 @@ def gmsh_to_dolfin(
     ----
     User must call `geo.synchronize()` and `mesh.generate()` before passing the model into
     this method.
-    """
 
+    """
     rank = comm.rank
 
     logger = logging.getLogger("dolfiny")
@@ -268,7 +272,7 @@ def gmsh_to_dolfin(
 
 
 def msh_to_gmsh(msh_file, order=1, comm=MPI.COMM_WORLD):
-    """Read msh file with gmsh and return the gmsh model
+    """Read msh file with gmsh and return the gmsh model.
 
     Parameters
     ----------
@@ -277,6 +281,7 @@ def msh_to_gmsh(msh_file, order=1, comm=MPI.COMM_WORLD):
     order: optional
         Adjust order of gmsh mesh cells
     comm: optional
+        Communicator over which the tdim is broadcasted
 
     Returns
     -------
@@ -286,7 +291,6 @@ def msh_to_gmsh(msh_file, order=1, comm=MPI.COMM_WORLD):
         The highest topological dimension of the mesh entities
 
     """
-
     if comm.rank == 0:
         import gmsh
 
@@ -304,22 +308,26 @@ def msh_to_gmsh(msh_file, order=1, comm=MPI.COMM_WORLD):
 
 
 def locate_dofs_topological(V, meshtags, value, exclude_dofs=None, unroll=False):
-    """Identifies dofs of a given function space associated with a given meshtags value.
+    """Identify dofs of a given function space associated with a given meshtags value.
 
     Parameters
     ----------
-    V: FunctionSpace
-    meshtags: MeshTags object
-    value: mesh tag value
-    exclude_dofs: numpy array of dofs to exclude
-    unroll: unroll dofs
+    V:
+        FunctionSpace
+    meshtags:
+        MeshTags object
+    value:
+        mesh tag value
+    exclude_dofs:
+        numpy array of dofs to exclude
+    unroll:
+        unroll dofs
 
     Returns
     -------
     The system dof indices.
 
     """
-
     from dolfinx import fem
 
     from numpy import setdiff1d, where
@@ -345,22 +353,26 @@ def locate_dofs_topological(V, meshtags, value, exclude_dofs=None, unroll=False)
 
 
 def locate_dofs_geometrical(V, meshtags, value, exclude_dofs=None, unroll=False):
-    """Identifies dofs of a given function space associated with a given meshtags value.
+    """Identify dofs of a given function space associated with a given meshtags value.
 
     Parameters
     ----------
-    V: FunctionSpace
-    meshtags: MeshTags object
-    value: mesh tag value
-    exclude_dofs: numpy array of dofs to exclude
-    unroll: unroll dofs
+    V:
+        FunctionSpace
+    meshtags:
+        MeshTags object
+    value:
+        mesh tag value
+    exclude_dofs:
+        numpy array of dofs to exclude
+    unroll:
+        unroll dofs
 
     Returns
     -------
     The system dof indices.
 
     """
-
     from dolfinx import fem
 
     from numpy import empty, int32, isclose, setdiff1d, where
@@ -418,6 +430,8 @@ def merge_meshtags(mesh, mts, dim):
 
     Parameters
     ----------
+    mesh:
+        Mesh associated with mesh tags
     mts:
         List of meshtags
     dim:
@@ -466,6 +480,7 @@ def create_truss_x_braced_mesh(mesh: dolfinx.mesh.Mesh) -> dolfinx.mesh.Mesh:
     Returns
     -------
     Truss mesh with all possible bracings.
+
     """
     cell_type = mesh.topology.cell_type
     if cell_type not in (dolfinx.mesh.CellType.quadrilateral, dolfinx.mesh.CellType.hexahedron):

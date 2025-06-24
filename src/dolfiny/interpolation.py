@@ -9,13 +9,12 @@ import dolfiny
 def interpolate(expr, target_func):
     """Interpolate UFL expression.
 
-    Note
+    Note:
     ----
     This method decides if interpolation is possible purely as linear combination
     of some underlying PETSc vectors. In such case this approach is chosen.
 
     """
-
     logger = logging.getLogger("dolfiny")
 
     linear_comb = []

@@ -2,7 +2,7 @@ import ufl
 
 
 class Inequality:
-    """Stores an inequality as
+    """Stores an inequality as.
 
         lhs <= rhs
 
@@ -38,7 +38,7 @@ def custom_le(form: ufl.Form, other: int | float) -> Inequality:
 
 
 def custom_ge(form: ufl.Form, other: int | float) -> Inequality:
-    """form >= other iff. -form <= - other"""
+    """Form >= other iff. -form <= - other."""
     return Inequality(-form, -other)
 
 

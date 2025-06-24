@@ -8,12 +8,11 @@ from dolfinx.fem.petsc import apply_lifting, assemble_matrix, assemble_vector, s
 def project(e, target_func, bcs=[]):
     """Project UFL expression.
 
-    Note
+    Note:
     ----
     This method solves a linear system (using KSP defaults).
 
     """
-
     # Ensure we have a mesh and attach to measure
     V = target_func.function_space
     dx = ufl.dx(V.mesh)
@@ -49,8 +48,7 @@ def project(e, target_func, bcs=[]):
 
 
 def project_codimension(p_expression, target_func, projector, mt, mt_id, eps=1.0e-03):
-    """
-    Project expression defined on codimension (on a mesh-tagged subset) into given function.
+    """Project expression defined on codimension (on a mesh-tagged subset) into given function.
 
     Args:
         p_expression: The (projected) expression.
@@ -59,6 +57,7 @@ def project_codimension(p_expression, target_func, projector, mt, mt_id, eps=1.0
         mt: Meshtags
         mt_id: Meshtag id that determines the set of codimension entities.
         eps: Augmentation factor.
+
     """
     import numpy as np
 

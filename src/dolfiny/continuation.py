@@ -107,7 +107,7 @@ class Crisfield:
 
     @staticmethod
     def update(snes, snes_iteration, continuation):
-        """Crisfield's continuation update based on solving the quadratic arc-length equation
+        """Crisfield's continuation update based on solving the quadratic arc-length equation.
 
             (Δx_k).T * (Δx_k) + (Δλ_k * dFdλ).T * (Δλ_k * dFdλ) = ds**2
 
@@ -121,7 +121,6 @@ class Crisfield:
         M. A. Crisfield: A fast incremental/iterative solution procedure that handles "snap-through"
         Computers & Structures, 13:1-3, 55-62, 1981. https://doi.org/10.1016/0045-7949(81)90108-5
         """
-
         # shorthands to states from continuation object, for convenience
         Δx, dx = continuation.Δx, continuation.dx
         Δλ, dλ = continuation.Δλ.value.item(), continuation.dλ.value.item()

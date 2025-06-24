@@ -9,20 +9,23 @@ from ufl.corealg.multifunction import MultiFunction
 
 def evaluate(e, u, u0):
     """Evaluate a UFL expression (or list of expressions).
-       Basically replaces function(s) u by function(s) u0.
+
+    Basically replaces function(s) u by function(s) u0.
 
     Parameters
     ----------
-    e: UFL Expr or list of UFL expressions/forms
-    u: UFL Function or list of UFL functions
-    u0: UFL Function or list of UFL functions
+    e:
+        UFL Expr or list of UFL expressions/forms
+    u:
+        UFL Function or list of UFL functions
+    u0:
+        UFL Function or list of UFL functions
 
     Returns
     -------
     Expression (or list of expressions) with function(s) u replaced by function(s) u0.
 
     """
-
     u_list = u if isinstance(u, Sequence) else [u]
     u0_list = u0 if isinstance(u0, Sequence) else [u0]
 
@@ -46,17 +49,22 @@ def evaluate(e, u, u0):
 
 
 def linearise(e, u, u0=None):
-    """Generate the first order Taylor series expansion of UFL expressions (or list of expressions)
-       for the given function(s) u at u0.
+    """Linearise expression.
+
+    Generate the first order Taylor series expansion of UFL expressions (or list of expressions)
+    for the given function(s) u at u0.
 
        Example (linearise around zero): linF = dolfiny.expression.linearise(F, u)
        Example (linearise around given state): linF = dolfiny.expression.linearise(F, u, u0)
 
     Parameters
     ----------
-    e: UFL Expr/Form or list of UFL expressions/forms
-    u: UFL Function or list of UFL functions
-    u0: UFL Function or list of UFL functions, defaults to zero
+    e:
+        UFL Expr/Form or list of UFL expressions/forms
+    u:
+        UFL Function or list of UFL functions
+    u0:
+        UFL Function or list of UFL functions, defaults to zero
 
     Returns
     -------
@@ -93,19 +101,21 @@ def linearise(e, u, u0=None):
 
 def assemble(e, dx):
     """Assemble UFL form given by UFL expression e and UFL integration measure dx.
-       The expression can be a tensor quantity of rank 0, 1 or 2.
+
+    The expression can be a tensor quantity of rank 0, 1 or 2.
 
     Parameters
     ----------
-    e: UFL Expr
-    dx: UFL Measure
+    e:
+        UFL Expr
+    dx:
+        UFL Measure
 
     Returns
     -------
     Assembled form f = e * dx as scalar or numpy array (depends on rank of e).
 
     """
-
     from mpi4py import MPI
 
     import numpy as np
@@ -131,24 +141,23 @@ def assemble(e, dx):
 
 
 def extract_linear_combination(e, linear_comb=[], scalar_weight=1.0):
-    """Extract linear combination from UFL expression.
+    r"""Extract linear combination from UFL expression.
 
     Assumes the expression could be equivalently written as ``\\sum_i c_i u_i``
     where ``c_i`` are known scalar coefficients and ``u_i`` are dolfinx Functions.
     If this assumption fails, raises a RuntimeError.
 
-    Returns
+    Returns:
     -------
     Tuples (u_i, c_i) which represent summands in the above sum.
     Returned summands are not uniquely accumulated, i.e. could return (u, 1.0) and (u, 2.0).
 
-    Note
+    Note:
     ----
     Constant nodes (dolfinx.Constant) are not handled. So the expression which has the above
     form where ``c_i`` could contain Constant must have first these nodes numerically evaluated.
 
     """
-
     from ufl.classes import ComponentTensor, Division, Index, Indexed, Product, ScalarValue, Sum
 
     if isinstance(e, dolfinx.fem.Function):
@@ -195,5 +204,5 @@ class ConstantEvaluator(MultiFunction):
 
 
 def evaluate_constants(expr):
-    """Transform Constant nodes into numeric UFL nodes"""
+    """Transform Constant nodes into numeric UFL nodes."""
     return map_integrand_dags(ConstantEvaluator(), expr)

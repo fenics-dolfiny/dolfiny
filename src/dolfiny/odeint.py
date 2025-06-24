@@ -7,8 +7,7 @@ import dolfiny
 
 
 def _copy_entries(source, target):
-    """Helper function to copy solution values from the source Function to the target Function."""
-
+    """Copy solution values from the source Function to the target Function."""
     if isinstance(source, list):
         for si, ti in zip(source, target):
             with si.x.petsc_vec.localForm() as locs, ti.x.petsc_vec.localForm() as loct:
@@ -20,7 +19,8 @@ def _copy_entries(source, target):
 
 class ODEInt:
     def __init__(self, t, dt, x, xt, **kwargs):
-        """Initialises the ODE integrator (single-step-method) for 1st order ODEs.
+        """Initialise the ODE integrator (single-step-method) for 1st order ODEs.
+
         Uses underneath the generalised alpha method and its limits.
 
         Important: This variant ensures that the solution x(t1), xt(t1)
@@ -50,17 +50,26 @@ class ODEInt:
 
         Parameters
         ----------
-        t: Stage time.
-        dt: Time step size.
-        x: Pointer to function describing the state.
-        xt: Pointer to function describing the rate of the state.
+        t:
+            Stage time.
+        dt:
+            Time step size.
+        x:
+            Pointer to function describing the state.
+        xt:
+            Pointer to function describing the rate of the state.
 
-        rho: Spectral radius rho_infinity for generalised alpha.
-        alpha_f: Specific value for alpha_f.
-        alpha_m: Specific value for alpha_m.
-        gamma: Specific value for gamma.
+        kwargs:
+            rho:
+                Spectral radius rho_infinity for generalised alpha.
+            alpha_f:
+                Specific value for alpha_f.
+            alpha_m:
+                Specific value for alpha_m.
+            gamma:
+                Specific value for gamma.
+
         """
-
         # Set stage time and time step
         self.t = t
         self.dt = dt
@@ -125,8 +134,7 @@ class ODEInt:
             self.gamma.value = kwargs["gamma"]
 
     def _derivative_dt(self, x1t_aux, x0t_aux, x0t):
-        """Returns the UFL expression for: derivative in time x1t."""
-
+        """Return the UFL expression for: derivative in time x1t."""
         # return equation (1) solved for x1t
         return (
             1
@@ -135,20 +143,17 @@ class ODEInt:
         )
 
     def _derivative_dt_aux(self, x1, x0, x0t_aux):
-        """Returns the UFL expression for: derivative in time x1t_aux."""
-
+        """Return the UFL expression for: derivative in time x1t_aux."""
         # return equation (2) solved for x1t_aux
         return 1 / self.gamma * (1 / self.dt * (x1 - x0) - (1 - self.gamma) * x0t_aux)
 
     def _integral_dt(self, x1, x1t, x0, x0t):
-        """Returns the UFL expression for: integral over the time interval int_t0^t1 x(t) dt."""
-
+        """Return the UFL expression for: integral over the time interval int_t0^t1 x(t) dt."""
         # return integrated polynomial of degree 3
         return self.dt / 2 * (x0 + x1) + self.dt**2 / 12 * (x0t - x1t)
 
     def integral_dt(self, y):
-        """Returns the UFL expression for: time integral of given UFL function y registered in ODEInt."""
-
+        """Return the UFL expression for: time integral of given UFL function y registered in ODEInt."""
         if isinstance(self.x1, list):
             if y not in self.x1:
                 raise RuntimeError("Given function not registered in ODEInt object.")
@@ -163,7 +168,6 @@ class ODEInt:
 
     def stage(self, t0=None, dt=None):
         """Stages the processing of the next time step: sets time value (to t1) and initial values."""
-
         if t0 is not None:
             self.t.value = t0
 
@@ -182,7 +186,6 @@ class ODEInt:
 
     def update(self):
         """Set rate x1t and auxiliary rate x1t_aux once x1 has been computed."""
-
         # update x1t_aux
         if isinstance(self.x1t_aux, list):
             for x1, x0, x1t_aux, x0t_aux in zip(self.x1, self.x0, self.x1t_aux, self.x0t_aux):
@@ -203,7 +206,6 @@ class ODEInt:
 
     def discretise_in_time(self, f):
         """Discretises the form f(t, x, xt) in time. The solution fulfills f(t1, x1, x1t) = 0."""
-
         # Construct expression for x1t_aux
         if isinstance(self.x1t, list):
             x1t_aux = []
@@ -229,7 +231,8 @@ class ODEInt:
 
 class ODEInt2:
     def __init__(self, t, dt, x, xt, xtt, **kwargs):
-        """Initialises the ODE integrator (single-step-method) for 2nd order ODEs.
+        """Initialise the ODE integrator (single-step-method) for 2nd order ODEs.
+
         Uses underneath the generalised alpha method and its limits.
 
         Important: This variant ensures that the solution x(t1), xt(t1), xtt(t1)
@@ -264,19 +267,30 @@ class ODEInt2:
 
         Parameters
         ----------
-        t: Stage time.
-        dt: Time step size.
-        x: Pointer to function describing the state.
-        xt: Pointer to function describing the rate of the state.
-        xtt: Pointer to function describing the rate of rate of the state.
+        t:
+            Stage time.
+        dt:
+            Time step size.
+        x:
+            Pointer to function describing the state.
+        xt:
+            Pointer to function describing the rate of the state.
+        xtt:
+            Pointer to function describing the rate of rate of the state.
 
-        rho: Spectral radius rho_infinity for generalised alpha.
-        alpha_f: Specific value for alpha_f.
-        alpha_m: Specific value for alpha_m.
-        gamma: Specific value for gamma.
-        beta: Specific value for beta.
+        kwargs:
+            rho:
+                Spectral radius rho_infinity for generalised alpha.
+            alpha_f:
+                Specific value for alpha_f.
+            alpha_m:
+                Specific value for alpha_m.
+            gamma:
+                Specific value for gamma.
+            beta:
+                Specific value for beta.
+
         """
-
         # Set stage time and time step
         self.t = t
         self.dt = dt
@@ -357,28 +371,24 @@ class ODEInt2:
             self.beta.value = kwargs["beta"]
 
     def _derivative_dt(self, x1tt_aux, x0tt_aux, x0t):
-        """Returns the UFL expression for: derivative in time x1t."""
-
+        """Return the UFL expression for: derivative in time x1t."""
         # return equation (2) solved for x1t
         return x0t + self.dt * ((1 - self.gamma) * x0tt_aux + self.gamma * x1tt_aux)
 
     def _derivative_dt2(self, x1tt_aux, x0tt_aux, x0tt):
-        """Returns the UFL expression for: derivative in time x1tt."""
-
+        """Return the UFL expression for: derivative in time x1tt."""
         # return equation (3) solved for x1t
         return (
             (1 - self.alpha_m) * x0tt_aux + self.alpha_m * x1tt_aux - (1 - self.alpha_f) * x0tt
         ) / self.alpha_f
 
     def _derivative_dt2_aux(self, x1, x0, x0t, x0tt_aux):
-        """Returns the UFL expression for: derivative in time x1tt."""
-
+        """Return the UFL expression for: derivative in time x1tt."""
         # return equation (1) solved for x1tt_aux
         return ((x1 - x0) / self.dt**2 - x0t / self.dt - (1 / 2 - self.beta) * x0tt_aux) / self.beta
 
     def _integral_dt(self, x1, x1t, x1tt, x0, x0t, x0tt):
-        """Returns the UFL expression for: integral over the time interval int_t0^t1 x(t) dt."""
-
+        """Return the UFL expression for: integral over the time interval int_t0^t1 x(t) dt."""
         # return integrated polynomial of degree 5
         return (
             self.dt / 2 * (x0 + x1)
@@ -387,8 +397,7 @@ class ODEInt2:
         )
 
     def integral_dt(self, y):
-        """Returns the UFL expression for: time integral of given UFL function y registered in ODEInt2."""
-
+        """Return the UFL expression for: time integral of given UFL function y registered in ODEInt2."""
         if isinstance(self.x1, list):
             if y not in self.x1:
                 raise RuntimeError("Given function not registered in ODEInt2 object.")
@@ -405,7 +414,6 @@ class ODEInt2:
 
     def stage(self, t0=None, dt=None):
         """Stages the processing of the next time step: sets time value (to t1) and initial values."""
-
         if t0 is not None:
             self.t.value = t0
 
@@ -425,7 +433,6 @@ class ODEInt2:
 
     def update(self):
         """Set rate x1t, rate2 x1tt and auxiliary rate2 x1tt_aux once x1 has been computed."""
-
         # update x1tt_aux
         if isinstance(self.x1tt_aux, list):
             for x1, x0, x0t, x1tt_aux, x0tt_aux in zip(
@@ -465,7 +472,6 @@ class ODEInt2:
 
     def discretise_in_time(self, f):
         """Discretises the form f(t, x, xt, xtt) in time. The solution fulfills f(t1, x1, x1t, x1tt) = 0."""
-
         # Construct expression for x1tt_aux
         if isinstance(self.x1tt, list):
             x1tt_aux = []

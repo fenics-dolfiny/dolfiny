@@ -16,6 +16,7 @@ class Restriction:
         Parameters
         ----------
         function_spaces
+            List of function spaces on which restriction operates
         blocal_dofs
             Block-local DOF indices.
         comm: optional
