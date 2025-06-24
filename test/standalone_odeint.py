@@ -30,7 +30,8 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
     u.x.petsc_vec.ghostUpdate()
     ut.x.petsc_vec.ghostUpdate()
 
-    δu = ufl.TestFunction(U)
+    δm = ufl.TestFunctions(ufl.MixedFunctionSpace(U))
+    (δu,) = δm
 
     dx = ufl.Measure("dx", domain=mesh)
 
@@ -52,7 +53,7 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
     # Overall form (as one-form)
     F = odeint.discretise_in_time(f)
     # Overall form (as list of forms)
-    F = dolfiny.function.extract_blocks(F, [δu])
+    F = ufl.extract_blocks(F)
 
     # Create problem (although having a linear ODE we use the dolfiny.snesproblem API)
     problem = dolfiny.snesproblem.SNESProblem(F, [u])
@@ -111,7 +112,8 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
     u.x.petsc_vec.ghostUpdate()
     ut.x.petsc_vec.ghostUpdate()
 
-    δu = ufl.TestFunction(U)
+    δm = ufl.TestFunctions(ufl.MixedFunctionSpace(U))
+    (δu,) = δm
 
     dx = ufl.Measure("dx", domain=mesh)
 
@@ -133,7 +135,7 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
     # Overall form (as one-form)
     F = odeint.discretise_in_time(f)
     # Overall form (as list of forms)
-    F = dolfiny.function.extract_blocks(F, [δu])
+    F = ufl.extract_blocks(F)
 
     # Options for PETSc backend
     from petsc4py import PETSc
@@ -208,7 +210,8 @@ def ode_2nd_linear_odeint(a=12.0, b=1000.0, c=1000.0, u_0=0.5, du_0=0.0, nT=100,
     ut.x.petsc_vec.ghostUpdate()
     utt.x.petsc_vec.ghostUpdate()
 
-    δu = ufl.TestFunction(U)
+    δm = ufl.TestFunctions(ufl.MixedFunctionSpace(U))
+    (δu,) = δm
 
     dx = ufl.Measure("dx", domain=mesh)
 
@@ -230,7 +233,7 @@ def ode_2nd_linear_odeint(a=12.0, b=1000.0, c=1000.0, u_0=0.5, du_0=0.0, nT=100,
     # Overall form (as one-form)
     F = odeint.discretise_in_time(f)
     # Overall form (as list of forms)
-    F = dolfiny.function.extract_blocks(F, [δu])
+    F = ufl.extract_blocks(F)
 
     # Create problem (although having a linear ODE we use the dolfiny.snesproblem API)
     problem = dolfiny.snesproblem.SNESProblem(F, [u])
@@ -293,7 +296,8 @@ def ode_2nd_nonlinear_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwargs):
     ut.x.petsc_vec.ghostUpdate()
     utt.x.petsc_vec.ghostUpdate()
 
-    δu = ufl.TestFunction(U)
+    δm = ufl.TestFunctions(ufl.MixedFunctionSpace(U))
+    (δu,) = δm
 
     dx = ufl.Measure("dx", domain=mesh)
 
@@ -315,7 +319,7 @@ def ode_2nd_nonlinear_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwargs):
     # Overall form (as one-form)
     F = odeint.discretise_in_time(f)
     # Overall form (as list of forms)
-    F = dolfiny.function.extract_blocks(F, [δu])
+    F = ufl.extract_blocks(F)
 
     # Options for PETSc backend
     from petsc4py import PETSc
@@ -404,10 +408,10 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
     u = dolfinx.fem.Function(V, name="u")
     d = dolfinx.fem.Function(V, name="d")  # dummy
 
-    δv = ufl.TestFunction(V)
-    δs = ufl.TestFunction(S)
+    δm = ufl.TestFunctions(ufl.MixedFunctionSpace(V, S))
+    δv, δs = δm
 
-    m, mt, δm = [v, s], [vt, st], [δv, δs]
+    m, mt = [v, s], [vt, st]
 
     # Set initial conditions
     v.x.petsc_vec.set(v_0), vt.x.petsc_vec.set(-_s(u_0))
@@ -444,7 +448,7 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
     # Overall form (as one-form)
     F = odeint.discretise_in_time(f)
     # Overall form (as list of forms)
-    F = dolfiny.function.extract_blocks(F, δm)
+    F = ufl.extract_blocks(F)
 
     # Options for PETSc backend
     from petsc4py import PETSc

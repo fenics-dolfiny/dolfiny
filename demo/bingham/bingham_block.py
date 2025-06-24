@@ -98,13 +98,12 @@ p = dolfinx.fem.Function(Pf, name="p")
 vt = dolfinx.fem.Function(Vf, name="vt")
 pt = dolfinx.fem.Function(Pf, name="pt")
 
-δv = ufl.TestFunction(Vf)
-δp = ufl.TestFunction(Pf)
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Vf, Pf))
+δv, δp = δm
 
 # Define state and rate as (ordered) list of functions
 m = [v, p]
 mt = [vt, pt]
-δm = [δv, δp]
 
 # Create other functions
 v_vector_o = dolfinx.fem.Function(Vf)
@@ -157,7 +156,7 @@ form = (
 # Overall form (as one-form)
 form = odeint.discretise_in_time(form)
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")

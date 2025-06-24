@@ -64,11 +64,11 @@ u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
 S_ = dolfinx.fem.Function(Sf, name="S_")  # boundary conditions
 Sn = dolfinx.fem.Function(Sf, name="Sn")  # boundary conditions, crown
 
-δu = ufl.TestFunction(Uf)
-δS = ufl.TestFunction(Sf)
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf, Sf))
+δu, δS = δm
 
 # Define state as (ordered) list of functions
-m, δm = [u, S], [δu, δS]
+m = [u, S]
 
 # Create other functions: output / visualisation
 vorder = mesh.geometry.cmap.degree
@@ -129,7 +129,7 @@ form += (
 )  # ensure zero block diagonal for bc
 
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
 surface_flats_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_flats)

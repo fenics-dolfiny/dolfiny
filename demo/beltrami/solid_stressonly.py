@@ -91,10 +91,11 @@ Sf = dolfinx.fem.functionspace(mesh, Se)
 # Define functions
 S = dolfinx.fem.Function(Sf, name="S")
 S0 = dolfinx.fem.Function(Sf, name="S0")
-δS = ufl.TestFunction(Sf)
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Sf))
 
+(δS,) = δm
 # Define state as (ordered) list of functions
-m, δm = [S], [δS]
+m = [S]
 
 # Create other functions: output / visualisation
 vorder = mesh.geometry.cmap.degree
@@ -119,7 +120,7 @@ form = (
 )
 
 # Overall form (as list of forms)
-forms = dolfiny.function.extract_blocks(form, δm)
+forms = ufl.extract_blocks(form)
 
 # Interpolate expression
 dolfiny.interpolation.interpolate(S0_expr, S0)
