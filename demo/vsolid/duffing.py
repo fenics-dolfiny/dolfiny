@@ -41,8 +41,8 @@ def _st(u, v):
     return (a + 3 * b * u**2) * v  # rate of constitutive law
 
 
-V = dolfinx.fem.functionspace(mesh, ("DP", 0))
-S = dolfinx.fem.functionspace(mesh, ("DP", 0))
+V = dolfinx.fem.functionspace(mesh, ("DP", 0))  # type: ignore
+S = dolfinx.fem.functionspace(mesh, ("DP", 0))  # type: ignore
 
 v = dolfinx.fem.Function(V, name="v")
 s = dolfinx.fem.Function(S, name="s")

@@ -110,8 +110,9 @@ v_vector_o = dolfinx.fem.Function(Vf)
 v_vector_i = dolfinx.fem.Function(Vf)
 p_scalar_i = dolfinx.fem.Function(Pf)
 
-vo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="v")  # for output
-po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="p")  # for output
+# for output
+vo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="v")  # type: ignore
+po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="p")  # type: ignore
 
 # Time integrator
 odeint = dolfiny.odeint.ODEInt(t=time, dt=dt, x=m, xt=mt)

@@ -104,12 +104,11 @@ S0 = dolfinx.fem.Function(Tf, name="S0")  # stress, previous converged solution 
 
 u_ = dolfinx.fem.Function(Uf, name="u_")  # displacement, defines state at boundary
 
-Po = dolfinx.fem.Function(
-    dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="P"
-)  # for output
-Bo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="B")
-So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="S")
-ho = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0)), name="h")
+# for output
+Po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="P")  # type: ignore
+Bo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="B")  # type: ignore
+So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="S")  # type: ignore
+ho = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0)), name="h")  # type: ignore
 
 # clone to be distinct from Tf
 δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf, Tf, Hf, Tf.clone()))
@@ -157,7 +156,7 @@ df = (
 )
 
 # Unwrap expression from variable
-S, B, h = S.expression(), B.expression(), h.expression()
+S, B, h = S.expression(), B.expression(), h.expression()  # type: ignore
 
 # Variation of Green-Lagrange strain
 δE = ufl.derivative(E, m, δm)

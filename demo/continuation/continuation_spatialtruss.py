@@ -21,11 +21,11 @@ comm = MPI.COMM_WORLD
 # Geometry and mesh parameters
 L = 1.0  # member length
 θ = np.pi / 3  # angle
-p = 1  # physics: polynomial order
-q = 1  # geometry: polynomial order
+p_physics = 1  # physics: polynomial order
+p_geometry = 1  # geometry: polynomial order
 
 # Create the regular mesh of a curve with given dimensions
-gmsh_model, tdim = mg.mesh_spatialtruss_gmshapi(name, L=L, nL=2, θ=θ, order=q)
+gmsh_model, tdim = mg.mesh_spatialtruss_gmshapi(name, L=L, nL=2, θ=θ, order=p_geometry)
 
 # Get mesh and meshtags
 mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim)
@@ -48,7 +48,7 @@ ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
 dS = ufl.Measure("dS", domain=mesh, subdomain_data=interfaces)
 
 # Define elements
-Ue = basix.ufl.element("P", mesh.basix_cell(), degree=p, shape=(gdim,))
+Ue = basix.ufl.element("P", mesh.basix_cell(), degree=p_physics, shape=(gdim,))
 
 # Define function spaces
 Uf = dolfinx.fem.functionspace(mesh, Ue)
@@ -121,7 +121,7 @@ forms = ufl.extract_blocks(form)
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
 # Write mesh, meshtags
-ofile.write_mesh_meshtags(mesh, mts) if q <= 2 else None
+ofile.write_mesh_meshtags(mesh, mts) if p_geometry <= 2 else None
 
 # Options for PETSc backend
 opts = PETSc.Options("continuation")  # type: ignore[attr-defined]
@@ -196,7 +196,7 @@ for j in range(60):
     monitor(continuation)
 
     # Write output
-    ofile.write_function(u, j) if q <= 2 else None
+    ofile.write_function(u, j) if p_geometry <= 2 else None
 
 ofile.close()
 

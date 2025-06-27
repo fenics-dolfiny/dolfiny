@@ -42,5 +42,5 @@ def custom_ge(form: ufl.Form, other: int | float) -> Inequality:
     return Inequality(-form, -other)
 
 
-ufl.Form.__le__ = custom_le
-ufl.Form.__ge__ = custom_ge
+ufl.Form.__le__ = custom_le  # type: ignore
+ufl.Form.__ge__ = custom_ge  # type: ignore

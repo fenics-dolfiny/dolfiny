@@ -94,8 +94,9 @@ nT = 6 * 5
 
 # Define elements
 porder = 1  # ansatz order for physics
-Ce = basix.ufl.element("P", mesh.basix_cell(), porder, shape=(n,))
-Pe = basix.ufl.element("P", mesh.basix_cell(), porder)
+# TODO: dolfinx bad type hints
+Ce = basix.ufl.element("P", mesh.basix_cell(), porder, shape=(n,))  # type: ignore
+Pe = basix.ufl.element("P", mesh.basix_cell(), porder)  # type: ignore
 
 # Define function spaces
 Cf = dolfinx.fem.functionspace(mesh, Ce)
@@ -115,8 +116,8 @@ m, mt, δm = [c, φ], [ct, φt], [δc, δφ]
 
 # Create other functions: output / visualisation
 vorder = mesh.geometry.cmap.degree
-co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), name="c")
-φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")
+co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), name="c")  # type: ignore
+φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")  # type: ignore
 
 # Define integration measures
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)

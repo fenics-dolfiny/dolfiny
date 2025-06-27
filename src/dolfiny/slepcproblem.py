@@ -102,8 +102,9 @@ class SLEPcProblem:
         self.eps.setOptionsPrefix(prefix)
         self.eps.setFromOptions()
 
-        self.A_form = dolfinx.fem.form(self.A_form)
-        self.B_form = dolfinx.fem.form(self.B_form)
+        # TODO: type ignores are due to missing case in dolfinx type hints
+        self.A_form = dolfinx.fem.form(self.A_form)  # type: ignore
+        self.B_form = dolfinx.fem.form(self.B_form)  # type: ignore
 
         self.A = dolfinx.fem.petsc.create_matrix(self.A_form)  # type: ignore[arg-type]
 

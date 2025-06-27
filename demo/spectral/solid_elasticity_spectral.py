@@ -57,10 +57,10 @@ u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
 # Define state as (ordered) list of functions
 m = [u]
 
-# output / visualisation
+# for output / visualisation
 vorder = mesh.geometry.cmap.degree
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), name="u")
-so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")  # for output
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), name="u")  # type: ignore
+so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")  # type: ignore
 
 # Kinematics
 F = ufl.Identity(3) + ufl.grad(u)
@@ -75,8 +75,8 @@ c = ufl.variable(c)
 # Elasticity parameters
 E = dolfinx.fem.Constant(mesh, scalar(1.0))  # [MPa]
 nu = dolfinx.fem.Constant(mesh, scalar(0.4))  # [-]
-mu = E / (2 * (1 + nu))
-la = E * nu / ((1 + nu) * (1 - 2 * nu))
+mu = E / (2 * (1 + nu))  # type: ignore
+la = E * nu / ((1 + nu) * (1 - 2 * nu))  # type: ignore
 
 # Define boundary stress vector (torque at upper face)
 x0 = ufl.SpatialCoordinate(mesh)
