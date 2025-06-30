@@ -20,12 +20,12 @@ comm = MPI.COMM_WORLD
 
 # Geometry and mesh parameters
 L = 1.0  # beam length
-N = 8 * 4  # number of nodes
+nodes = 8 * 4  # number of nodes
 p = 2  # physics: polynomial order
 q = 2  # geometry: polynomial order
 
 # Create the regular mesh of a curve with given dimensions
-gmsh_model, tdim = mg.mesh_curve3d_gmshapi(name, shape="f_arc", L=L, nL=N, order=q)
+gmsh_model, tdim = mg.mesh_curve3d_gmshapi(name, shape="f_arc", L=L, nL=nodes, order=q)
 
 # Get mesh and meshtags
 mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim)
@@ -49,7 +49,7 @@ end = interfaces_keys["end"]
 # Structure: section geometry
 b = 1.0  # [m]
 h = L / 500  # [m]
-A = b * h  # [m^2]
+area = b * h  # [m^2]
 I = b * h**3 / 12  # [m^4]  # noqa: E741
 
 # Structure: material parameters
@@ -117,7 +117,7 @@ m = [u, w, r]
 x0 = ufl.SpatialCoordinate(mesh)
 
 # Function spaces for geometric quantities extracted from mesh
-N = dolfinx.fem.functionspace(mesh, ("DP", q, (mesh.geometry.dim,)))
+N = dolfinx.fem.functionspace(mesh, ("DP", q, (mesh.geometry.dim,)))  # type: ignore
 
 # Normal vector (gdim x 1)
 n0i = dolfinx.fem.Function(N)
@@ -140,7 +140,7 @@ dolfiny.interpolation.interpolate(gξ, n0i)
 P = ufl.Identity(mesh.geometry.dim) - ufl.outer(n0i, n0i)
 
 # Thickness variable
-X = dolfinx.fem.functionspace(mesh, ("DP", q))
+X = dolfinx.fem.functionspace(mesh, ("DP", q))  # type: ignore
 ξ = dolfinx.fem.Function(X, name="ξ")
 
 # Undeformed configuration: director d0 and placement b0
@@ -164,7 +164,7 @@ J = ufl.algorithms.apply_derivatives.apply_derivatives(J)
 J = ufl.replace(J, {ufl.grad(ξ): d0})
 
 # Green-Lagrange strains (total): determined by deformation kinematics
-E_total = 1 / 2 * (J.T * J - J0.T * J0)
+E_total = 1 / 2 * (J.T * J - J0.T * J0)  # type: ignore
 
 # Green-Lagrange strains (elastic): E_total = E_elast + E_presc
 E = E_elast = E_total
@@ -187,14 +187,14 @@ Es = ufl.replace(E, {ξ: 0.0}) - P * ufl.replace(E, {ξ: 0.0}) * P
 δEb = ufl.derivative(Eb, m, δm)
 
 # Stress resultant tensors
-N = S(Em) * A
-T = S(Es) * A * sc_fac
+N = S(Em) * area
+T = S(Es) * area * sc_fac
 M = S(Eb) * I
 
 # Partial selective reduced integration of membrane/shear virtual work, see Arnold/Brezzi (1997)
-A = dolfinx.fem.functionspace(mesh, ("DP", 0))
+A = dolfinx.fem.functionspace(mesh, ("DP", 0))  # type: ignore
 α = dolfinx.fem.Function(A)
-dolfiny.interpolation.interpolate(h**2 / ufl.JacobianDeterminant(mesh), α)
+dolfiny.interpolation.interpolate(h**2 / ufl.JacobianDeterminant(mesh), α)  # type: ignore
 
 # Weak form: components (as one-form)
 form = (
@@ -250,7 +250,7 @@ plotter = pp.Plotter(
 )
 
 # Create vector function space and vector function for writing the displacement vector
-Z = dolfinx.fem.functionspace(mesh, ("CG", p, (mesh.geometry.dim,)))
+Z = dolfinx.fem.functionspace(mesh, ("CG", p, (mesh.geometry.dim,)))  # type: ignore
 z = dolfinx.fem.Function(Z)
 
 # Process load steps

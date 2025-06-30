@@ -14,6 +14,7 @@ import dolfinx
 import dolfinx.fem.petsc
 import dolfinx.la.petsc
 import ufl
+import ufl.equation
 
 import numpy as np
 
@@ -39,7 +40,7 @@ def wrap_objective_callbacks(
     u: Sequence[dolfinx.fem.Function],
     F: ufl.Form,
     J: Sequence[ufl.Form] | None = None,
-    H: Sequence[Sequence[ufl.Form]] | None = None,
+    H: Sequence[Sequence[ufl.Form | None]] | None = None,
     bcs: Sequence[dolfinx.fem.DirichletBC] = [],
     form_compiler_options: dict[str, str] | None = None,
     jit_options: dict[str, str] | None = None,
@@ -58,7 +59,7 @@ def wrap_objective_callbacks(
         assert J is not None
 
         H = [[ufl.derivative(_J, _u, ufl.TrialFunction(_u.function_space)) for _u in u] for _J in J]
-        H = [[None if e.empty() else e for e in row] for row in H]
+        H = [[None if (e is None or e.empty()) else e for e in row] for row in H]
 
     def compile(form):
         return dolfinx.fem.form(
@@ -128,8 +129,8 @@ def wrap_constraint_callbacks(
     comm: MPI.Comm,
     x0: PETSc.Vec,  # type: ignore
     u: Sequence[dolfinx.fem.Function],
-    g: ufl.Form,
-    Jg: Sequence[ufl.Form] | None,
+    g: Sequence[dolfiny.inequality.Inequality] | Sequence[ufl.equation.Equation],
+    Jg: Sequence[Sequence[ufl.Form | None]] | None,
     bcs: Sequence[dolfinx.fem.DirichletBC] = [],
     form_compiler_options: dict[str, str] | None = None,
     jit_options: dict[str, str] | None = None,
@@ -137,35 +138,37 @@ def wrap_constraint_callbacks(
     tuple[TAOConstraintsFunction, PETSc.Vec], tuple[TAOConstraintsJacobianFunction, PETSc.Mat]
 ]:
     if Jg is None:
-        Jg = [[ufl.derivative(_g.lhs, _u) for _u in u] for _g in g]
-        Jg = [[None if e.empty() else e for e in row] for row in Jg]
+        # Once multiple constraints supported, switch to
+        # Jg = [[ufl.derivative(_g.lhs, _u) for _u in u] for _g in g]
+        Jg = [[ufl.derivative(g[0].lhs, _u) for _u in u]]
+        Jg = [[None if (e is None or e.empty()) else e for e in row] for row in Jg]
 
     def compile(form):
         return dolfinx.fem.form(
             form, form_compiler_options=form_compiler_options, jit_options=jit_options
         )
 
-    g = [(compile(_g.lhs), _g.rhs) for _g in g]
-    Jg = [compile(_Jg) for _Jg in Jg]
+    # Once multiple constraints supported, switch to
+    # g = [(compile(_g.lhs), _g.rhs) for _g in g]
+    g_forms = [(compile(g[0].lhs), g[0].rhs)]
+    Jg_forms: list[list[dolfinx.fem.Form]] = compile(Jg)
 
-    if len(g) != 1 or len(Jg) != 1:
+    if len(g_forms) != 1 or len(Jg_forms) != 1:
         raise NotImplementedError("Packing of multiple constraints not supported.")
 
-    (g_lhs, g_rhs) = g[0]
+    (g_lhs, g_rhs) = g_forms[0]
 
     arity = g_lhs.rank
     if arity == 0:
-        if len(g) != 1:
+        if len(g_forms) != 1:
             raise NotImplementedError("Blocked constraint system not supported.")
 
         constraint_count = len(g)
-        g_vec = PETSc.Vec().createMPI(  # type: ignore
-            [constraint_count if comm.rank == 0 else 0, 1], comm=comm
-        )
+        g_vec = PETSc.Vec().createMPI([constraint_count if comm.rank == 0 else 0, 1], comm=comm)  # type: ignore
         g_vec.setUp()
 
         Jg_mat = PETSc.Mat().create(comm=comm)  # type: ignore
-        constraint_count = len(g)
+        constraint_count = len(g_forms)
         Jg_mat.setSizes(
             [[x0.getLocalSize(), x0.getSize()], [PETSc.DECIDE, constraint_count]]  # type: ignore
         )  # [[nrl, nrg], [ncl, ncg]]
@@ -179,13 +182,13 @@ def wrap_constraint_callbacks(
     elif arity == 1:
         # TODO: fix blocking mess
         g_vec = dolfinx.fem.petsc.create_vector([g_lhs], kind="mpi")
-        Jg_mat = dolfinx.fem.petsc.create_matrix(Jg)
+        Jg_mat = dolfinx.fem.petsc.create_matrix(Jg_forms)
     else:
         raise TypeError(f"Constraint-lhs has arity {arity}. Only arity 0 and 1 are supported.")
 
     @sync_functions(u)
     def _g_callback(tao, x, c):
-        (g_lhs, g_rhs) = g[0]
+        (g_lhs, g_rhs) = g_forms[0]
 
         match g_lhs.rank:
             case 0:
@@ -203,8 +206,10 @@ def wrap_constraint_callbacks(
                 dolfinx.fem.petsc.assemble_vector(c, g_lhs)
                 dolfinx.fem.petsc.apply_lifting(
                     c,
-                    Jg,
-                    bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(Jg, 1), bcs),
+                    Jg_forms,
+                    bcs=dolfinx.fem.bcs_by_block(
+                        dolfinx.fem.extract_function_spaces(Jg_forms, 1), bcs
+                    ),
                     x0=x,
                     alpha=-1.0,
                 )
@@ -224,7 +229,7 @@ def wrap_constraint_callbacks(
 
     @sync_functions(u)
     def _Jg_callback(tao, x, J, P) -> None:
-        _Jg = Jg[0][0]
+        _Jg: dolfinx.fem.Form = Jg_forms[0][0]
 
         match _Jg.rank:
             case 0:
@@ -246,7 +251,7 @@ def wrap_constraint_callbacks(
                 JT.createTranspose(J)
             case 2:
                 J.zeroEntries()
-                dolfinx.fem.petsc.assemble_matrix(J, Jg, bcs=bcs, diag=1.0)  # type: ignore
+                dolfinx.fem.petsc.assemble_matrix(J, Jg_forms, bcs=bcs, diag=1.0)  # type: ignore
             case _:
                 raise RuntimeError()
 
@@ -263,8 +268,8 @@ class TAOProblem:
         bcs: Sequence[dolfinx.fem.DirichletBC] = [],
         lb: np.floating | Sequence[dolfinx.fem.Function] = PETSc.NINFINITY,  # type: ignore
         ub: np.floating | Sequence[dolfinx.fem.Function] = PETSc.INFINITY,  # type: ignore
-        J: Sequence[dolfinx.fem.Form] | None = None,
-        H: Sequence[Sequence[dolfinx.fem.Form]] | None = None,
+        J: Sequence[ufl.Form] | None = None,
+        H: Sequence[Sequence[ufl.Form]] | None = None,
         g: Sequence[dolfiny.inequality.Inequality]  # type: ignore
         | tuple[TAOConstraintsFunction, PETSc.Vec]
         | None = None,
@@ -354,8 +359,8 @@ class TAOProblem:
                 self._g = g  # type: ignore
                 self._Jg = Jg  # type: ignore
 
-            self._tao.setEqualityConstraints(*self._g)
-            self._tao.setJacobianEquality(*self._Jg)
+            self._tao.setEqualityConstraints(*self._g)  # type: ignore
+            self._tao.setJacobianEquality(*self._Jg)  # type: ignore
 
         if h is not None:
             # TODO: check _h either callback, or sequence of inequalities
@@ -374,8 +379,8 @@ class TAOProblem:
                 self._h = h  # type: ignore
                 self._Jh = Jh  # type: ignore
 
-            self._tao.setInequalityConstraints(*self._h)
-            self._tao.setJacobianInequality(*self._Jh)
+            self._tao.setInequalityConstraints(*self._h)  # type: ignore
+            self._tao.setJacobianInequality(*self._Jh)  # type: ignore
 
     @property
     def tao(self) -> PETSc.TAO:  # type: ignore

@@ -48,7 +48,8 @@ l0 = dolfinx.fem.Function(Lf, name="l0")  # total plastic multiplier
 δdP = ufl.TestFunction(Pf)
 δdl = ufl.TestFunction(Lf)
 
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="u")  # for output
+# for output
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="u")  # type: ignore
 
 
 def f(sigma):

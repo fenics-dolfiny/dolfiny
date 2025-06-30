@@ -81,10 +81,10 @@ mesh = create_truss_x_braced_mesh(
 # one for the cross sectional area $s$ of the trusses, which we model as constant over each element,
 # so $V_s = DG_0(\mathcal{T})$.
 # %%
-V_u = dolfinx.fem.functionspace(mesh, ("CG", 1, (3,)))
+V_u = dolfinx.fem.functionspace(mesh, ("CG", 1, (3,)))  # type: ignore
 u = dolfinx.fem.Function(V_u, name="displacement")
 
-V_s = dolfinx.fem.functionspace(mesh, ("DG", 0))
+V_s = dolfinx.fem.functionspace(mesh, ("DG", 0))  # type: ignore
 s = dolfinx.fem.Function(V_s, name="cross-sectional-area")
 
 # %% [markdown]

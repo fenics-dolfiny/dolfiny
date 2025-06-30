@@ -17,12 +17,12 @@ name = "solid_dispstress_tda"
 comm = MPI.COMM_WORLD
 
 # Geometry and mesh parameters
-dx, dy, dz = 2.0, 0.01, 0.1
-nx, ny, nz = 20, 2, 2
+dimensions = (2.0, 0.01, 0.1)
+elements = (20, 2, 2)
 
 # Create the regular mesh of a block with given dimensions
 gmsh_model, tdim = mg.mesh_block3d_gmshapi(
-    name, dx, dy, dz, nx, ny, nz, px=1.0, py=1.0, pz=1.0, do_quads=False
+    name, *dimensions, *elements, px=1.0, py=1.0, pz=1.0, do_quads=False
 )
 
 # Get mesh and meshtags
@@ -90,11 +90,9 @@ u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
 # Define state and rate as (ordered) list of functions
 m, mt, mtt = [u, S], [ut, St], [utt, Stt]
 
-# Create other functions
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="u")  # for output
-So = dolfinx.fem.Function(
-    dolfinx.fem.functionspace(mesh, ("P", 1, (3, 3), True)), name="S"
-)  # for output
+# Create other functions for output
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="u")  # type: ignore
+So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3, 3), True)), name="S")
 
 # Time integrator
 odeint = dolfiny.odeint.ODEInt2(t=time, dt=dt, x=m, xt=mt, xtt=mtt, rho=0.95)
