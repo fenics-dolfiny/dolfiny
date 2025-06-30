@@ -63,6 +63,12 @@ Presentations about `dolfiny` functionality:
   at FEniCS 2022 conference.
 - [Non-standard formulations of 3D elasticity with FEniCSx](https://hdl.handle.net/10993/61399)
   at FEniCS 2024 conference.
+- [Physical units in UFL](https://hdl.handle.net/10993/65288)
+  at FEniCS 2025 conference.
+- [PETSc TAO support for optimisation problems with FEniCSx](https://hdl.handle.net/10993/65289)
+  at FEniCS 2025 conference.
+- [Dimensional analysis in UFL](https://hdl.handle.net/10993/65290)
+  at FEniCS 2025 conference.
 
 # Authors
 
