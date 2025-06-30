@@ -183,7 +183,8 @@ state_solver.setUp()
 # %% [markdown]
 # ## Optimisation of Cross-sectional Areas
 #
-# The truss sizing optimisation problem we are interested in is given (in reduced form) by
+# The truss sizing optimisation problem from {cite:p}`Christensen2009` we are interested in is given
+# (in reduced form) by
 #
 # $$
 #   \min_{s \in V_s} C(u(s))
