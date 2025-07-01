@@ -246,7 +246,10 @@ def test_poisson_mixed():
     opts["tao_monitor"] = ""
 
     opt_problem = dolfiny.taoproblem.TAOProblem(F, [σ, u], bcs=bcs, prefix="poisson_mixed")
-    σ_opt, u_opt = opt_problem.solve()
+    opt_problem.solve()
+
+    σ_opt = σ.copy()
+    u_opt = u.copy()
 
     opts = PETSc.Options("poisson_mixed_direct")
     opts["snes_type"] = "newtonls"
@@ -338,9 +341,9 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     opt_problem = dolfiny.taoproblem.TAOProblem(
         F, [u], bcs=[bc], J=J, H=H, g=g, Jg=Jg, h=h, Jh=Jh, prefix="poisson_constrained"
     )
-    (sol_optimization,) = opt_problem.solve()
+    opt_problem.solve()
 
-    assert _L2_norm(sol_optimization) == pytest.approx(L2_norm_unconstrained * 0.5, 1e-3)
+    assert _L2_norm(u) == pytest.approx(L2_norm_unconstrained * 0.5, 1e-3)
     assert opt_problem.tao.getConvergedReason() > 0
     # TODO: subsolver convergence
 
