@@ -27,23 +27,20 @@ q = 1  # geometry: polynomial order
 gmsh_model, tdim = mg.mesh_planartruss_gmshapi(name, L=L, nL=2, θ=θ, order=q)
 
 # Get mesh and meshtags
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim, prune_z=True)
-
-# Get merged MeshTags for each codimension
-subdomains, subdomains_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 0)
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
+mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-support = interfaces_keys["support"]
-connect = interfaces_keys["connect"]
-verytop = interfaces_keys["verytop"]
-upper = subdomains_keys["upper"]
-lower = subdomains_keys["lower"]
+support = mesh_data.physical_groups["support"][1]
+connect = mesh_data.physical_groups["connect"][1]
+verytop = mesh_data.physical_groups["verytop"][1]
+upper = mesh_data.physical_groups["upper"][1]
+lower = mesh_data.physical_groups["lower"][1]
 
 # Define integration measures
-dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
-dS = ufl.Measure("dS", domain=mesh, subdomain_data=interfaces)
+dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
+ds = ufl.Measure("ds", domain=mesh, subdomain_data=mesh_data.facet_tags)
+dS = ufl.Measure("dS", domain=mesh, subdomain_data=mesh_data.facet_tags)
 
 # Define elements
 Ue = basix.ufl.element("P", mesh.basix_cell(), degree=p, shape=(2,))
@@ -71,10 +68,10 @@ u_ = dolfinx.fem.Function(Uf, name="u_")  # displacement, inhomogeneous (bc)
 m = [u, r]
 
 # System properties
-k.x.array[dolfiny.mesh.locate_dofs_topological(Kf, subdomains, lower)] = (
+k.x.array[dolfiny.mesh.locate_dofs_topological(Kf, mesh_data.cell_tags, lower)] = (
     1.0e2  # axial stiffness, lower
 )
-k.x.array[dolfiny.mesh.locate_dofs_topological(Kf, subdomains, upper)] = (
+k.x.array[dolfiny.mesh.locate_dofs_topological(Kf, mesh_data.cell_tags, upper)] = (
     2.0e-0  # axial stiffness, upper
 )
 k.x.scatter_forward()
@@ -82,11 +79,11 @@ k.x.scatter_forward()
 d = dolfinx.fem.Constant(mesh, [0.0, -1.0])  # disp vector, 2D
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-support_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, support)
+support_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.facet_tags, support)
 
 # Set up restriction
-rdofsU = dolfiny.mesh.locate_dofs_topological(Uf, subdomains, [lower, upper], unroll=True)
-rdofsR = dolfiny.mesh.locate_dofs_topological(Rf, interfaces, verytop, unroll=True)
+rdofsU = dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.cell_tags, [lower, upper], unroll=True)
+rdofsR = dolfiny.mesh.locate_dofs_topological(Rf, mesh_data.facet_tags, verytop, unroll=True)
 restrc = dolfiny.restriction.Restriction([Uf, Rf], [rdofsU, rdofsR])
 
 # Define boundary conditions
@@ -129,7 +126,8 @@ forms = ufl.extract_blocks(form)
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
 # Write mesh, meshtags
-ofile.write_mesh_meshtags(mesh, mts) if q <= 2 else None
+if q <= 2:
+    ofile.write_mesh_data(mesh_data)
 
 # Options for PETSc backend
 opts = PETSc.Options("continuation")  # type: ignore[attr-defined]
@@ -152,9 +150,9 @@ def monitor(context=None):
     dolfiny.interpolation.interpolate(Sm * t0, s)  # internal force
 
     track = [
-        (u, dolfiny.mesh.locate_dofs_topological(Uf, interfaces, verytop, unroll=True)),
-        (u, dolfiny.mesh.locate_dofs_topological(Uf, interfaces, connect, unroll=True)),
-        (s, dolfiny.mesh.locate_dofs_geometrical(Sf, interfaces, verytop, unroll=True)),
+        (u, dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.facet_tags, verytop, unroll=True)),
+        (u, dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.facet_tags, connect, unroll=True)),
+        (s, dolfiny.mesh.locate_dofs_geometrical(Sf, mesh_data.facet_tags, verytop, unroll=True)),
     ]
 
     values = []

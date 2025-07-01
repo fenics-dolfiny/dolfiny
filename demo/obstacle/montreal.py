@@ -213,7 +213,7 @@ p_e = support_radius * geometry[1, :-1] / np.linalg.norm(geometry[1, :-1])
 
 def mesh_pavillon() -> dolfinx.io.gmshio.MeshData:
     if comm.rank > 0:
-        return dolfinx.io.gmshio.model_to_mesh(None, comm, 0, gdim=2)
+        return dolfinx.io.gmshio.model_to_mesh(None, comm, rank=0, gdim=2)
 
     gmsh.initialize()
     gmsh.clear()
@@ -258,7 +258,7 @@ def mesh_pavillon() -> dolfinx.io.gmshio.MeshData:
     # gmsh.write("pavillon.msh")
     # gmsh.fltk.run()
 
-    return dolfinx.io.gmshio.model_to_mesh(gmsh.model, comm, 0, gdim=2)
+    return dolfinx.io.gmshio.model_to_mesh(gmsh.model, comm, rank=0, gdim=2)
 
 
 mesh_data = mesh_pavillon()

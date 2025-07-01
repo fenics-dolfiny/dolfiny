@@ -50,30 +50,32 @@ def test_simple_triangle():
     else:
         gmsh_model = None
 
-    mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, 2, prune_z=True)
-    mt1, keys1 = dolfiny.mesh.merge_meshtags(mesh, mts, 1)
-    mt2, keys2 = dolfiny.mesh.merge_meshtags(mesh, mts, 2)
+    mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, MPI.COMM_WORLD, rank=0, gdim=2)
+    mesh = mesh_data.mesh
 
     assert mesh.geometry.dim == 2
     assert mesh.topology.dim == 2
-    assert mts["arc"].dim == 1
+    assert mesh_data.physical_groups["arc"][0] == 1
 
     with dolfinx.io.XDMFFile(MPI.COMM_WORLD, "mesh.xdmf", "w") as file:
         file.write_mesh(mesh)
         mesh.topology.create_connectivity(1, 2)
-        file.write_meshtags(mts["arc"], mesh.geometry)
+        file.write_meshtags(mesh_data.cell_tags, mesh.geometry)
 
-    ds = ufl.Measure("ds", subdomain_data=mt1, domain=mesh)
+    ds = ufl.Measure("ds", subdomain_data=mesh_data.facet_tags, domain=mesh)
 
-    form = dolfinx.fem.form(1.0 * ds(keys1["sides"]) + 1.0 * ds(keys1["arc"]))
+    form = dolfinx.fem.form(
+        1.0 * ds(mesh_data.physical_groups["sides"][1])
+        + 1.0 * ds(mesh_data.physical_groups["arc"][1])
+    )
     val = dolfinx.fem.assemble_scalar(form)
 
     val = mesh.comm.allreduce(val, op=MPI.SUM)
     assert np.isclose(val, 2.0 + 2.0 * np.pi * 0.5 / 2.0, rtol=1.0e-3)
 
-    dx = ufl.Measure("dx", subdomain_data=mt2, domain=mesh)
+    dx = ufl.Measure("dx", subdomain_data=mesh_data.cell_tags, domain=mesh)
 
-    form = dolfinx.fem.form(1.0 * dx(keys2["surface"]))
+    form = dolfinx.fem.form(1.0 * dx(mesh_data.physical_groups["surface"][1]))
     val = dolfinx.fem.assemble_scalar(form)
 
     val = mesh.comm.allreduce(val, op=MPI.SUM)

@@ -30,17 +30,14 @@ gmsh_model, tdim = mg.mesh_diffusor_gmshapi(name)
 
 # Get mesh and meshtags
 partitioner = dolfinx.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.shared_facet)
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim, partitioner=partitioner)
-
-# Get merged MeshTags for each codimension
-subdomains, subdomains_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 0)
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-surface_one = interfaces_keys["surface_one"]
-surface_two = interfaces_keys["surface_two"]
-surface_outer = interfaces_keys["surface_outer"]
-surface_inner = interfaces_keys["surface_inner"]
+surface_one = mesh_data.physical_groups["surface_one"][1]
+surface_two = mesh_data.physical_groups["surface_two"][1]
+surface_outer = mesh_data.physical_groups["surface_outer"][1]
+surface_inner = mesh_data.physical_groups["surface_inner"][1]
 
 # System constants
 ε_r = dolfinx.fem.Constant(mesh, scalar(80.0))  # [-] -- relative permittivity
@@ -100,8 +97,8 @@ co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), 
 φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")
 
 # Define integration measures
-dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
+dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
+ds = ufl.Measure("ds", domain=mesh, subdomain_data=mesh_data.facet_tags)
 
 # Expressions, (extended) Debye-Hückel model
 A = ufl.sqrt(2) * F**2 * e_0 / (8 * ufl.pi) / ufl.sqrt((ε_0 * ε_r * R * T) ** 3)  # parameter A
@@ -126,10 +123,10 @@ for δck, ck, zk, Dk, ak in zip(δc, c, z, D, a):  # add species
 forms = ufl.extract_blocks(form)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-bcsdofs_Cf_one = dolfiny.mesh.locate_dofs_topological(Cf, interfaces, surface_one)
-bcsdofs_Cf_two = dolfiny.mesh.locate_dofs_topological(Cf, interfaces, surface_two)
-bcsdofs_Pf_one = dolfiny.mesh.locate_dofs_topological(Pf, interfaces, surface_one)
-bcsdofs_Pf_two = dolfiny.mesh.locate_dofs_topological(Pf, interfaces, surface_two)
+bcsdofs_Cf_one = dolfiny.mesh.locate_dofs_topological(Cf, mesh_data.facet_tags, surface_one)
+bcsdofs_Cf_two = dolfiny.mesh.locate_dofs_topological(Cf, mesh_data.facet_tags, surface_two)
+bcsdofs_Pf_one = dolfiny.mesh.locate_dofs_topological(Pf, mesh_data.facet_tags, surface_one)
+bcsdofs_Pf_two = dolfiny.mesh.locate_dofs_topological(Pf, mesh_data.facet_tags, surface_two)
 
 # Boundary conditions
 bcs = [

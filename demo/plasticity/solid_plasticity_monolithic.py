@@ -37,24 +37,13 @@ gmsh_model, tdim = mg.mesh_iso6892_gmshapi(name, l0, d0, nr, order=o)
 # gmsh_model, tdim = dolfiny.mesh.msh_to_gmsh(f"{name}.msh")
 
 # Get mesh and meshtags
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim)
-
-# Write mesh and meshtags to file
-with dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w") as ofile:
-    ofile.write_mesh_meshtags(mesh, mts)
-
-# Read mesh and meshtags from file
-with dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "r") as ifile:
-    mesh, mts = ifile.read_mesh_meshtags()
-
-# Get merged MeshTags for each codimension
-subdomains, subdomains_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 0)
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-domain_gauge = subdomains_keys["domain_gauge"]
-surface_1 = interfaces_keys["surface_grip_left"]
-surface_2 = interfaces_keys["surface_grip_right"]
+domain_gauge = mesh_data.physical_groups["domain_gauge"][1]
+surface_1 = mesh_data.physical_groups["surface_grip_left"][1]
+surface_2 = mesh_data.physical_groups["surface_grip_right"][1]
 
 # Solid: material parameters
 mu = dolfinx.fem.Constant(mesh, scalar(100.0))  # [1e-9 * 1e+11 N/m^2 = 100 GPa]
@@ -76,7 +65,10 @@ def u_bar(x):
 # Define integration measures
 quad_degree = p
 dx = ufl.Measure(
-    "dx", domain=mesh, subdomain_data=subdomains, metadata={"quadrature_degree": quad_degree}
+    "dx",
+    domain=mesh,
+    subdomain_data=mesh_data.cell_tags,
+    metadata={"quadrature_degree": quad_degree},
 )
 
 # Define elements
@@ -177,8 +169,8 @@ forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
-# Write mesh, meshtags
-ofile.write_mesh_meshtags(mesh, mts)
+# Write mesh data
+ofile.write_mesh_data(mesh_data)
 
 # Options for PETSc backend
 opts = PETSc.Options(name)  # type: ignore[attr-defined]
@@ -199,8 +191,8 @@ opts["pc_factor_mat_solver_type"] = "mumps"
 problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix=name)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-surface_1_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_1)
-surface_2_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_2)
+surface_1_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.facet_tags, surface_1)
+surface_2_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.facet_tags, surface_2)
 
 # Book-keeping of results
 results: dict[str, list[float]] = {"E": [], "S": [], "P": [], "μ": []}

@@ -5,6 +5,7 @@ from petsc4py import PETSc
 
 import basix
 import dolfinx
+import dolfinx.io.gmshio
 import ufl
 from dolfinx import default_scalar_type as scalar
 
@@ -30,15 +31,12 @@ q = 2  # geometry: polynomial order
 gmsh_model, tdim = mg.mesh_curve3d_gmshapi(name, shape="f_arc", L=L, nL=nodes, order=q)
 
 # Get mesh and meshtags
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim)
-
-# Get merged MeshTags for each codimension
-subdomains, subdomains_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 0)
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-beg = interfaces_keys["beg"]
-end = interfaces_keys["end"]
+beg = mesh_data.physical_groups["beg"][1]
+end = mesh_data.physical_groups["end"][1]
 
 # Structure: section geometry
 b = 1.0
@@ -90,8 +88,8 @@ dimsys = syu.si.SI.get_dimension_system()
 assert dimsys.equivalent_dims(dolfiny.units.get_dimension(F_x, [L_ref, E, I]), syu.force)
 
 # Define integration measures
-dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
+dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
+ds = ufl.Measure("ds", domain=mesh, subdomain_data=mesh_data.facet_tags)
 
 # Define elements
 Ue = basix.ufl.element("P", mesh.basix_cell(), degree=p)
@@ -252,7 +250,7 @@ forms = ufl.extract_blocks(form)
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
 # Write mesh, meshtags
 if q <= 2:
-    ofile.write_mesh_meshtags(mesh, mts)
+    ofile.write_mesh_data(mesh_data)
 
 # Options for PETSc backend
 opts = PETSc.Options("beam")  # type: ignore[attr-defined]
@@ -272,9 +270,9 @@ opts["mat_mumps_cntl_1"] = 0.0
 problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix="beam")
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-beg_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, beg)
-beg_dofs_Wf = dolfiny.mesh.locate_dofs_topological(Wf, interfaces, beg)
-beg_dofs_Rf = dolfiny.mesh.locate_dofs_topological(Rf, interfaces, beg)
+beg_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.facet_tags, beg)
+beg_dofs_Wf = dolfiny.mesh.locate_dofs_topological(Wf, mesh_data.facet_tags, beg)
+beg_dofs_Rf = dolfiny.mesh.locate_dofs_topological(Rf, mesh_data.facet_tags, beg)
 
 # Create custom plotter (via matplotlib)
 plotter = pp.Plotter(
