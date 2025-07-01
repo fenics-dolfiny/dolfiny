@@ -33,8 +33,13 @@ project:
   github: https://github.com/fenics-dolfiny/dolfiny
   toc:
     - file: index.md
-    - file: obstacle/membrane.ipynb
-    - file: structural_optimisation/truss_sizing.ipynb
+    - title: Obstacle Problems
+      children:
+      - file: obstacle/membrane.ipynb
+      - file: obstacle/montreal.ipynb
+    - title: Structural Optimisation
+      children:
+      - file: structural_optimisation/truss_sizing.ipynb
 site:
   template: book-theme
   options:

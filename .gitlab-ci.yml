@@ -281,7 +281,9 @@ obstacle:
    extends: .demo_template
    variables:
       DIRECTORY: obstacle
-      SCRIPTS: membrane.py
+      SCRIPTS: >
+         membrane.py
+         montreal.py
 
 structural_optimisation:
    extends: .demo_template
