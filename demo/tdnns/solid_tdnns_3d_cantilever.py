@@ -58,7 +58,7 @@ ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
 dS = ufl.Measure("dS", domain=mesh)
 
 # Define elements
-Ue = basix.ufl.element("N2E", mesh.basix_cell(), 2)  # type: ignore
+Ue = basix.ufl.element("N2E", mesh.basix_cell(), 2)
 Se = hdivdiv.create_custom_hdivdiv(mesh.basix_cell(), 2, verbose=not comm.rank)
 # Se = basix.ufl.element("HHJ", mesh.basix_cell(), 2)  # available in basix > v0.9.0
 

@@ -98,8 +98,8 @@ w = -ufl.dot(ufl.as_vector(c_1), z)  # [mol / m^3] -- fixed charge concentration
 
 # Define elements
 porder = 1  # ansatz order for physics
-Ce = basix.ufl.element("P", mesh.basix_cell(), porder, shape=(n,))  # type: ignore
-Pe = basix.ufl.element("P", mesh.basix_cell(), porder)  # type: ignore
+Ce = basix.ufl.element("P", mesh.basix_cell(), porder, shape=(n,))
+Pe = basix.ufl.element("P", mesh.basix_cell(), porder)
 
 # Define function spaces
 Cf = dolfinx.fem.functionspace(mesh, Ce)

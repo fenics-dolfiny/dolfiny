@@ -95,8 +95,8 @@ nT = 6 * 5
 # Define elements
 porder = 1  # ansatz order for physics
 # TODO: dolfinx bad type hints
-Ce = basix.ufl.element("P", mesh.basix_cell(), porder, shape=(n,))  # type: ignore
-Pe = basix.ufl.element("P", mesh.basix_cell(), porder)  # type: ignore
+Ce = basix.ufl.element("P", mesh.basix_cell(), porder, shape=(n,))
+Pe = basix.ufl.element("P", mesh.basix_cell(), porder)
 
 # Define function spaces
 Cf = dolfinx.fem.functionspace(mesh, Ce)
