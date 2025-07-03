@@ -198,7 +198,7 @@ def test_poisson(autodiff: bool, order: int):
     problem = dolfinx.fem.petsc.LinearProblem(
         a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
     )
-    sol_weak_form = problem.solve()
+    sol_weak_form, _, _ = problem.solve()
 
     assert np.allclose(_L2_norm(sol_optimization - sol_weak_form), 0)
     assert opt_problem.tao.getConvergedReason() > 0
@@ -322,7 +322,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     problem = dolfinx.fem.petsc.LinearProblem(
         a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
     )
-    sol_weak_form = problem.solve()
+    sol_weak_form, _, _ = problem.solve()
     assert isinstance(sol_weak_form, dolfinx.fem.Function)
     L2_norm_unconstrained = _L2_norm(sol_weak_form)
 
@@ -334,7 +334,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     Jg = None if not eq_constrained or autodiff else [[2 * u * v * ufl.dx]]
     Jh = None if eq_constrained or autodiff else [[-2 * u * v * ufl.dx]]
 
-    opts = PETSc.Options("poisson_constrained")
+    opts = PETSc.Options("poisson_constrained")  # type: ignore
 
     opts["tao_type"] = "almm"
     opts["tao_gatol"] = 1e-6
@@ -558,7 +558,7 @@ def test_poisson_pde_as_constraint():  # almm_type
     linear_problem = dolfinx.fem.petsc.LinearProblem(
         ufl.inner(ufl.grad(ufl.TrialFunction(V)), ufl.grad(ufl.TestFunction(V))) * ufl.dx, L, [bc]
     )
-    u_lp = linear_problem.solve()
+    u_lp, _, _ = linear_problem.solve()
 
     assert np.allclose(_L2_norm(u_lp - u), 0, atol=1e-4)
     assert opt_problem.tao.getConvergedReason() > 0
