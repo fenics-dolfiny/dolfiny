@@ -32,7 +32,7 @@ boundary, boundary_keys = dolfiny.mesh.merge_meshtags(mesh, mts, mesh.topology.d
 E = dolfinx.fem.Constant(mesh, scalar(200.0))  # [GPa]
 nu = dolfinx.fem.Constant(mesh, scalar(0.25))  # [-]
 la = E * nu / (1 + nu) / (1 - 2 * nu)  # type: ignore
-mu = E / 2 / (1 + nu)
+mu = E / 2 / (1 + nu)  # type: ignore
 
 # Stabilisation factor
 ω = dolfinx.fem.Constant(mesh, scalar(1.01))

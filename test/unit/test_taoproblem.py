@@ -334,7 +334,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     Jg = None if not eq_constrained or autodiff else [[2 * u * v * ufl.dx]]
     Jh = None if eq_constrained or autodiff else [[-2 * u * v * ufl.dx]]
 
-    opts = PETSc.Options("poisson_constrained")  # type: ignore
+    opts = PETSc.Options("poisson_constrained")
 
     opts["tao_type"] = "almm"
     opts["tao_gatol"] = 1e-6
