@@ -145,7 +145,7 @@ def test_poisson(autodiff: bool, order: int):
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
     )
-    W = dolfinx.fem.functionspace(mesh, ("P", 1))  # type: ignore
+    W = dolfinx.fem.functionspace(mesh, ("P", 1))
 
     u = dolfinx.fem.Function(W)
     f = -1.0
@@ -301,7 +301,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     mesh = dolfinx.mesh.create_unit_square(
         MPI.COMM_WORLD, n, n, ghost_mode=dolfinx.mesh.GhostMode.shared_facet
     )
-    W = dolfinx.fem.functionspace(mesh, ("P", 1))  # type: ignore
+    W = dolfinx.fem.functionspace(mesh, ("P", 1))
 
     u = dolfinx.fem.Function(W)
     f = -1.0

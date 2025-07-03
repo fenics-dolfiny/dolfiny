@@ -32,7 +32,7 @@ boundary, boundary_keys = dolfiny.mesh.merge_meshtags(mesh, mts, mesh.topology.d
 E = dolfinx.fem.Constant(mesh, scalar(200.0))  # [GPa]
 nu = dolfinx.fem.Constant(mesh, scalar(0.25))  # [-]
 la = E * nu / (1 + nu) / (1 - 2 * nu)  # type: ignore
-mu = E / 2 / (1 + nu)  # type: ignore
+mu = E / 2 / (1 + nu)
 
 # Stabilisation factor
 ω = dolfinx.fem.Constant(mesh, scalar(1.01))
@@ -100,8 +100,8 @@ m = [S]
 # Create other functions: output / visualisation
 vorder = mesh.geometry.cmap.degree
 So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3, 3), True)), name="S")
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), name="u")  # type: ignore
-so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")  # type: ignore
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), name="u")
+so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")
 
 # Boundaries (via mesh tags)
 dirichlet = [0, 2, 4]  # faces = {x0 = xmin, x1 = xmin, x2 = xmin}

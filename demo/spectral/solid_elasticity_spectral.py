@@ -59,8 +59,8 @@ m = [u]
 
 # for output / visualisation
 vorder = mesh.geometry.cmap.degree
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), name="u")  # type: ignore
-so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")  # type: ignore
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), name="u")
+so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")
 
 # Kinematics
 F = ufl.Identity(3) + ufl.grad(u)

@@ -99,7 +99,7 @@ comm = MPI.COMM_WORLD
 
 msh = dolfinx.mesh.create_rectangle(comm, [[-1, -1], [1, 1]], [128, 128])
 
-V = dolfinx.fem.functionspace(msh, ("Lagrange", 1))  # type: ignore
+V = dolfinx.fem.functionspace(msh, ("Lagrange", 1))
 
 msh.topology.create_connectivity(1, 2)
 boundary_facets = dolfinx.mesh.exterior_facet_indices(msh.topology)

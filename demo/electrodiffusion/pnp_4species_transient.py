@@ -116,8 +116,8 @@ m, mt, δm = [c, φ], [ct, φt], [δc, δφ]
 
 # Create other functions: output / visualisation
 vorder = mesh.geometry.cmap.degree
-co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), name="c")  # type: ignore
-φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")  # type: ignore
+co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), name="c")
+φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")
 
 # Define integration measures
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)

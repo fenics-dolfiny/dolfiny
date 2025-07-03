@@ -105,10 +105,10 @@ S0 = dolfinx.fem.Function(Tf, name="S0")  # stress, previous converged solution 
 u_ = dolfinx.fem.Function(Uf, name="u_")  # displacement, defines state at boundary
 
 # for output
-Po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="P")  # type: ignore
-Bo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="B")  # type: ignore
-So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="S")  # type: ignore
-ho = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0)), name="h")  # type: ignore
+Po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="P")
+Bo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="B")
+So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="S")
+ho = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0)), name="h")
 
 # clone to be distinct from Tf
 δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf, Tf, Hf, Tf.clone()))
