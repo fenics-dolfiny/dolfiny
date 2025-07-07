@@ -183,7 +183,7 @@ M = s(κ) * I
 # Partial selective reduced integration of membrane/shear virtual work, see Arnold/Brezzi (1997)
 A = dolfinx.fem.functionspace(mesh, ("DP", 0))
 α = dolfinx.fem.Function(A)
-dolfiny.interpolation.interpolate(h**2 / ufl.JacobianDeterminant(mesh), α)  # type: ignore
+dolfiny.interpolation.interpolate(h**2 / ufl.JacobianDeterminant(mesh), α)
 
 # Weak form: components (as one-form)
 form = (
