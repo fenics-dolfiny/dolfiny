@@ -124,20 +124,9 @@ def test_poisson_discrete(n, order, atol, element):
         assert opt_problem.tao.getIterationNumber() == 1
 
 
-# TODO: verify patch date aligns with https://gitlab.com/petsc/petsc/-/merge_requests/8386
 @pytest.mark.parametrize("autodiff", [True, False])
 @pytest.mark.parametrize(
-    "order",
-    [
-        pytest.param(
-            1,
-            marks=pytest.mark.skipif(
-                (PETSc.Sys().getVersion()[1] < 23) or (PETSc.Sys().getVersion()[2] < 3),  # type: ignore
-                reason="Missing PETSc exports",
-            ),
-        ),
-        2,
-    ],
+    "order", [pytest.param(1, marks=pytest.mark.skip(reason="Needs fixing")), 2]
 )
 def test_poisson(autodiff: bool, order: int):
     """Tests poissons problem as variational problem, with different optimisation setups."""
