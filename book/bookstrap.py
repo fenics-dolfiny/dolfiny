@@ -6,6 +6,7 @@ import subprocess
 
 demo_files = [  # relative from demo/
     "obstacle/membrane.py",
+    "obstacle/montreal.py",
     "structural_optimisation/truss_sizing.py",
 ]
 

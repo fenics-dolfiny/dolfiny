@@ -390,17 +390,15 @@ class TAOProblem:
     def u(self) -> Sequence[dolfinx.fem.Function]:
         return self._u
 
-    def solve(self):
+    def solve(self) -> None:
         # TODO: monitor
 
         dolfinx.fem.petsc.assign(self._u, self._x0)
-        self._x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        self._x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
 
         self._tao.solve(self._x0)
 
         solution = self._tao.getSolution()
         # TODO: code duplication with link_state -> resolve
-        solution.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        solution.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
         dolfinx.fem.petsc.assign(solution, self._u)
-
-        return self._u
