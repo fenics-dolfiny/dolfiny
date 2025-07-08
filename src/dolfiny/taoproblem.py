@@ -23,6 +23,20 @@ import dolfiny.inequality
 
 
 def sync_functions(u: Sequence[dolfinx.fem.Function]):
+    """Create wrapper that synchronizes given functions.
+
+    Parameters
+    ----------
+    u:
+        Functions that the returned wrapped will update on invocation.
+
+    Returns
+    -------
+    Decorator for TAO callbacks that wraps callback invocations with vector to function
+    assignment.
+
+    """
+
     def _decorator(_to_wrap):
         def _wrapped_callback(tao: PETSc.TAO, x: PETSc.Vec, *args) -> float | None:  # type: ignore
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
@@ -50,6 +64,39 @@ def wrap_objective_callbacks(
     tuple[TAOJacobianFunction, PETSc.Vec],
     tuple[TAOHessianFunction, PETSc.Mat],
 ]:
+    """Create objective, Jacobian and Hessian routines from form.
+
+    Note:
+        Boundary conditions are enforced through the Jacobian, consistent with DOLFINx.
+        This implies that boundary conditions are not enforced on object evaluation - a gradient
+        bases decent is necessary to incorporate those correctly.
+
+    Parameters
+    ----------
+    comm:
+        Communicator that all functions have in common.
+    u:
+        The list of arguments the form is defined over.
+    F:
+        Objective form.
+    J:
+        Jacobian forms.
+    H:
+        Hessian forms.
+    bcs:
+        List of boundary conditions that the callbacks will apply.
+    form_compiler_options:
+        Option for form compilation, i.e. FFCx options.
+    jit_options:
+        Compiler flags to use during form compilation.
+
+    Returns
+    -------
+    Tuple of x-vector associated with the form F, wrapped evaluation callback, tuple of Jacobian
+    vector and wrapped evaluation callback, and tuple of Hessian matrix and wrapped evaluation
+    callback.
+
+    """
     if J is None:
         δu = ufl.TestFunctions(ufl.MixedFunctionSpace(*(_u.function_space for _u in u)))
         J = ufl.derivative(F, u, δu)
@@ -137,6 +184,33 @@ def wrap_constraint_callbacks(
 ) -> tuple[  # type: ignore
     tuple[TAOConstraintsFunction, PETSc.Vec], tuple[TAOConstraintsJacobianFunction, PETSc.Mat]
 ]:
+    """Create constraint and jacobian callback from form.
+
+    Parameters
+    ----------
+    comm:
+        Communicator that all functions have in common.
+    x0:
+        Vector associated with the optimisation - usually created by `wrap_objective_callbacks`.
+    u:
+        The list of arguments the form is defined over.
+    g:
+        Constraint expression, either equality or inequality.
+    Jg:
+        Jacobian of the constraint's non constant part (lhs).
+    bcs:
+        List of boundary conditions that the callbacks will respect.
+    form_compiler_options:
+        Option for form compilation, i.e. FFCx options.
+    jit_options:
+        Compiler flags to use during form compilation.
+
+    Returns
+    -------
+    Tuple of wrapped constraint callback together with associated vector, and tuple of Jacobian
+    callbkack together with the associated matrix.
+
+    """
     if Jg is None:
         # Once multiple constraints supported, switch to
         # Jg = [[ufl.derivative(_g.lhs, _u) for _u in u] for _g in g]
@@ -280,6 +354,42 @@ class TAOProblem:
         form_compiler_options: dict | None = None,
         jit_options: dict | None = None,
     ):
+        """Create `TAOProblem`, which is a wrapper of `PETSc.TAO`.
+
+        Only sets the problem up, does not solve it, see `TAOProblem.solve`.
+
+        Parameters
+        ----------
+        F:
+            Objective function.
+        u:
+            Arguments of the optimisation problem, also act as initial guess.
+        bcs:
+            Boundary conditions of the arguments.
+        lb:
+            Lower bound constraints.
+        ub:
+            Upper bound constraints.
+        J:
+            Jacobian of objective functional.
+        H:
+            Hessian of objective functional.
+        g:
+            Inequality constraints, see `dolfiny.inequality.Inequality` - constant rhs.
+        Jg:
+            Jacobian of inequality constraints.
+        h:
+            Equality constraints, see `ufl.equation.Equation` - constant rhs.
+        Jh:
+            Jacobian of equality constraints.
+        prefix:
+            Prefix for the PETSc options database.
+        form_compiler_options:
+            Option for form compilation, i.e. FFCx options.
+        jit_options:
+            Compiler flags to use during form compilation.
+
+        """
         if len(u) == 0:
             raise RuntimeError("List of provided variable sequence is empty.")
 
@@ -384,13 +494,16 @@ class TAOProblem:
 
     @property
     def tao(self) -> PETSc.TAO:  # type: ignore
+        """Return the underlying `PETSc.TAO` object."""
         return self._tao
 
     @property
     def u(self) -> Sequence[dolfinx.fem.Function]:
+        """Return the arguments/solutions of the optimisation problem."""
         return self._u
 
     def solve(self) -> None:
+        """Solve the optimisation problem."""
         # TODO: monitor
 
         dolfinx.fem.petsc.assign(self._u, self._x0)
