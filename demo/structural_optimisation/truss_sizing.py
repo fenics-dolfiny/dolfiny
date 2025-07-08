@@ -17,6 +17,8 @@ import dolfinx
 import dolfinx.fem.petsc
 import ufl
 
+import matplotlib.pyplot as plt
+import matplotlib_inline
 import numpy as np
 import pyvista as pv
 
@@ -181,7 +183,8 @@ state_solver.setUp()
 # %% [markdown]
 # ## Optimisation of Cross-sectional Areas
 #
-# The truss sizing optimisation problem we are interested in is given (in reduced form) by
+# The truss sizing optimisation problem from {cite:p}`Christensen2009` we are interested in is given
+# (in reduced form) by
 #
 # $$
 #   \min_{s \in V_s} C(u(s))
@@ -247,6 +250,17 @@ opts["tao_recycle_history"] = True
 problem = dolfiny.taoproblem.TAOProblem(
     C, [s], bcs=bcs, J=(JC, s.x.petsc_vec.copy()), g=g, lb=s_min, ub=s_max, prefix="truss"
 )
+
+compliance, volume = np.zeros(100), np.zeros(100)
+
+
+def monitor(tao):
+    it = tao.getIterationNumber()
+    compliance[it] = tao.getObjectiveValue()
+    volume[it] = problem._g[1][0] + g[0].rhs
+
+
+problem.tao.setMonitor(monitor)
 problem.solve()
 
 A.zeroEntries()
@@ -269,6 +283,35 @@ if np.any(s.x.array < s_min):
 if np.any(s.x.array > s_max):
     raise RuntimeError("Upper bound violated.")
 
+# %% [markdown]
+# Convergence of the optimisation, compliance vs. volume with shown volume constraint.
+# Relative to the first iterate, for compliance, and relative to the uppoer bound, for volume.
+# %% tags=["hide-input"]
+matplotlib_inline.backend_inline.set_matplotlib_formats("png")
+it = problem.tao.getIterationNumber()
+compliance = compliance[:it]
+volume = volume[:it]
+
+fig, ax1 = plt.subplots(dpi=400)
+ax1.grid()
+ax1.set_xlim(0, it - 1)
+ax1.set_xlabel("Iteration")
+ax1.set_xticks(range(0, it))
+ax1.set_ylabel("Compliance")
+plt_compliance = ax1.plot(
+    np.arange(0, it, dtype=np.int32), compliance / compliance[0], color="tab:orange"
+)
+ax1.set_ylim(bottom=0)
+
+ax2 = ax1.twinx()
+ax2.set_ylabel("Volume")
+plt_volume = ax2.plot(np.arange(0, it, dtype=np.int32), volume / g[0].rhs)
+ax2.axhline(y=1, linestyle="--")
+ax2.set_ylim(bottom=0)
+
+ax1.legend(plt_compliance + plt_volume, ["Compliance", "Volume"], loc=7)
+
+plt.show()
 # %% [markdown]
 # The deformed final design (displacement scaled by $5\times10^3$)
 # %% tags=["hide-input"]
