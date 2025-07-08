@@ -104,10 +104,10 @@ v_vector_o = dolfinx.fem.Function(Vf)
 p_scalar_i = dolfinx.fem.Function(Pf)
 
 # for output
-vo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="v")  # type: ignore
-po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="p")  # type: ignore
-no = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="n")  # type: ignore
-to = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="t")  # type: ignore
+vo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="v")
+po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="p")
+no = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="n")
+to = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="t")
 
 # Set up restriction
 rdofsV = dolfiny.mesh.locate_dofs_topological(Vf, subdomains, domain)

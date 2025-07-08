@@ -91,7 +91,7 @@ u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
 m, mt, mtt = [u, S], [ut, St], [utt, Stt]
 
 # Create other functions for output
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="u")  # type: ignore
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="u")
 So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3, 3), True)), name="S")
 
 # Time integrator

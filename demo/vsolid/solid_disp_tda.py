@@ -84,7 +84,7 @@ u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
 m, mt, mtt = [u], [ut], [utt]
 
 # Create other functions for output
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="u")  # type: ignore
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="u")
 
 # Time integrator
 odeint = dolfiny.odeint.ODEInt2(t=time, dt=dt, x=m, xt=mt, xtt=mtt, rho=0.95)

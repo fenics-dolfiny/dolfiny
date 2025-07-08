@@ -98,8 +98,8 @@ w = -ufl.dot(ufl.as_vector(c_1), z)  # [mol / m^3] -- fixed charge concentration
 
 # Define elements
 porder = 1  # ansatz order for physics
-Ce = basix.ufl.element("P", mesh.basix_cell(), porder, shape=(n,))  # type: ignore
-Pe = basix.ufl.element("P", mesh.basix_cell(), porder)  # type: ignore
+Ce = basix.ufl.element("P", mesh.basix_cell(), porder, shape=(n,))
+Pe = basix.ufl.element("P", mesh.basix_cell(), porder)
 
 # Define function spaces
 Cf = dolfinx.fem.functionspace(mesh, Ce)
@@ -116,8 +116,8 @@ m, δm = [c, φ], [δc, δφ]
 
 # Create other functions: output / visualisation
 vorder = mesh.geometry.cmap.degree
-co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), name="c")  # type: ignore
-φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")  # type: ignore
+co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), name="c")
+φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")
 
 # Define integration measures
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)

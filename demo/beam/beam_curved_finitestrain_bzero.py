@@ -117,7 +117,7 @@ m = [u, w, r]
 x0 = ufl.SpatialCoordinate(mesh)
 
 # Function spaces for geometric quantities extracted from mesh
-N = dolfinx.fem.functionspace(mesh, ("DP", q, (mesh.geometry.dim,)))  # type: ignore
+N = dolfinx.fem.functionspace(mesh, ("DP", q, (mesh.geometry.dim,)))
 
 # Normal vector (gdim x 1)
 n0i = dolfinx.fem.Function(N)
@@ -140,7 +140,7 @@ dolfiny.interpolation.interpolate(gξ, n0i)
 P = ufl.Identity(mesh.geometry.dim) - ufl.outer(n0i, n0i)
 
 # Thickness variable
-X = dolfinx.fem.functionspace(mesh, ("DP", q))  # type: ignore
+X = dolfinx.fem.functionspace(mesh, ("DP", q))
 ξ = dolfinx.fem.Function(X, name="ξ")
 
 # Undeformed configuration: director d0 and placement b0
@@ -192,9 +192,9 @@ T = S(Es) * area * sc_fac
 M = S(Eb) * I
 
 # Partial selective reduced integration of membrane/shear virtual work, see Arnold/Brezzi (1997)
-A = dolfinx.fem.functionspace(mesh, ("DP", 0))  # type: ignore
+A = dolfinx.fem.functionspace(mesh, ("DP", 0))
 α = dolfinx.fem.Function(A)
-dolfiny.interpolation.interpolate(h**2 / ufl.JacobianDeterminant(mesh), α)  # type: ignore
+dolfiny.interpolation.interpolate(h**2 / ufl.JacobianDeterminant(mesh), α)
 
 # Weak form: components (as one-form)
 form = (
@@ -250,7 +250,7 @@ plotter = pp.Plotter(
 )
 
 # Create vector function space and vector function for writing the displacement vector
-Z = dolfinx.fem.functionspace(mesh, ("CG", p, (mesh.geometry.dim,)))  # type: ignore
+Z = dolfinx.fem.functionspace(mesh, ("CG", p, (mesh.geometry.dim,)))
 z = dolfinx.fem.Function(Z)
 
 # Process load steps

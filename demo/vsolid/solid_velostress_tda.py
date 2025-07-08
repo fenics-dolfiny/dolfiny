@@ -92,9 +92,9 @@ u = dolfinx.fem.Function(Vf, name="u")
 d = dolfinx.fem.Function(Vf, name="d")  # dummy
 
 # for output
-vo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="v")  # type: ignore
+vo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="v")
 So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3, 3), True)), name="S")
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="u")  # type: ignore
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name="u")
 
 # Time integrator
 odeint = dolfiny.odeint.ODEInt(t=time, dt=dt, x=m, xt=mt, rho=0.95)

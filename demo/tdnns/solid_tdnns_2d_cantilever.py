@@ -56,7 +56,7 @@ ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
 dS = ufl.Measure("dS", domain=mesh)
 
 # Define elements
-Ue = basix.ufl.element("N2E", mesh.basix_cell(), 2)  # type: ignore
+Ue = basix.ufl.element("N2E", mesh.basix_cell(), 2)
 Se = hdivdiv.create_custom_hdivdiv(mesh.basix_cell(), 2, verbose=not comm.rank)
 
 # Define function spaces
@@ -79,8 +79,8 @@ m = [u, S]
 # Create other functions: output / visualisation
 vorder = mesh.geometry.cmap.degree
 So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (2, 2), True)), name="S")
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (2,))), name="u")  # type: ignore
-so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")  # type: ignore
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (2,))), name="u")
+so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")
 
 
 # Strain, kinematically
