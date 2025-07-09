@@ -10,8 +10,11 @@ from dolfinx import default_scalar_type as scalar
 
 import mesh_annulus_gmshapi as mg
 import numpy as np
+import sympy.physics.units as syu
 
 import dolfiny
+import dolfiny.utils
+from dolfiny.units import Quantity
 
 # Basic settings
 name = "bingham_block"
@@ -40,8 +43,6 @@ ring_inner = interfaces_keys["ring_inner"]
 ring_outer = interfaces_keys["ring_outer"]
 
 # Fluid material parameters
-rho = dolfinx.fem.Constant(mesh, scalar(2.0))  # [kg/m^3]
-mu = dolfinx.fem.Constant(mesh, scalar(1.0))  # [kg/m/s]
 tau_zero = dolfinx.fem.Constant(mesh, scalar(0.2))  # [kg/m/s^2]
 tau_zero_regularisation = dolfinx.fem.Constant(mesh, scalar(1.0e-3))  # [-]
 
@@ -117,6 +118,14 @@ po = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="p")
 # Time integrator
 odeint = dolfiny.odeint.ODEInt(t=time, dt=dt, x=m, xt=mt)
 
+# Define reference quantities with units
+t_ref = Quantity(mesh, 1, syu.second, "t_ref")
+v_ref = Quantity(mesh, 1, syu.meter / syu.second, "v_ref")
+l_ref = Quantity(mesh, 1, syu.meter, "l_ref")
+rho = Quantity(mesh, 2, syu.kilogram / syu.meter**3, "rho")
+mu = Quantity(mesh, 1, syu.kilogram / (syu.meter * syu.second), "mu")
+tau_zero = Quantity(mesh, 0.2, syu.kilogram / (syu.meter * syu.second**2), "tau_zero")
+
 
 def D(v):
     """Rate of strain as function of v (velocity)."""
@@ -130,29 +139,87 @@ def J2(A):
 
 def rJ2(A):
     """Square root of J2."""
-    return ufl.sqrt(J2(A) + np.finfo(np.float64).eps)  # eps for AD
+    return ufl.sqrt(J2(A) + (v_ref / l_ref) ** 2 * np.finfo(np.float64).eps)  # eps for AD
 
 
-def T(v, p):
-    """Constitutive relation for Bingham - Cauchy stress as a function of velocity and pressure."""
+def T_mu(v, p):
+    """Viscous part of Cauchy stress tensor."""
+    # Deviatoric strain rate
+    D_ = ufl.dev(D(v))  # == D(v) if div(v)=0
+    # Cauchy stress (viscous part)
+    T = -p * ufl.Identity(2) + 2.0 * mu * D_
+    return T
+
+
+def T_tau(v):
+    """Yield stress part of Cauchy stress tensor for Bingham fluid."""
     # Deviatoric strain rate
     D_ = ufl.dev(D(v))  # == D(v) if div(v)=0
     # Second invariant
     rJ2_ = rJ2(D_)
-    # Regularisation
-    mu_effective = mu + tau_zero * 1.0 / (2.0 * (rJ2_ + tau_zero_regularisation))
-    # Cauchy stress
-    T = -p * ufl.Identity(2) + 2.0 * mu_effective * D_
+    # Regularisation factor
+    regularisation = 1.0 / (2.0 * (rJ2_ + (v_ref / l_ref) * tau_zero_regularisation))
+    # Yield stress contribution
+    T = 2.0 * tau_zero * regularisation * D_
     return T
 
 
+def T(v, p):
+    return T_mu(v, p) + T_tau(v)
+
+
+quantities = [t_ref, v_ref, l_ref, rho, mu, tau_zero]
+if MPI.COMM_WORLD.rank == 0:
+    dolfiny.units.buckingham_pi_analysis(quantities)
+
+# Create mapping for dimensional transformation
+p_ref = mu * v_ref / l_ref
+mapping = {
+    mesh.ufl_domain(): l_ref,  # Add mesh scaling to mapping
+    v: v_ref * v,
+    vt: v_ref / t_ref * vt,
+    p: p_ref * p,
+    δv: v_ref * δv,
+    δp: p_ref * δp,
+}
+
+# Define terms as dictionary
+terms = {
+    "time": ufl.inner(δv, rho * vt) * dx,
+    "conv": ufl.inner(δv, rho * ufl.grad(v) * v) * dx,
+    "stress_mu": ufl.inner(ufl.grad(δv), T_mu(v, p)) * dx,
+    "stress_tau": ufl.inner(ufl.grad(δv), T_tau(v)) * dx,
+    "cont": ufl.inner(δp, ufl.div(v)) * dx,
+    "press_diag": dolfinx.fem.Constant(mesh, scalar(0.0))
+    * v_ref
+    / l_ref
+    / p_ref
+    * ufl.inner(δp, p)
+    * dx,
+}
+
+# Few dimensional sanity checks
+dimsys = syu.si.SI.get_dimension_system()
+
+assert dimsys.equivalent_dims(
+    dolfiny.units.get_dimension(rho * vt, quantities, mapping),
+    syu.mass / syu.length**3 * syu.length / syu.time**2,
+)
+
+assert dimsys.equivalent_dims(
+    dolfiny.units.get_dimension(tau_zero, quantities, mapping),
+    syu.mass / (syu.length * syu.time**2),
+)
+
+factorized = dolfiny.units.factorize(terms, quantities, mode="factorize", mapping=mapping)
+assert isinstance(factorized, dict)
+
+# Choose reference term for scaling
+reference_term = "conv"
+normalized = dolfiny.units.normalize(factorized, reference_term, quantities)
+
 # Weak form (as one-form)
-form = (
-    ufl.inner(δv, rho * vt + rho * ufl.grad(v) * v) * dx
-    + ufl.inner(ufl.grad(δv), T(v, p)) * dx
-    + ufl.inner(δp, ufl.div(v)) * dx
-    + dolfinx.fem.Constant(mesh, scalar(0.0)) * ufl.inner(δp, p) * dx
-)  # Zero pressure block for BCs
+form = sum(normalized.values(), ufl.form.Zero())
 
 # Overall form (as one-form)
 form = odeint.discretise_in_time(form)

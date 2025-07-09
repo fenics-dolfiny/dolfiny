@@ -11,8 +11,10 @@ from dolfinx import default_scalar_type as scalar
 import mesh_curve3d_gmshapi as mg
 import numpy as np
 import postprocess_matplotlib as pp
+import sympy.physics.units as syu
 
 import dolfiny
+from dolfiny.units import Quantity
 
 # Basic settings
 name = "beam_curved_finitestrain_bstar_reissner"
@@ -39,27 +41,35 @@ beg = interfaces_keys["beg"]
 end = interfaces_keys["end"]
 
 # Structure: section geometry
-b = 1.0  # [m]
-h = L / 500  # [m]
-area = b * h  # [m^2]
-I = b * h**3 / 12  # [m^4]  # noqa: E741
+b = 1.0
+h = L / 500
+area = Quantity(mesh, b * h, syu.meter**2, "A")
+I = Quantity(mesh, b * h**3 / 12, syu.meter**4, "I")  # noqa: E741
 
 # Structure: material parameters
 n = 0  # [-] Poisson ratio
-E = 1.0e8  # [N/m^2] elasticity modulus
-lamé_λ = E * n / (1 + n) / (1 - 2 * n)  # Lamé constant λ
-lamé_μ = E / 2 / (1 + n)  # Lamé constant μ
+E = Quantity(mesh, 100, syu.mega * syu.pascal, "E")
+la = Quantity(mesh, E.scale * n / (1 + n) / (1 - 2 * n), syu.mega * syu.pascal, "lambda")
+mu = Quantity(mesh, E.scale / 2 / (1 + n), syu.mega * syu.pascal, "mu")
 
 # Structure: shear correction factor, see Cowper (1966)
 sc_fac = 10 * (1 + n) / (12 + 11 * n)
 
+# Reference quantities for dimensional analysis
+L_ref = Quantity(mesh, L, syu.meter, "L_ref")  # Reference length
+F_ref = Quantity(mesh, 1, syu.newton, "F_ref")  # Reference force
 
-def s(e):
-    """
-    Stress as function of strain from strain energy function
-    """
+
+def s_lambda(e):
     e = ufl.variable(e)
-    W = lamé_μ * e * e + lamé_λ / 2 * e**2  # Saint-Venant Kirchhoff
+    W = la / 2 * e**2
+    s = ufl.diff(W, e)
+    return s
+
+
+def s_mu(e):
+    e = ufl.variable(e)
+    W = mu * e * e
     s = ufl.diff(W, e)
     return s
 
@@ -67,13 +77,17 @@ def s(e):
 # Structure: load parameters
 μ = dolfinx.fem.Constant(mesh, scalar(1.0))  # load factor
 
-p_x = μ * dolfinx.fem.Constant(mesh, scalar(1.0 * 0))
-p_z = μ * dolfinx.fem.Constant(mesh, scalar(1.0 * 0))
-m_y = μ * dolfinx.fem.Constant(mesh, scalar(1.0 * 0))
+p_x = μ * F_ref / L_ref * dolfinx.fem.Constant(mesh, scalar(1.0 * 0))
+p_z = μ * F_ref / L_ref * dolfinx.fem.Constant(mesh, scalar(1.0 * 0))
+m_y = μ * F_ref * L_ref / L_ref * dolfinx.fem.Constant(mesh, scalar(1.0 * 0))
 
-F_x = μ * dolfinx.fem.Constant(mesh, scalar((2.0 * np.pi / L) ** 2 * E * I * 0))  # prescr F_x: 2, 4
-F_z = μ * dolfinx.fem.Constant(mesh, scalar((0.5 * np.pi / L) ** 2 * E * I * 0))  # prescr F_z: 4, 8
-M_y = μ * dolfinx.fem.Constant(mesh, scalar((2.0 * np.pi / L) ** 1 * E * I * 1))  # prescr M_y: 1, 2
+F_x = μ * (2.0 * np.pi / L_ref) ** 2 * E * I * dolfinx.fem.Constant(mesh, scalar(1.0 * 0))
+F_z = μ * (0.5 * np.pi / L_ref) ** 2 * E * I * dolfinx.fem.Constant(mesh, scalar(1.0 * 0))
+M_y = μ * (2.0 * np.pi / L_ref) ** 1 * E * I * 1
+
+dimsys = syu.si.SI.get_dimension_system()
+
+assert dimsys.equivalent_dims(dolfiny.units.get_dimension(F_x, [L_ref, E, I]), syu.force)
 
 # Define integration measures
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)
@@ -176,29 +190,69 @@ def GRAD(u):
 δκ = ufl.derivative(κ, m, δm)
 
 # Stress resultants
-N = s(ε) * area
-T = s(γ) * area * sc_fac
-M = s(κ) * I
+N_bulk = s_lambda(ε) * area
+N_shear = s_mu(ε) * area
+
+T_bulk = s_lambda(γ) * area * sc_fac
+T_shear = s_mu(γ) * area * sc_fac
+
+M_bulk = s_lambda(κ) * I
+M_shear = s_mu(κ) * I
 
 # Partial selective reduced integration of membrane/shear virtual work, see Arnold/Brezzi (1997)
 A = dolfinx.fem.functionspace(mesh, ("DP", 0))
 α = dolfinx.fem.Function(A)
 dolfiny.interpolation.interpolate(h**2 / ufl.JacobianDeterminant(mesh), α)
 
-# Weak form: components (as one-form)
-form = (
-    -ufl.inner(δε, N) * α * dx
-    - ufl.inner(δε, N) * (1 - α) * dx(metadata={"quadrature_degree": p * (p - 1)})
-    - ufl.inner(δγ, T) * α * dx
-    - ufl.inner(δγ, T) * (1 - α) * dx(metadata={"quadrature_degree": p * (p - 1)})
-    - ufl.inner(δκ, M) * dx
-    + δu * p_x * dx
-    + δw * p_z * dx
-    + δr * m_y * dx
-    + δu * F_x * ds(end)
-    + δw * F_z * ds(end)
-    + δr * M_y * ds(end)
-)
+# Define mapping for dimensional analysis
+mapping = {
+    mesh.ufl_domain(): L_ref,
+    u: L_ref * u,
+    w: L_ref * w,
+    r: r,  # rotation is dimensionless (radians)
+    δu: L_ref * δu,
+    δw: L_ref * δw,
+    δr: δr,
+}
+
+quantities = [area, I, L_ref, F_ref, mu, la, E]
+
+if comm.rank == 0:
+    dolfiny.units.buckingham_pi_analysis(quantities)
+
+# Define beam terms for dimensional analysis
+terms = {
+    "membrane_lambda": -ufl.inner(δε, N_bulk) * α * dx,
+    "membrane_lambda_reduced": -ufl.inner(δε, N_bulk)
+    * (1 - α)
+    * dx(metadata={"quadrature_degree": p * (p - 1)}),
+    "shear_lambda": -ufl.inner(δγ, T_bulk) * α * dx,
+    "shear_lambda_reduced": -ufl.inner(δγ, T_bulk)
+    * (1 - α)
+    * dx(metadata={"quadrature_degree": p * (p - 1)}),
+    "bending_lambda": -ufl.inner(δκ, M_bulk) * dx,
+    "membrane_mu": -ufl.inner(δε, N_shear) * α * dx,
+    "membrane_mu_reduced": -ufl.inner(δε, N_shear)
+    * (1 - α)
+    * dx(metadata={"quadrature_degree": p * (p - 1)}),
+    "shear_mu": -ufl.inner(δγ, T_shear) * α * dx,
+    "shear_mu_reduced": -ufl.inner(δγ, T_shear)
+    * (1 - α)
+    * dx(metadata={"quadrature_degree": p * (p - 1)}),
+    "bending_mu": -ufl.inner(δκ, M_shear) * dx,
+    "body_x": δu * p_x * dx,
+    "body_z": δw * p_z * dx,
+    "body_m": δr * m_y * dx,
+    "point_x": δu * F_x * ds(end),
+    "point_z": δw * F_z * ds(end),
+    "point_m": δr * M_y * ds(end),
+}
+
+factorized = dolfiny.units.factorize(terms, quantities, mode="check", mapping=mapping)
+assert isinstance(factorized, dict)
+reference_term = "bending_mu"
+normalized = dolfiny.units.normalize(factorized, reference_term, quantities)
+form = sum(normalized.values(), ufl.form.Zero())
 
 # Optional: linearise weak form
 # form = dolfiny.expression.linearise(form, m)  # linearise around zero state
@@ -243,9 +297,9 @@ Z = dolfinx.fem.functionspace(mesh, ("P", p, (mesh.geometry.dim,)))
 z = dolfinx.fem.Function(Z)
 
 # Process load steps
-for factor in np.linspace(0, 1, num=20 + 1):
+for load_factor in np.linspace(0, 1, num=20 + 1):
     # Set current load factor
-    μ.value = factor
+    μ.value = load_factor
 
     # Set/update boundary conditions
     problem.bcs = [
@@ -269,6 +323,6 @@ for factor in np.linspace(0, 1, num=20 + 1):
     # Write output
     if q <= 2:
         dolfiny.interpolation.interpolate(ufl.as_vector([u, 0, w]), z)
-        ofile.write_function(z, μ.value)
+        ofile.write_function(z, float(μ.value))
 
 ofile.close()
