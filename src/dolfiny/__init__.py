@@ -1,5 +1,3 @@
-import logging
-
 from dolfiny import (
     continuation,
     expression,
@@ -9,6 +7,7 @@ from dolfiny import (
     io,
     la,
     localsolver,
+    logging,
     mesh,
     odeint,
     projection,
@@ -16,9 +15,9 @@ from dolfiny import (
     slepcproblem,
     snesproblem,
     taoproblem,
+    ufl_utils,
+    units,
 )
-
-logger = logging.Logger("dolfiny")
 
 __all__ = [
     "continuation",
@@ -29,6 +28,7 @@ __all__ = [
     "io",
     "la",
     "localsolver",
+    "logging",
     "mesh",
     "odeint",
     "projection",
@@ -36,4 +36,6 @@ __all__ = [
     "slepcproblem",
     "snesproblem",
     "taoproblem",
+    "ufl_utils",
+    "units",
 ]

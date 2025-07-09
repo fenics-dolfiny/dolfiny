@@ -19,7 +19,8 @@ ENV NVM_DIR=/root/.nvm
 # Install system dependencies
 RUN apt-get -y update && \
     apt-get -y install \
-    libosmesa6 libgl1-mesa-dev xvfb curl && \
+    libosmesa6 libgl1-mesa-dev xvfb curl \
+    libgraphviz-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 

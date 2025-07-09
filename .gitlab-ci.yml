@@ -37,7 +37,7 @@ mypy:
    script:
       - pip install .[typing]
       - mypy -p dolfiny
-      - mypy test/ demo/
+      - mypy test/ demo/ --explicit-package-bases
 
 typos:
    stage: lint
@@ -195,7 +195,10 @@ test/convergence:
    script:
       - cd demo/$DIRECTORY
       - |
-         for script in $SCRIPTS; do
+         # Convert SCRIPTS to array to handle complete command lines with arguments
+         # instead of splitting on each word (which breaks "script.py --arg value")
+         eval "SCRIPT_ARRAY=($SCRIPTS)"
+         for script in "${SCRIPT_ARRAY[@]}"; do
             mpirun -n 1 python $script
             if $PARALLEL; then
                mpirun -n $(nproc) python $script
@@ -244,9 +247,9 @@ spectral:
    extends: .demo_template
    variables:
       DIRECTORY: spectral
-      SCRIPTS: >
-         solid_elasticity_classic.py
-         solid_elasticity_spectral.py
+      SCRIPTS: |
+         "solid_elasticity.py --formulation classic"
+         "solid_elasticity.py --formulation spectral"
 
 continuation:
    extends: .demo_template
@@ -270,6 +273,13 @@ tdnns:
          solid_tdnns_3d_spanner.py
          solid_displ_3d_spanner.py
          solid_mixed_3d_spanner.py
+
+units:
+   extends: .demo_template
+   variables:
+      DIRECTORY: units
+      SCRIPTS: >
+         navier_stokes.py
 
 beltrami:
    extends: .demo_template
@@ -299,6 +309,7 @@ electrodiffusion:
       SCRIPTS: >
          pnp_4species_steadystate.py
          pnp_4species_transient.py
+         pnp_4species_steadystate_scaled.py
          diffusor_4species_steadystate.py
 
 book build:

@@ -27,7 +27,7 @@ def plot_tube3d_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=M
 
     grid = multiblock[-1]
     grid.point_data["u"] = multiblock[0].point_data["u"]
-    grid.point_data["s"] = multiblock[1].point_data["s"]  # [MPa]
+    grid.point_data["s"] = multiblock[1].point_data["s"] / 1e6  # convert to MPa
 
     pixels = 2048
     plotter = pyvista.Plotter(off_screen=True, window_size=[pixels, pixels], image_scale=1)
