@@ -47,7 +47,7 @@ rho = Quantity(mesh, 5000, syu.kilogram / syu.m**3, "rho")
 l_ref = Quantity(mesh, 1, syu.meter, "l_ref")
 t_ref = Quantity(mesh, 1 / 60, syu.minute, "t_ref")
 v_ref = Quantity(mesh, 1, syu.meter / syu.second, "v_ref")
-p_ref = Quantity(mesh, 5000, syu.pascal, "p_ref")
+p_ref = Quantity(mesh, args.p_ref, syu.pascal, "p_ref")
 g_ref = Quantity(mesh, 10, syu.meter / syu.second**2, "g_ref")
 quantities = [nu, rho, l_ref, t_ref, v_ref, p_ref, g_ref]
 # quantities = [v_ref, l_ref, rho, nu, g_ref, p_ref, t_ref]  # order -> 1 / Re, Fr, Eu, St
@@ -145,60 +145,24 @@ facets = dolfinx.mesh.locate_entities_boundary(mesh, 1, lid)
 bc1 = dolfinx.fem.dirichletbc(lid_velocity, dolfinx.fem.locate_dofs_topological(Vf, 1, facets))
 
 # Pin pressure to zero at single dof
-bc2 = dolfinx.fem.dirichletbc(
-    scalar(0.0), dolfinx.fem.locate_dofs_topological(Pf, 0, np.array([0], dtype=np.int32)), Pf
+dof0 = dolfinx.fem.locate_dofs_geometrical(
+    Pf, lambda x: np.isclose(x[0], 0.0) & np.isclose(x[1], 0.0)
 )
+bc2 = dolfinx.fem.dirichletbc(scalar(0.0), dof0, Pf)
 
 # Collect Dirichlet boundary conditions
 bcs = [bc0, bc1, bc2]
 
 form_nondimensional_blocks = ufl.extract_blocks(form_nondimensional)
 
-# Set up options for GMRES
 opts = PETSc.Options("ns")  # type: ignore[attr-defined]
-opts["snes_max_it"] = 1
-opts["ksp_type"] = "gmres"
-opts["ksp_gmres_restart"] = 200
-opts["ksp_gmres_modifiedgramschmidt"] = True
-opts["ksp_max_it"] = 10000
-opts["pc_type"] = "none"
-opts["ksp_rtol"] = 1e-14
+opts["snes_max_it"] = 5
+opts["ksp_type"] = "preonly"
+opts["pc_type"] = "lu"
+opts["pc_factor_mat_solver_type"] = "mumps"
 
 problem_gmres = dolfiny.snesproblem.SNESProblem(
-    form_nondimensional_blocks, [v, p], bcs=bcs, prefix="ns", nest=True
+    form_nondimensional_blocks, [v, p], bcs=bcs, prefix="ns", nest=False
 )
-problem_gmres.verbose["ksp"] = False
-problem_gmres.verbose["snes"] = False
 
-
-def compute_condition_number(J):
-    J_aij = J.copy()
-    J_aij.convert("aij")
-    A_scipy = dolfiny.la.petsc_to_scipy(J_aij)
-    return np.linalg.cond(A_scipy.todense())
-
-
-conds = []
-nums_its = []
-ps = np.linspace(args.p_ref / 10, args.p_ref * 2, 50)
-eus = ps / (rho.value * v_ref.value**2)
-for p0 in ps:
-    p_ref.scale = p0
-    v.x.array[:] = 0.0
-    p.x.array[:] = 0.0
-    (u_gmres, p_gmres) = problem_gmres.solve()
-
-    cond = compute_condition_number(problem_gmres.J)
-    num_its = problem_gmres.snes.ksp.getIterationNumber()
-    conds.append(cond)
-    nums_its.append(num_its)
-    dolfiny.utils.pprint(
-        f"GMRES: p_ref = {p0:.2f} Pa, iterations = {num_its}, condition number = {cond:.4g}"
-    )
-
-np.savetxt(
-    "cond_ns.txt",
-    np.column_stack((eus, conds, nums_its)),
-    header="Euler number, Condition number, Iterations",
-    fmt="%g %g %d",
-)
+(u_gmres, p_gmres) = problem_gmres.solve()
