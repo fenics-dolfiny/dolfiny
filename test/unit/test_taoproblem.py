@@ -126,9 +126,7 @@ def test_poisson_discrete(n, order, atol, element):
 
 
 @pytest.mark.parametrize("autodiff", [True, False])
-@pytest.mark.parametrize(
-    "order", [pytest.param(1, marks=pytest.mark.skip(reason="Needs fixing")), 2]
-)
+@pytest.mark.parametrize("order", [1, 2])
 def test_poisson(autodiff: bool, order: int):
     """Tests poissons problem as variational problem, with different optimisation setups."""
     n = 32
@@ -138,7 +136,7 @@ def test_poisson(autodiff: bool, order: int):
     W = dolfinx.fem.functionspace(mesh, ("P", 1))
 
     u = dolfinx.fem.Function(W)
-    f = -1.0
+    f = 1.0
 
     F = 1 / 2 * ufl.inner(ufl.grad(u), ufl.grad(u)) * ufl.dx - ufl.inner(f, u) * ufl.dx
     J = None if autodiff else [ufl.derivative(F, u)]
