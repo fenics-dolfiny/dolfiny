@@ -22,7 +22,7 @@ jit = ["numba", "cppyy>=3.1.0"]
 test = ["dolfiny[jit,vis]", "pytest-xdist", "coverage", "scipy"]
 demo = ["dolfiny[jit,vis]"]
 typing = ["mypy<1.10"]
-book = ["dolfiny[vis]", "jupytext", "jupyter-book==v2.0.0-a3", "jupyter"]
+book = ["dolfiny[vis]", "jupytext", "jupyter-book>=v2.0.0b2", "jupyter"]
 units = ["sympy", "pygraphviz"]
 all = ["dolfiny[test,demo,dev,typing,book,units]"]
 
