@@ -59,7 +59,7 @@ def test_poisson_discrete(n, order, atol, element):
     A = dolfinx.fem.petsc.assemble_matrix(a, [bc])
     A.assemble()
     b = dolfinx.fem.petsc.assemble_vector(L)
-    dolfinx.fem.petsc.apply_lifting(b, [a], [bc])
+    dolfinx.fem.petsc.apply_lifting(b, [a], [[bc]])
     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
     dolfinx.fem.petsc.set_bc(b, [bc])
 
