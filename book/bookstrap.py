@@ -34,7 +34,8 @@ for demo in demo_files:
     print(f"♻️ {demo} → {notebook}", flush=True)
     subprocess.run(["mkdir", "-p", notebook.parent], check=True)
     subprocess.run(
-        ["jupytext", f"../demo/{demo}", "--to", "ipynb", "--output", notebook], check=True
+        ["jupytext", f"../demo/{demo}", "--to", "ipynb", "--quiet", "--output", notebook],
+        check=True,
     )
 
 for demo in demo_files:
@@ -54,6 +55,7 @@ for demo in demo_files:
             "notebook",
             "--inplace",
             "--clear-output",
+            "--log-level=WARN",
             notebook,
         ],
         check=True,
