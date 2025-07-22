@@ -59,7 +59,7 @@ def test_poisson_discrete(n, order, atol, element):
     A = dolfinx.fem.petsc.assemble_matrix(a, [bc])
     A.assemble()
     b = dolfinx.fem.petsc.assemble_vector(L)
-    dolfinx.fem.petsc.apply_lifting(b, [a], [bc])
+    dolfinx.fem.petsc.apply_lifting(b, [a], [[bc]])
     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
     dolfinx.fem.petsc.set_bc(b, [bc])
 
@@ -112,6 +112,7 @@ def test_poisson_discrete(n, order, atol, element):
         u=u_direct,
         bcs=[bc],
         petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
+        petsc_options_prefix="poisson_discrete",
     )
     problem.solve()
 
@@ -185,9 +186,13 @@ def test_poisson(autodiff: bool, order: int):
     L = -ufl.derivative(F, u)
 
     problem = dolfinx.fem.petsc.LinearProblem(
-        a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
+        a,
+        L,
+        bcs=[bc],
+        petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
+        petsc_options_prefix="poisson",
     )
-    sol_weak_form, _, _ = problem.solve()
+    sol_weak_form = problem.solve()
 
     assert np.allclose(_L2_norm(sol_optimization - sol_weak_form), 0)
     assert opt_problem.tao.getConvergedReason() > 0
@@ -312,9 +317,13 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     L = -ufl.derivative(F, u)
 
     problem = dolfinx.fem.petsc.LinearProblem(
-        a, L, bcs=[bc], petsc_options={"ksp_type": "preonly", "pc_type": "lu"}
+        a,
+        L,
+        bcs=[bc],
+        petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
+        petsc_options_prefix="poisson_constrained",
     )
-    sol_weak_form, _, _ = problem.solve()
+    sol_weak_form = problem.solve()
     assert isinstance(sol_weak_form, dolfinx.fem.Function)
     L2_norm_unconstrained = _L2_norm(sol_weak_form)
 
@@ -383,9 +392,21 @@ def test_optimal_control_reduced():
 
     L_adj = (u - d) * v * ufl.dx
 
-    state_problem = dolfinx.fem.petsc.LinearProblem(a, L, [bc], u)
+    state_problem = dolfinx.fem.petsc.LinearProblem(
+        a,
+        L,
+        bcs=[bc],
+        u=u,
+        petsc_options_prefix="optimal_control_reduced",
+    )
     p = dolfinx.fem.Function(V_state, name="p")
-    adjoint_problem = dolfinx.fem.petsc.LinearProblem(a, L_adj, [bc], p)
+    adjoint_problem = dolfinx.fem.petsc.LinearProblem(
+        a,
+        L_adj,
+        bcs=[bc],
+        u=p,
+        petsc_options_prefix="optimal_control_reduced",
+    )
 
     @dolfiny.taoproblem.sync_functions(f)
     def F_reduced(tao, x):
@@ -548,9 +569,12 @@ def test_poisson_pde_as_constraint():  # almm_type
     opt_problem.solve()
 
     linear_problem = dolfinx.fem.petsc.LinearProblem(
-        ufl.inner(ufl.grad(ufl.TrialFunction(V)), ufl.grad(ufl.TestFunction(V))) * ufl.dx, L, [bc]
+        ufl.inner(ufl.grad(ufl.TrialFunction(V)), ufl.grad(ufl.TestFunction(V))) * ufl.dx,
+        L,
+        bcs=[bc],
+        petsc_options_prefix="poisson_pde_as_constraint",
     )
-    u_lp, _, _ = linear_problem.solve()
+    u_lp = linear_problem.solve()
 
     assert np.allclose(_L2_norm(u_lp - u), 0, atol=1e-4)
     assert opt_problem.tao.getConvergedReason() > 0

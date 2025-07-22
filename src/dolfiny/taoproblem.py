@@ -137,7 +137,7 @@ def wrap_objective_callbacks(
         J_vec.zeroEntries()
         J_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
 
-        dolfinx.fem.petsc.assemble_vector(J_vec, J_form)
+        dolfinx.fem.petsc.assemble_vector(J_vec, J_form)  # type: ignore
 
         dolfinx.fem.petsc.apply_lifting(
             J_vec,

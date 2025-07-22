@@ -157,7 +157,7 @@ class LocalSolver:
                 [c[0] for c in self.stacked_coefficients],
                 [c[0] for c in self.stacked_constants],
                 False,
-                {},
+                [],
                 mesh=V.mesh._cpp_object,
             )
             cppform = dolfinx.fem.Form(cppform)
@@ -192,7 +192,7 @@ class LocalSolver:
                     [c[0] for c in self.stacked_coefficients],
                     [c[0] for c in self.stacked_constants],
                     False,
-                    {},
+                    [],
                     mesh=V0.mesh._cpp_object,
                 )
                 J_form[gi][gj] = dolfinx.fem.Form(J_form[gi][gj])
@@ -222,7 +222,7 @@ class LocalSolver:
                 [c[0] for c in self.stacked_coefficients],
                 [c[0] for c in self.stacked_constants],
                 False,
-                {},
+                [],
                 mesh=V.mesh._cpp_object,
             )
             cppform = dolfinx.fem.Form(cppform)

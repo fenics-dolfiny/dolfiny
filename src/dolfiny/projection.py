@@ -126,7 +126,7 @@ def project_codimension(p_expression, target_func, projector, mt, mt_id, eps=1.0
 
     # Assemble linear system
     A.zeroEntries()
-    dolfinx.fem.petsc.assemble_matrix_mat(A, a, bcs)
+    dolfinx.fem.petsc.assemble_matrix(A, a, bcs)
     A.assemble()
     b = assemble_vector(L)
     apply_lifting(b, [a], [bcs])
