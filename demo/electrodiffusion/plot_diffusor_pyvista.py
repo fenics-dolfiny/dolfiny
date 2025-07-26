@@ -26,8 +26,8 @@ def plot_diffusor_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm
     multiblock = reader.read()
 
     grid = multiblock[-1]
-    grid.point_data["c"] = multiblock[0].point_data["c/0"]
-    grid.point_data["φ"] = multiblock[1].point_data["φ/0"]
+    grid.point_data["c"] = multiblock[0].point_data["c"]
+    grid.point_data["φ"] = multiblock[1].point_data["φ"]
 
     pixels = 2048
     plotter = pyvista.Plotter(off_screen=True, window_size=[pixels, pixels], image_scale=1)
