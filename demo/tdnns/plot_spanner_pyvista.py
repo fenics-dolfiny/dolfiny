@@ -35,9 +35,9 @@ def plot_spanner_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=
     multiblock = reader.read()
 
     grid = multiblock[-1]
-    grid.point_data["u"] = multiblock[0].point_data["u/0"]
-    grid.point_data["S"] = multiblock[1].point_data["S/0"]
-    grid.point_data["s"] = multiblock[2].point_data["s/0"]
+    grid.point_data["u"] = multiblock[0].point_data["u"]
+    grid.point_data["S"] = multiblock[1].point_data["S"]
+    grid.point_data["s"] = multiblock[2].point_data["s"]
 
     pixels = 2048
     plotter = pyvista.Plotter(off_screen=True, window_size=[pixels, pixels], image_scale=1)
