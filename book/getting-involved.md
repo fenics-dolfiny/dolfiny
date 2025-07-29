@@ -24,16 +24,19 @@ Projects may address problems ranging across
 
 ```{card}
 :header: ✏️ Project 1
+:link: projects/idea-1.md
 Blub.
 ```
 
 ```{card}
 :header: 🔁 Project 2
+:link: projects/idea-2.md
 Blub.
 ```
 
 ```{card}
 :header: 🖥️ Project 3
+:link: projects/idea-3.md
 Blub.
 ```
 
