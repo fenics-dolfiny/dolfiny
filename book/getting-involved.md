@@ -47,3 +47,12 @@ Suggest it to us!
 ```
 
 ````
+
+## 📢 Opportunities 
+
+```{card}
+:header: PhD Position in Computational Mechanics at the University of Luxembourg
+:link: https://recruitment.uni.lu/en/details.html?id=QMUFK026203F3VBQB7V7VV4S8&nPostingID=104786&nPostingTargetID=150119&mask=karriereseiten&lg=UK
+Potential areas of your future research could include – but are not limited to – optimisation of light-weight structures under stochastic and/or impact loads, topology optimisation with advanced response and/or manufacturing constraints, parametric shape reconstruction from implicit shape descriptions.
+The research will be conducted in the context of an EU-wide project and in close collaboration with industrial partners based in Luxembourg...
+```
