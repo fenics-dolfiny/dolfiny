@@ -195,8 +195,8 @@ def gmsh_to_dolfin(
     mesh = create_mesh(
         comm,
         cells_cellname,
-        points,
         ufl_mesh(celltype, pts_shape[1], dtype=default_real_type),
+        points,
         partitioner,
     )
     mts = {}
@@ -551,4 +551,4 @@ def create_truss_x_braced_mesh(mesh: dolfinx.mesh.Mesh) -> dolfinx.mesh.Mesh:
     cells = cells.astype(np.int64)  # promote to global indices
 
     element = ufl.Mesh(basix.ufl.element("Lagrange", "interval", 1, shape=(gdim,)))
-    return dolfinx.mesh.create_mesh(MPI.COMM_WORLD, cells, new_x, element)
+    return dolfinx.mesh.create_mesh(MPI.COMM_WORLD, cells, element, new_x)
