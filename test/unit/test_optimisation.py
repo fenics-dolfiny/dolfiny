@@ -1,3 +1,5 @@
+import math
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -6,7 +8,7 @@ import pytest
 from numpy import typing as npt
 
 
-def svanberg_cantilever_beam(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float]:  # type: ignore
+def svanberg_cantilever_beam(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
     """
     Cantilever beam from ref. https://doi.org/10.1002/nme.1620240207.
 
@@ -71,22 +73,90 @@ def svanberg_cantilever_beam(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], f
     ub.set(PETSc.INFINITY)  # type: ignore
     tao.setVariableBounds(lb, ub)
 
-    return np.array([6.016, 5.309, 4.494, 3.502, 2.153]), 1.340
+    return np.array([6.016, 5.309, 4.494, 3.502, 2.153]), 1.340, 1e-3
+
+
+def svanberg_two_bar_truss(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
+    """
+    2-bar truss from ref. https://doi.org/10.1002/nme.1620240207.
+
+    min  C₁ x₁ √(1 + x₂^2)
+     x
+    s.t. 0.2 ≤ x₁ ≤ 4.0
+         0.1 ≤ x₂ ≤ 1.6
+         0 ≤ 1 - C₂ √(1 + x₂^2) (8/x₁ + 1/x₁x₂)
+         0 ≤ 1 - C₂ √(1 + x₂^2) (8/x₁ - 1/x₁x₂)
+
+    where
+        C₁ = 1.0
+        C₂ = 0.124
+
+    optimal point and objective value are
+        x̄    = (1.41, 0.38)
+        f(x̄) = 1.51
+
+    """
+    C_1 = 1.0
+    C_2 = 0.124
+
+    def objective(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
+        return C_1 * x[0] * math.sqrt(1 + x[1] ** 2)  # type: ignore
+
+    def gradient(tao, x: PETSc.Vec, J: PETSc.Vec) -> None:  # type: ignore
+        J.zeroEntries()
+        J[0] = C_1 * math.sqrt(1 + x[1] ** 2)
+        J[1] = C_1 * x[0] * x[1] / math.sqrt(1 + x[1] ** 2)
+        J.assemble()
+
+    def constraint(tao: PETSc.TAO, x: PETSc.Vec, c: PETSc.Vec) -> None:  # type: ignore
+        c[0] = 1 - C_2 * math.sqrt(1 + x[1] ** 2) * (8.0 / x[0] + 1.0 / (x[0] * x[1]))
+        c[1] = 1 - C_2 * math.sqrt(1 + x[1] ** 2) * (8.0 / x[0] - 1.0 / (x[0] * x[1]))
+        c.assemble()
+
+    def constraint_jacobian(tao: PETSc.TAO, x: PETSc.Vec, J: PETSc.Mat, P: PETSc.Mat) -> None:  # type: ignore
+        J[0, 0] = C_2 * (8 * x[1] + 1) * math.sqrt(x[1] ** 2 + 1) / (x[0] ** 2 * x[1])
+        J[0, 1] = C_2 * (1 - 8 * x[1] ** 3) / (x[0] * x[1] ** 2 * math.sqrt(1 + x[1] ** 2))
+        J[1, 0] = C_2 * (8 * x[1] - 1) * math.sqrt(x[1] ** 2 + 1) / (x[0] ** 2 * x[1])
+        J[1, 1] = -C_2 * (8 * x[1] ** 3 + 1) / (x[0] * x[1] ** 2 * math.sqrt(1 + x[1] ** 2))
+        J.assemble()
+
+    x = PETSc.Vec().createSeq(2)  # type: ignore
+    x[0] = 1.5
+    x[1] = 0.5
+    tao.setSolution(x)
+
+    tao.setObjective(objective)
+    tao.setGradient(gradient, x.copy())
+
+    c = PETSc.Vec().createSeq(2)  # type: ignore
+    tao.setInequalityConstraints(constraint, c)
+
+    J_c = PETSc.Mat().createDense((2, 2))  # type: ignore
+    tao.setJacobianInequality(constraint_jacobian, J_c)
+
+    lb = x.copy()
+    lb[0] = 0.2
+    lb[1] = 0.1
+    ub = x.copy()
+    ub[0] = 4.0
+    ub[1] = 1.6
+    tao.setVariableBounds(lb, ub)
+
+    return np.array([1.41, 0.38]), 1.51, 1e-2
 
 
 @pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
-def test_svanberg_cantilever_beam():
-    comm = MPI.COMM_SELF
-
+@pytest.mark.parametrize("problem", [svanberg_cantilever_beam, svanberg_two_bar_truss])
+def test_almm(problem):
     opts = PETSc.Options()
     opts["tao_type"] = "almm"
 
-    tao = PETSc.TAO().create(comm=comm)
+    tao = PETSc.TAO().create()
     tao.setFromOptions()
 
-    x, f = svanberg_cantilever_beam(tao)
+    x, f, atol = problem(tao)
     tao.solve()
 
     assert tao.getConvergedReason() > 0
-    assert np.allclose(tao.getSolution().getArray(), x, atol=1e-3)
-    assert np.allclose(tao.getObjectiveValue(), f, atol=1e-3)
+    assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
+    assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
