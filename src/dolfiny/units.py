@@ -139,7 +139,7 @@ class UnitTransformer(MultiFunction):
 
 
 class QuantityFactorizer(MultiFunction):
-    factors: dict[Expr, Any]
+    factors: dict[Expr, list[Any]]
 
     def __init__(self, quantities: list["Quantity"], mode="factorize"):
         self._quantities = quantities
@@ -363,10 +363,10 @@ def factorize(
         for i in range(len(factors) - 1):
             unit_system = quantities[0].unit_system
             dimsys = unit_system.get_dimension_system()
-            fa_expr = expand(factors[i], [q.dimension for q in quantities]).simplify()
-            fb_expr = expand(factors[i + 1], [q.dimension for q in quantities]).simplify()
-            fa_symbol = expand(factors[i], [q.symbol for q in quantities])
-            fb_symbol = expand(factors[i + 1], [q.symbol for q in quantities])
+            fa_expr = expand(factors[i], [q.dimension for q in quantities]).simplify()  # type: ignore
+            fb_expr = expand(factors[i + 1], [q.dimension for q in quantities]).simplify()  # type: ignore
+            fa_symbol = expand(factors[i], [q.symbol for q in quantities])  # type: ignore
+            fb_symbol = expand(factors[i + 1], [q.symbol for q in quantities])  # type: ignore
             if dimsys.equivalent_dims(fa_expr, fb_expr) is False:
                 raise RuntimeError(
                     "Inconsistent dimensions across integrals in Form. \n"
@@ -375,9 +375,9 @@ def factorize(
                 )
 
             if mode == "factorize":
-                fa_symbol = expand(factors[i], [q.symbol for q in quantities])
-                fb_symbol = expand(factors[i + 1], [q.symbol for q in quantities])
-                if not np.allclose(factors[i], factors[i + 1]):
+                fa_symbol = expand(factors[i], [q.symbol for q in quantities])  # type: ignore
+                fb_symbol = expand(factors[i + 1], [q.symbol for q in quantities])  # type: ignore
+                if not np.allclose(factors[i], factors[i + 1]):  # type: ignore
                     raise RuntimeError(
                         "Inconsistent factors across integrals in Form. \n"
                         f"Different factors: {fa_symbol} != {fb_symbol}."

@@ -29,7 +29,7 @@ c_signature = numba.types.void(
     numba.types.CPointer(numba.types.uint8),
     numba.types.CPointer(numba.types.void),
 )
-formtype = dolfinx.fem.form_cpp_class(PETSc.ScalarType)  # type: ignore
+formtype = dolfinx.fem.form_cpp_class(PETSc.ScalarType)
 
 KernelData = collections.namedtuple(
     "KernelData",
