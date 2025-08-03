@@ -156,7 +156,7 @@ df = (
 )
 
 # Unwrap expression from variable
-S, B, h = S.expression(), B.expression(), h.expression()  # type: ignore
+S, B, h = S.expression(), B.expression(), h.expression()
 
 # Variation of Green-Lagrange strain
 δE = ufl.derivative(E, m, δm)
