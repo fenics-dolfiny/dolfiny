@@ -164,7 +164,7 @@ J = ufl.algorithms.apply_derivatives.apply_derivatives(J)
 J = ufl.replace(J, {ufl.grad(ξ): d0})
 
 # Green-Lagrange strains (total): determined by deformation kinematics
-E_total = 1 / 2 * (J.T * J - J0.T * J0)  # type: ignore
+E_total = 1 / 2 * (J.T * J - J0.T * J0)
 
 # Green-Lagrange strains (elastic): E_total = E_elast + E_presc
 E = E_elast = E_total

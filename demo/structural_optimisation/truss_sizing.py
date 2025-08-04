@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import matplotlib_inline
 import numpy as np
 import pyvista as pv
+from numpy import typing as npt
 
 import dolfiny
 import dolfiny.taoproblem
@@ -251,7 +252,8 @@ problem = dolfiny.taoproblem.TAOProblem(
     C, [s], bcs=bcs, J=(JC, s.x.petsc_vec.copy()), g=g, lb=s_min, ub=s_max, prefix="truss"
 )
 
-compliance, volume = np.zeros(100), np.zeros(100)
+compliance: npt.NDArray[np.float64] = np.zeros(100)
+volume: npt.NDArray[np.float64] = np.zeros(100)
 
 
 def monitor(tao):
