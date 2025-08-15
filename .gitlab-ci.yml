@@ -316,6 +316,8 @@ book build:
    stage: book
    image: $CONTAINER_COMMIT_IMAGE-amd64
    script:
+      - apt-get -y update
+      - apt-get -y install nodejs npm
       - cd book
       - python bookstrap.py
       - jupyter book build --html
