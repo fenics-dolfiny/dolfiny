@@ -89,6 +89,7 @@ u = dolfinx.fem.Function(V_u, name="displacement")
 
 V_s = dolfinx.fem.functionspace(mesh, ("DG", 0))
 s = dolfinx.fem.Function(V_s, name="cross-sectional-area")
+s.x.array[:] = 1 / 20
 
 # %% [markdown]
 # ## Boundary Conditions and Load Surface
@@ -109,7 +110,7 @@ bcs = [dolfinx.fem.dirichletbc(np.zeros(3, dtype=np.float64), dofs_fixed, V_u)]
 vertices_load = dolfinx.mesh.locate_entities(
     mesh, 0, lambda x: np.isclose(x[1], dim[1]) & np.greater(x[0], 0) & np.less(x[0], dim[0])
 )
-dofs_load = dolfinx.fem.locate_dofs_topological(V_u.sub(1), 0, vertices_load)
+meshtags = dolfinx.mesh.meshtags(mesh, 0, vertices_load, 1)
 
 # %% tags=["hide-input"]
 pv.set_jupyter_backend("static")
@@ -141,46 +142,50 @@ plotter.show()
 # $300\, \text{kN}$, equally distributed across the loaded nodes.
 #
 # ```{note}
-#   The point loads can currently not be taken care of inside the variational assembly of `FENICSx`
-#   and require a custom handling of the load vector and thus solver.
-#   This is limited by the fact, that both `FFCx` and `DOLFINx` do not support the `ufl` vertex
-#   vertex integrals.
-#   Changes proposed in [FFCx#764](https://github.com/FEniCS/ffcx/pull/764) and
-#   [DOLFINx#3726](https://github.com/FEniCS/dolfinx/pull/3726) resolve this.
+#   The point loads can be incorporated into the continuous formulation with vertex integrals,
+#   denoted $\text{d}P$.
+#   This allows to express the inherently discrete nature of the load in a variational form.
+#
+#   A *vertex integral* over a collection of vertices of the underlying mesh
+#   $\Omega_v = \{ v_0, \dots, v_n \}$ as
+#   $$
+#       \int_{\Omega_v} f(x) \, \text{d} P
+#       = \sum_{i=1}^n f(v_i).
+#   $$
 # ```
-# %%
+# %% tags=["hide-output"]
 tangent = ufl.Jacobian(mesh)[:, 0]
 tangent /= ufl.sqrt(ufl.inner(tangent, tangent))
-
-F = dolfinx.fem.Function(V_u, name="load")
-F.x.array[dofs_load] = -300 * 1e3 / vertices_load.size  # [F] = N
 
 E = 200.0 * 1e9  # [E] = Pa = N/m^2
 ε = ufl.dot(ufl.dot(ufl.grad(u), tangent), tangent)  # strain
 N = E * s * ε  # normal_force
 
-E = 1 / 2 * ufl.inner(N, ε) * ufl.dx
+dP = ufl.Measure("dP", domain=mesh, subdomain_data=meshtags)
+total_load = 300 * 1e3
+F = ufl.as_vector([0, -total_load / vertices_load.size, 0])
+compliance = ufl.inner(F, u) * dP(1)
 
-δE = ufl.derivative(E, u)
-δδE = ufl.derivative(δE, u)
-a_form = dolfinx.fem.form(δδE)
+E = 1 / 2 * ufl.inner(N, ε) * ufl.dx - compliance
 
-dolfinx.fem.apply_lifting(F.x.array, [a_form], [bcs])
-s.x.array[:] = 1 / 20
-A = dolfinx.fem.petsc.assemble_matrix(a_form, bcs)
-A.assemble()
+a = ufl.derivative(ufl.derivative(E, u), u)
+L = ufl.derivative(compliance, u)
 
-opts = PETSc.Options("state_solver")  # type: ignore
-opts["ksp_type"] = "preonly"
-opts["pc_type"] = "cholesky"
-opts["pc_factor_mat_solver_type"] = "mumps"
-opts["mat_mumps_cntl_1"] = 0.0
-
-state_solver = PETSc.KSP().create(comm)  # type: ignore
-state_solver.setOptionsPrefix("state_solver")
-state_solver.setFromOptions()
-state_solver.setOperators(A)
-state_solver.setUp()
+state_solver = dolfinx.fem.petsc.LinearProblem(
+    a,
+    L,
+    bcs=bcs,
+    u=u,
+    petsc_options={
+        "ksp_type": "preonly",
+        "pc_type": "lu",
+        "pc_factor_mat_solver_type": "mumps",
+        "ksp_error_if_not_converged": "True",
+        "mat_mumps_cntl_1": 0.0,
+    },
+    petsc_options_prefix="state_solver",
+)
+state_solver.solve()
 
 # %% [markdown]
 # ## Optimisation of Cross-sectional Areas
@@ -203,30 +208,23 @@ state_solver.setUp()
 
 
 # %%
+compliance_form = dolfinx.fem.form(compliance)
+
+
 @dolfiny.taoproblem.sync_functions([s])
 def C(tao, x) -> float:
-    A.zeroEntries()
-    dolfinx.fem.petsc.assemble_matrix(A, a_form, bcs)  # type: ignore
-    A.assemble()
-
-    state_solver.solve(F.x.petsc_vec, u.x.petsc_vec)
-
-    val: float = F.x.petsc_vec.dot(u.x.petsc_vec)
-    return val
+    state_solver.solve()
+    return dolfinx.fem.assemble_scalar(compliance_form)  # type: ignore
 
 
 # p = -u
 p = dolfinx.fem.Function(V_u)
 gx = dolfinx.fem.form(ufl.derivative(ufl.derivative(E, u, p), s))
-Gx = dolfinx.fem.assemble_vector(gx)
 
 
 @dolfiny.taoproblem.sync_functions([s])
 def JC(tao, x, J):
-    A.zeroEntries()
-    dolfinx.fem.petsc.assemble_matrix(A, a_form, bcs)
-    A.assemble()
-    state_solver.solve(F.x.petsc_vec, u.x.petsc_vec)
+    state_solver.solve()
 
     J.zeroEntries()
     p.x.array[:] = -u.x.array
@@ -243,6 +241,7 @@ opts = PETSc.Options("truss")  # type: ignore
 opts["tao_type"] = "almm"
 opts["tao_almm_type"] = "phr"
 opts["tao_grtol"] = 5e-4
+opts["tao_monitor"] = ""
 opts["tao_gatol"] = 5e-4
 opts["tao_catol"] = 1e-2
 opts["tao_max_it"] = 100
@@ -252,24 +251,20 @@ problem = dolfiny.taoproblem.TAOProblem(
     C, [s], bcs=bcs, J=(JC, s.x.petsc_vec.copy()), g=g, lb=s_min, ub=s_max, prefix="truss"
 )
 
-compliance: npt.NDArray[np.float64] = np.zeros(100)
+comp: npt.NDArray[np.float64] = np.zeros(100)
 volume: npt.NDArray[np.float64] = np.zeros(100)
 
 
 def monitor(tao):
     it = tao.getIterationNumber()
-    compliance[it] = tao.getObjectiveValue()
+    comp[it] = tao.getObjectiveValue()
     volume[it] = problem._g[1][0] + g[0].rhs
 
 
 problem.tao.setMonitor(monitor)
 problem.solve()
 
-A.zeroEntries()
-dolfinx.fem.petsc.assemble_matrix(A, a_form, bcs)  # type: ignore
-A.assemble()
-
-state_solver.solve(F.x.petsc_vec, u.x.petsc_vec)
+state_solver.solve()
 
 # %% tags=["hide-input"]
 # verify result|
@@ -291,7 +286,7 @@ if np.any(s.x.array > s_max):
 # %% tags=["hide-input"]
 matplotlib_inline.backend_inline.set_matplotlib_formats("png")
 it = problem.tao.getIterationNumber()
-compliance = compliance[:it]
+comp = comp[:it]
 volume = volume[:it]
 
 fig, ax1 = plt.subplots(dpi=400)
@@ -300,9 +295,7 @@ ax1.set_xlim(0, it - 1)
 ax1.set_xlabel("Iteration")
 ax1.set_xticks(range(0, it))
 ax1.set_ylabel("Compliance")
-plt_compliance = ax1.plot(
-    np.arange(0, it, dtype=np.int32), compliance / compliance[0], color="tab:orange"
-)
+plt_compliance = ax1.plot(np.arange(0, it, dtype=np.int32), comp / comp[0], color="tab:orange")
 ax1.set_ylim(bottom=0)
 
 ax2 = ax1.twinx()
