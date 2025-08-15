@@ -116,35 +116,28 @@ m = [u, w, r]
 # Coordinates of undeformed configuration
 x0 = ufl.SpatialCoordinate(mesh)
 
-# Function spaces for geometric quantities extracted from mesh
-N = dolfinx.fem.functionspace(mesh, ("DP", q, (mesh.geometry.dim,)))
-
-# Normal vector (gdim x 1)
-n0i = dolfinx.fem.Function(N)
-
 # Jacobi matrix of map reference -> undeformed
 J0 = ufl.geometry.Jacobian(mesh)
 # Tangent basis
 gs = J0[:, 0]
 gη = ufl.as_vector([0, 1, 0])  # unit vector e_y (assume curve in x-z plane)
-gξ = ufl.cross(gs, gη)
+gξ = ufl.cross(gs, gη)  # normal vector (gdim x 1)
 # Unit tangent basis
 gs /= ufl.sqrt(ufl.dot(gs, gs))
 gη /= ufl.sqrt(ufl.dot(gη, gη))
 gξ /= ufl.sqrt(ufl.dot(gξ, gξ))
-# Interpolate normal vector
-dolfiny.interpolation.interpolate(gξ, n0i)
+
 # ----------------------------------------------------------------------------
 
 # Orthogonal projection operator (assumes sufficient geometry approximation)
-P = ufl.Identity(mesh.geometry.dim) - ufl.outer(n0i, n0i)
+P = ufl.Identity(mesh.geometry.dim) - ufl.outer(gξ, gξ)
 
 # Thickness variable
 X = dolfinx.fem.functionspace(mesh, ("DP", q))
 ξ = dolfinx.fem.Function(X, name="ξ")
 
 # Undeformed configuration: director d0 and placement b0
-d0 = n0i  # normal of manifold mesh, interpolated
+d0 = gξ  # normal of manifold mesh
 b0 = x0 + ξ * d0
 
 # Deformed configuration: director d and placement b, assumed kinematics, uses rotation matrix
@@ -153,6 +146,7 @@ b = x0 + ufl.as_vector([u, 0, w]) + ξ * d
 
 # Configuration gradient, undeformed configuration
 J0 = ufl.grad(b0) - ufl.outer(d0, d0)  # = P * ufl.grad(x0) + ufl.grad(ξ * d0)
+J0 = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(J0)
 J0 = ufl.algorithms.apply_derivatives.apply_derivatives(J0)
 J0 = ufl.replace(J0, {ufl.grad(ξ): d0})
 
@@ -160,6 +154,7 @@ J0 = ufl.replace(J0, {ufl.grad(ξ): d0})
 J = ufl.grad(b) - ufl.outer(
     d0, d0
 )  # = P * ufl.grad(x0) + ufl.grad(ufl.as_vector([u, 0, w]) + ξ * d)
+J = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(J)
 J = ufl.algorithms.apply_derivatives.apply_derivatives(J)
 J = ufl.replace(J, {ufl.grad(ξ): d0})
 
