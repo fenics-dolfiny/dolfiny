@@ -335,6 +335,14 @@ def wrap_constraint_callbacks(
 
 
 class TAOProblem:
+    _J: tuple[TAOJacobianFunction, PETSc.Vec] | None  # type: ignore
+    _H: tuple[TAOHessianFunction, PETSc.Mat] | None  # type: ignore
+    _g: tuple[TAOConstraintsFunction, PETSc.Vec] | None  # type: ignore
+    _Jg: tuple[TAOConstraintsJacobianFunction, PETSc.Mat] | None  # type: ignore
+    _h: tuple[TAOConstraintsFunction, PETSc.Vec] | None  # type: ignore
+    _Jh: tuple[TAOConstraintsJacobianFunction, PETSc.Mat] | None  # type: ignore
+    _x0: PETSc.Vec  # type: ignore
+
     def __init__(
         self,
         F: TAOObjectiveFunction | ufl.Form,
@@ -342,8 +350,8 @@ class TAOProblem:
         bcs: Sequence[dolfinx.fem.DirichletBC] = [],
         lb: np.floating | Sequence[dolfinx.fem.Function] = PETSc.NINFINITY,  # type: ignore
         ub: np.floating | Sequence[dolfinx.fem.Function] = PETSc.INFINITY,  # type: ignore
-        J: Sequence[ufl.Form] | None = None,
-        H: Sequence[Sequence[ufl.Form]] | None = None,
+        J: Sequence[ufl.Form] | tuple[TAOJacobianFunction, PETSc.Vec] | None = None,  # type: ignore
+        H: Sequence[Sequence[ufl.Form]] | tuple[TAOHessianFunction, PETSc.Mat] | None = None,  # type: ignore
         g: Sequence[dolfiny.inequality.Inequality]  # type: ignore
         | tuple[TAOConstraintsFunction, PETSc.Vec]
         | None = None,
@@ -399,8 +407,8 @@ class TAOProblem:
         self._F = F
         self._u = u
         self._bcs = bcs
-        self._J = J
-        self._H = H
+        self._J = J  # type: ignore
+        self._H = H  # type: ignore
 
         self._comm = self._u[0].function_space.mesh.comm
         # TODO: check for eq/congruent comms
@@ -408,12 +416,12 @@ class TAOProblem:
         if isinstance(self._F, ufl.Form):
             # TODO: do not override J and H
 
-            self._x0, self._F, self._J, self._H = wrap_objective_callbacks(  # type: ignore
+            self._x0, self._F, self._J, self._H = wrap_objective_callbacks(
                 self._comm,
                 self._u,
                 self._F,
-                self._J,
-                self._H,
+                J,  # type: ignore
+                H,  # type: ignore
                 self._bcs,
                 form_compiler_options,
                 jit_options,
@@ -469,8 +477,11 @@ class TAOProblem:
                 self._g = g  # type: ignore
                 self._Jg = Jg  # type: ignore
 
-            self._tao.setEqualityConstraints(*self._g)  # type: ignore
-            self._tao.setJacobianEquality(*self._Jg)  # type: ignore
+            self._tao.setEqualityConstraints(*self._g)
+            self._tao.setJacobianEquality(*self._Jg)
+        else:
+            self._g = None
+            self._Jg = None
 
         if h is not None:
             # TODO: check _h either callback, or sequence of inequalities
@@ -489,18 +500,11 @@ class TAOProblem:
                 self._h = h  # type: ignore
                 self._Jh = Jh  # type: ignore
 
-            self._tao.setInequalityConstraints(*self._h)  # type: ignore
-            self._tao.setJacobianInequality(*self._Jh)  # type: ignore
-
-    @property
-    def tao(self) -> PETSc.TAO:  # type: ignore
-        """Return the underlying `PETSc.TAO` object."""
-        return self._tao
-
-    @property
-    def u(self) -> Sequence[dolfinx.fem.Function]:
-        """Return the arguments/solutions of the optimisation problem."""
-        return self._u
+            self._tao.setInequalityConstraints(*self._h)
+            self._tao.setJacobianInequality(*self._Jh)
+        else:
+            self._h = None
+            self._Jh = None
 
     def solve(self) -> None:
         """Solve the optimisation problem."""
@@ -515,3 +519,32 @@ class TAOProblem:
         # TODO: code duplication with link_state -> resolve
         solution.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
         dolfinx.fem.petsc.assign(solution, self._u)
+
+    @property
+    def tao(self) -> PETSc.TAO:  # type: ignore
+        """Return the underlying `PETSc.TAO` object."""
+        return self._tao
+
+    @property
+    def u(self) -> Sequence[dolfinx.fem.Function]:
+        """Return the arguments/solutions of the optimisation problem."""
+        return self._u
+
+    def destroy(self) -> None:
+        self._tao.destroy()
+        self._x0.destroy()
+        if self._J is not None:
+            self._J[1].destroy()
+        if self._H is not None:
+            self._H[1].destroy()
+        if self._h is not None:
+            self._h[1].destroy()
+        if self._Jh is not None:
+            self._Jh[1].destroy()
+        if self._g is not None:
+            self._g[1].destroy()
+        if self._Jg is not None:
+            self._Jg[1].destroy()
+
+    def __del__(self) -> None:
+        self.destroy()
