@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 import matplotlib_inline
 import numpy as np
 import pyvista as pv
-from numpy import typing as npt
 
 import dolfiny
 import dolfiny.taoproblem
@@ -244,24 +243,24 @@ opts["tao_grtol"] = 5e-4
 opts["tao_monitor"] = ""
 opts["tao_gatol"] = 5e-4
 opts["tao_catol"] = 1e-2
-opts["tao_max_it"] = 100
+opts["tao_max_it"] = (max_it := 100)
 opts["tao_recycle_history"] = True
 
 problem = dolfiny.taoproblem.TAOProblem(
     C, [s], bcs=bcs, J=(JC, s.x.petsc_vec.copy()), g=g, lb=s_min, ub=s_max, prefix="truss"
 )
 
-comp: npt.NDArray[np.float64] = np.zeros(100)
-volume: npt.NDArray[np.float64] = np.zeros(100)
 
-
-def monitor(tao):
+def monitor(tao, comp, volume):
     it = tao.getIterationNumber()
     comp[it] = tao.getObjectiveValue()
     volume[it] = problem._g[1][0] + g[0].rhs
 
 
-problem.tao.setMonitor(monitor)
+comp = np.zeros(max_it, np.float64)
+volume = np.zeros(max_it, np.float64)
+
+problem.tao.setMonitor(monitor, (comp, volume))
 problem.solve()
 
 state_solver.solve()
@@ -286,8 +285,8 @@ if np.any(s.x.array > s_max):
 # %% tags=["hide-input"]
 matplotlib_inline.backend_inline.set_matplotlib_formats("png")
 it = problem.tao.getIterationNumber()
-comp = comp[:it]
-volume = volume[:it]
+comp = comp[:it]  # type: ignore
+volume = volume[:it]  # type: ignore
 
 fig, ax1 = plt.subplots(dpi=400)
 ax1.grid()
@@ -295,12 +294,12 @@ ax1.set_xlim(0, it - 1)
 ax1.set_xlabel("Iteration")
 ax1.set_xticks(range(0, it))
 ax1.set_ylabel("Compliance")
-plt_compliance = ax1.plot(np.arange(0, it, dtype=np.int32), comp / comp[0], color="tab:orange")
+plt_compliance = ax1.plot(np.arange(0, it, dtype=int), comp / comp[0], color="tab:orange")
 ax1.set_ylim(bottom=0)
 
 ax2 = ax1.twinx()
 ax2.set_ylabel("Volume")
-plt_volume = ax2.plot(np.arange(0, it, dtype=np.int32), volume / g[0].rhs)
+plt_volume = ax2.plot(np.arange(0, it, dtype=int), volume / g[0].rhs)
 ax2.axhline(y=1, linestyle="--")
 ax2.set_ylim(bottom=0)
 
