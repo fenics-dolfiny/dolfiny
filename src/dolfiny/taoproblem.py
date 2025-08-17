@@ -20,6 +20,7 @@ import numpy as np
 
 import dolfiny
 import dolfiny.inequality
+from dolfiny.utils import ANSI, attributes_to_dict, pprint, prefixify
 
 
 def sync_functions(u: Sequence[dolfinx.fem.Function]):
@@ -335,13 +336,16 @@ def wrap_constraint_callbacks(
 
 
 class TAOProblem:
+    _converged_reasons_tao = attributes_to_dict(PETSc.TAO.ConvergedReason, invert=True)  # type: ignore
+    _converged_reasons_ksp = attributes_to_dict(PETSc.KSP.ConvergedReason, invert=True)  # type: ignore
+
+    _x0: PETSc.Vec  # type: ignore
     _J: tuple[TAOJacobianFunction, PETSc.Vec] | None  # type: ignore
     _H: tuple[TAOHessianFunction, PETSc.Mat] | None  # type: ignore
     _g: tuple[TAOConstraintsFunction, PETSc.Vec] | None  # type: ignore
     _Jg: tuple[TAOConstraintsJacobianFunction, PETSc.Mat] | None  # type: ignore
     _h: tuple[TAOConstraintsFunction, PETSc.Vec] | None  # type: ignore
     _Jh: tuple[TAOConstraintsJacobianFunction, PETSc.Mat] | None  # type: ignore
-    _x0: PETSc.Vec  # type: ignore
 
     def __init__(
         self,
@@ -407,8 +411,6 @@ class TAOProblem:
         self._F = F
         self._u = u
         self._bcs = bcs
-        self._J = J  # type: ignore
-        self._H = H  # type: ignore
 
         self._comm = self._u[0].function_space.mesh.comm
         # TODO: check for eq/congruent comms
@@ -433,6 +435,8 @@ class TAOProblem:
                 self._u[0].function_space.dofmap.index_map,
                 self._u[0].function_space.dofmap.index_map_bs,
             )
+            self._J = J  # type: ignore
+            self._H = H  # type: ignore
 
         self._tao = PETSc.TAO().create(self._comm)  # type: ignore
         self._tao.setOptionsPrefix(prefix)
@@ -506,10 +510,19 @@ class TAOProblem:
             self._h = None
             self._Jh = None
 
+        self._tao.setUp()
+        self._tao.setMonitor(self._monitor)
+
+        if self._tao.getType() == PETSc.TAO.Type.ALMM:  # type: ignore
+            if (PETSc.Sys().getVersion()[1] >= 23) and (PETSc.Sys().getVersion()[2] >= 3):  # type: ignore
+                subsolver = self._tao.getALMMSubsolver()
+                subsolver.setMonitor(self._monitor)
+
+        if ksp := self._tao.getKSP():
+            ksp.setMonitor(self._monitor_ksp)
+
     def solve(self) -> None:
         """Solve the optimisation problem."""
-        # TODO: monitor
-
         dolfinx.fem.petsc.assign(self._u, self._x0)
         self._x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
 
@@ -548,3 +561,70 @@ class TAOProblem:
 
     def __del__(self) -> None:
         self.destroy()
+
+    def _monitor_ksp(self, ksp, ksp_it, ksp_norm):
+        it = self.tao.getIterationNumber()
+        message = "\033[90m"  # bright black
+        ksp_info = TAOProblem._converged_reasons_ksp[ksp.reason]
+        message += f"# TAO {it:3d}, KSP {ksp_it:3d}      |r|={ksp_norm:9.3e} ({ksp_info:s})"
+        message += ANSI.reset
+        pprint(message)
+
+    def _monitor(self, tao: PETSc.TAO):  # type: ignore
+        color = ANSI.blue if tao.getType() == PETSc.TAO.Type.ALMM else ""  # type: ignore
+        it = tao.getIterationNumber()
+        reason_s = TAOProblem._converged_reasons_tao[tao.reason]
+        status_color = ANSI.red if tao.reason > 0 else ""
+        pprint(f"{color}# TAO {it:3d} ({status_color}{reason_s}{color}){ANSI.reset}")
+
+        # TODO: ls (limited by https://gitlab.com/petsc/petsc/-/merge_requests/8456)
+        # TODO: snes (once PDIPM available)
+
+        blocks = self._x0.getAttr("_blocks")
+        for i, u in enumerate(self._u):
+            # TODO: this breaks
+            # message = f"# sub {i:1d} |x|={u.x.petsc_vec.norm():9.3e}"
+            s = u.x.index_map.size_local * u.x.block_size
+            message = f"{color}# sub   {i:1d} [{prefixify(s):s}] |x|={dolfinx.la.norm(u.x):9.3e}"
+            if self._J is not None:
+                if blocks is not None:
+                    offset0 = blocks[0][i]
+                    offset1 = blocks[1][i]
+                    with self._J[1].localForm() as J_local:
+                        arr = J_local.array[offset0:offset1]
+                        norm = np.sqrt(self._comm.allreduce(np.inner(arr, arr)))
+                    message += f" |J|={norm:9.3e}"
+                else:
+                    message += f" |J|={self._J[1].norm():9.3e}"
+
+            message += f" ({u.name}){ANSI.reset}"
+            pprint(message)
+
+        message = f"{color}# all            |x|={self._x0.norm():9.3e}"
+        if self._J is not None:
+            message += f" |J|={self._J[1].norm():9.3e}"
+
+        if self._H is not None and self._H[1].isAssembled():
+            message += f" |H|={self._H[1].norm():9.3e}"
+
+        if self._h is not None:
+            message += f" |h|={self._h[1].norm():9.3e}"
+
+        if self._Jh is not None:
+            if self._Jh[1].getType() == PETSc.Mat.Type.TRANSPOSE:  # type: ignore
+                message += f" |Jh|={self._Jh[1].getTransposeMat().norm():9.3e}"
+            else:
+                message += f" |Jh|={self._Jh[1].norm():9.3e}"
+
+        if self._g is not None:
+            message += f" |g|={self._g[1].norm():9.3e}"
+
+        if self._Jg is not None:
+            if self._Jg[1].getType() == PETSc.Mat.Type.TRANSPOSE:  # type: ignore
+                message += f" |Jg|={self._Jg[1].getTransposeMat().norm():9.3e}"
+            else:
+                message += f" |Jg|={self._Jg[1].norm():9.3e}"
+
+        message += f" f={tao.getFunctionValue():9.3e}"
+        message += ANSI.reset
+        pprint(message)
