@@ -44,5 +44,6 @@ site:
   template: book-theme
   options:
     folders: true
-  #   favicon: favicon.ico
-  #   logo: site_logo.png
+    logo: https://avatars.githubusercontent.com/u/172019188
+    logo_text: Dolfiny
+    # favicon: favicon.ico
