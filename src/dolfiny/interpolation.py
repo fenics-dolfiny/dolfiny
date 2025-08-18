@@ -65,10 +65,10 @@ def interpolate(expr, target_func):
                 or is_quadrature_element(T.ufl_element())
             ):
                 # proceed with Function as long as source/target are not QudratureElement
-                logger.info("Interpolating given dolfinx.fem.Function")
+                logger.debug("Interpolating given dolfinx.fem.Function")
                 target_func.interpolate(expr)
             else:
-                logger.info("Interpolating given ufl.Expr")
+                logger.debug("Interpolating given ufl.Expr")
                 e = dolfinx.fem.Expression(expr, T.element.interpolation_points)
                 target_func.interpolate(e)
         except TypeError:
