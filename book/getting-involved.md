@@ -26,7 +26,7 @@ Projects may address problems ranging across
 :header: ➰ Interface to PETSc arc length solver
 
 Simulations of unstable behaviour, such as buckling, require advanced solution strategies.
-*Arc length* methods offer a robust alternative to classic Netwon solvers.
+*Arc length* methods offer a robust alternative to classic Newton solvers.
 
 Currently, `dolfiny` supports (with a custom implementation) an arc length method as presented by https://doi.org/10.1002/nme.1620190902 - see the continuation demos in the repository.
 
@@ -35,13 +35,14 @@ The project aims at interfacing to the PETSc [SNES arc length solver](https://pe
 ```
 
 ```{card}
-:header: 🔁 Project 2
-Blub.
-```
+:header: 🤝 Third-medium contact demo
 
-```{card}
-:header: 🖥️ Project 3
-Blub.
+The *third-medium* contact method, ref. https://doi.org/10.1007/s00466-013-0848-5 and https://doi.org/10.1016/j.cma.2025.117740, gained poplarity for its variationally pleasing and differential contact formulation.
+
+Its formulation fits well into the domain description language [`UFL`](https://github.com/fenics/ufl).
+
+The project aims to demonstrate the usage of third medium contact formulations within FEniCS and (possibly) applying it other use cases, such as optimisation problems.
+It given the opportunity to understand a modern research topic and to get involved with modern, coding practices.
 ```
 
 ```{card}
