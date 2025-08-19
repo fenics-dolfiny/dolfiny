@@ -467,7 +467,7 @@ def test_optimal_control_full_space():  # almm_type
     bc = dolfinx.fem.dirichletbc(dolfinx.fem.Constant(V_state.mesh, 0.0), boundary_dofs, V_state)
 
     u = dolfinx.fem.Function(V_state, name="state")
-    u.x.petsc_vec.set(1.0)
+    u.x.array[:] = 1.0
     d = dolfinx.fem.Function(V_state, name="state_desired")
     d.interpolate(lambda x: 1 / (2 * np.pi**2) * np.sin(np.pi * x[0]) * np.sin(np.pi * x[1]))
 

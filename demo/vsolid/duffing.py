@@ -58,11 +58,11 @@ d = dolfinx.fem.Function(V, name="d")  # dummy
 m, mt = [v, s], [vt, st]
 
 # Set initial conditions
-v.x.petsc_vec.set(v_0), vt.x.petsc_vec.set(-_s(u_0))
-s.x.petsc_vec.set(_s(u_0)), st.x.petsc_vec.set(_st(u_0, v_0))
-u.x.petsc_vec.set(u_0)
-
-[w.x.petsc_vec.ghostUpdate() for w in [v, s, u, vt, st]]
+v.x.array[:] = v_0
+vt.x.array[:] = -_s(u_0)
+s.x.array[:] = _s(u_0)
+st.x.array[:] = _st(u_0, v_0)
+u.x.array[:] = u_0
 
 # Measure
 dx = ufl.Measure("dx", domain=mesh)

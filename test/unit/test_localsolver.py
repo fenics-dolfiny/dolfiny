@@ -126,8 +126,8 @@ def test_linear_elasticity(squaremesh_5):
         dx.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         # Fill the du function to be accessed from local kernel
-        with dx.localForm() as dx_, du.x.petsc_vec.localForm() as du_:
-            dx_.copy(du_)
+        with dx.localForm() as dx_:
+            du.x.array[:] = dx_.array
 
         with problem.xloc.localForm() as x_local:
             x_local.set(0.0)
@@ -305,8 +305,8 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
         dx.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         # Fill the du function to be accessed from local kernel
-        with dx.localForm() as dx_, du.x.petsc_vec.localForm() as du_:
-            dx_.copy(du_)
+        with dx.localForm() as dx_:
+            du.x.array[:] = dx_.array
 
         with problem.xloc.localForm() as x_local:
             x_local.set(0.0)

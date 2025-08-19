@@ -60,9 +60,9 @@ class Plotter:
             ui = []
             for u_ in u:
                 dolfiny.interpolation.interpolate(u_, uf)
-                ui.append(uf.x.petsc_vec[x0_idx])
+                ui.append(uf.x.array[x0_idx])
         else:
             dolfiny.interpolation.interpolate(u, uf)
-            ui = uf.x.petsc_vec[x0_idx]
+            ui = uf.x.array[x0_idx]
 
         return x0, ui

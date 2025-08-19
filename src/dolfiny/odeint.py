@@ -10,11 +10,9 @@ def _copy_entries(source, target):
     """Copy solution values from the source Function to the target Function."""
     if isinstance(source, list):
         for si, ti in zip(source, target):
-            with si.x.petsc_vec.localForm() as locs, ti.x.petsc_vec.localForm() as loct:
-                locs.copy(loct)
+            ti.x.array[:] = si.x.array
     else:
-        with source.x.petsc_vec.localForm() as locs, target.x.petsc_vec.localForm() as loct:
-            locs.copy(loct)
+        target.x.array[:] = source.x.array
 
 
 class ODEInt:

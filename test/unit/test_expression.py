@@ -81,10 +81,8 @@ def test_expression_assemble(V1, vV1, squaremesh_5):
 
     dx = ufl.dx(squaremesh_5)
 
-    u1.x.petsc_vec.set(3.0)
-    u2.x.petsc_vec.set(2.0)
-    u1.x.petsc_vec.ghostUpdate()
-    u2.x.petsc_vec.ghostUpdate()
+    u1.x.array[:] = 3.0
+    u2.x.array[:] = 2.0
 
     # check assembled shapes
 
