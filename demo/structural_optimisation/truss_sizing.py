@@ -228,8 +228,7 @@ def JC(tao, x, J):
     state_solver.solve(F.x.petsc_vec, u.x.petsc_vec)
 
     J.zeroEntries()
-    u.x.petsc_vec.copy(p.x.petsc_vec)
-    p.x.petsc_vec.scale(-1)
+    p.x.array[:] = -u.x.array
 
     dolfinx.fem.petsc.assemble_vector(J, gx)
 

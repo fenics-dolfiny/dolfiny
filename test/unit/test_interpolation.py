@@ -99,12 +99,9 @@ def test_linear_combination(element):
 
     print(f"\nndofs = {f.x.petsc_vec.getSize()}")
 
-    with u1.x.petsc_vec.localForm() as local:
-        local.set(1.0)
-    with u2.x.petsc_vec.localForm() as local:
-        local.set(2.0)
-    with u3.x.petsc_vec.localForm() as local:
-        local.set(3.0)
+    u1.x.array[:] = 1.0
+    u2.x.array[:] = 2.0
+    u3.x.array[:] = 3.0
 
     c1 = dolfinx.fem.Constant(V.mesh, 3.14)
     c2 = dolfinx.fem.Constant(V.mesh, 0.1)

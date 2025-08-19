@@ -44,15 +44,9 @@ def interpolate(expr, target_func):
             else:
                 linear_comb_acc[func] = scalar
 
-        with target_func.x.petsc_vec.localForm() as target_local:
-            target_local.set(0.0)
-
+        target_func.x.array[:] = 0.0
         for func, scalar in linear_comb_acc.items():
-            with (
-                target_func.x.petsc_vec.localForm() as target_local,
-                func.x.petsc_vec.localForm() as func_local,
-            ):
-                target_local.axpy(scalar, func_local)
+            target_func.x.array[:] += scalar * func.x.array
     else:
         T = target_func.function_space
 

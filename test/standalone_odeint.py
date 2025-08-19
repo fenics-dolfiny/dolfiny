@@ -24,11 +24,8 @@ def ode_1st_linear_odeint(a=1.0, b=0.5, u_0=1.0, nT=100, dt=0.01, **kwargs):
     u = dolfinx.fem.Function(U, name="u")
     ut = dolfinx.fem.Function(U, name="ut")
 
-    u.x.petsc_vec.set(u_0)  # initial condition
-    ut.x.petsc_vec.set(b - a * u_0)  # exact initial rate of this ODE for generalised alpha
-
-    u.x.petsc_vec.ghostUpdate()
-    ut.x.petsc_vec.ghostUpdate()
+    u.x.array[:] = u_0  # initial condition
+    ut.x.array[:] = b - a * u_0  # exact initial rate of this ODE for generalised alpha
 
     δm = ufl.TestFunctions(ufl.MixedFunctionSpace(U))
     (δu,) = δm
@@ -106,11 +103,8 @@ def ode_1st_nonlinear_odeint(a=2.0, b=1.0, c=8.0, nT=100, dt=0.01, **kwargs):
     u = dolfinx.fem.Function(U, name="u")
     ut = dolfinx.fem.Function(U, name="ut")
 
-    u.x.petsc_vec.set(0.0)  # initial condition
-    ut.x.petsc_vec.set(a * b**2 * np.cos(c))  # exact initial rate of this ODE for generalised alpha
-
-    u.x.petsc_vec.ghostUpdate()
-    ut.x.petsc_vec.ghostUpdate()
+    u.x.array[:] = 0.0  # initial condition
+    ut.x.array[:] = a * b**2 * np.cos(c)  # exact initial rate of this ODE for generalised alpha
 
     δm = ufl.TestFunctions(ufl.MixedFunctionSpace(U))
     (δu,) = δm
@@ -200,15 +194,11 @@ def ode_2nd_linear_odeint(a=12.0, b=1000.0, c=1000.0, u_0=0.5, du_0=0.0, nT=100,
     ut = dolfinx.fem.Function(U, name="ut")
     utt = dolfinx.fem.Function(U, name="utt")
 
-    u.x.petsc_vec.set(u_0)  # initial condition
-    ut.x.petsc_vec.set(du_0)  # initial condition
-    utt.x.petsc_vec.set(
+    u.x.array[:] = u_0  # initial condition
+    ut.x.array[:] = du_0  # initial condition
+    utt.x.array[:] = (
         c - a * du_0 - b * u_0
     )  # exact initial rate of rate of this ODE for generalised alpha
-
-    u.x.petsc_vec.ghostUpdate()
-    ut.x.petsc_vec.ghostUpdate()
-    utt.x.petsc_vec.ghostUpdate()
 
     δm = ufl.TestFunctions(ufl.MixedFunctionSpace(U))
     (δu,) = δm
@@ -286,15 +276,11 @@ def ode_2nd_nonlinear_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwargs):
     ut = dolfinx.fem.Function(U, name="ut")
     utt = dolfinx.fem.Function(U, name="utt")
 
-    u.x.petsc_vec.set(u_0)  # initial condition
-    ut.x.petsc_vec.set(0.0)  # initial condition
-    utt.x.petsc_vec.set(
+    u.x.array[:] = u_0  # initial condition
+    ut.x.array[:] = 0.0  # initial condition
+    utt.x.array[:] = (
         -a * u_0 - b * u_0**3
     )  # exact initial rate of rate of this ODE for generalised alpha
-
-    u.x.petsc_vec.ghostUpdate()
-    ut.x.petsc_vec.ghostUpdate()
-    utt.x.petsc_vec.ghostUpdate()
 
     δm = ufl.TestFunctions(ufl.MixedFunctionSpace(U))
     (δu,) = δm
@@ -414,11 +400,11 @@ def ode_1st_nonlinear_mdof_odeint(a=100, b=-50, u_0=1.0, nT=100, dt=0.01, **kwar
     m, mt = [v, s], [vt, st]
 
     # Set initial conditions
-    v.x.petsc_vec.set(v_0), vt.x.petsc_vec.set(-_s(u_0))
-    s.x.petsc_vec.set(_s(u_0)), st.x.petsc_vec.set(_st(u_0, v_0))
-    u.x.petsc_vec.set(u_0)
-
-    [w.x.petsc_vec.ghostUpdate() for w in [v, s, u, vt, st]]
+    v.x.array[:] = v_0
+    vt.x.array[:] = -_s(u_0)
+    s.x.array[:] = _s(u_0)
+    st.x.array[:] = _st(u_0, v_0)
+    u.x.array[:] = u_0
 
     # Measure
     dx = ufl.Measure("dx", domain=mesh)

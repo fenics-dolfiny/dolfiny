@@ -328,8 +328,7 @@ for step, factor in enumerate(cycle):
 
     # Accumulate plastic states from increments
     for source, target in zip([dP, dl], [P0, l0]):
-        with source.x.petsc_vec.localForm() as locs, target.x.petsc_vec.localForm() as loct:
-            loct.axpy(1.0, locs)
+        target.x.array[:] += source.x.array
 
     # Interpolate and write output
     dolfiny.interpolation.interpolate(u, uo)
