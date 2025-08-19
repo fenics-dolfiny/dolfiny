@@ -1,3 +1,0 @@
-# Project idea 2
-
-...
