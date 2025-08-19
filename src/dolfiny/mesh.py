@@ -1,11 +1,8 @@
-import logging
-
 from mpi4py import MPI
 
 import basix
 import dolfinx.mesh
 import ufl
-from dolfinx import default_real_type
 from dolfinx.mesh import meshtags
 
 import numpy as np

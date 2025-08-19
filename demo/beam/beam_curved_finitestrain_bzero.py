@@ -31,14 +31,6 @@ gmsh_model, tdim = mg.mesh_curve3d_gmshapi(name, shape="f_arc", L=L, nL=nodes, o
 mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
-# # Write mesh and meshtags to file
-# with dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w") as ofile:
-#     ofile.write_mesh_meshtags(mesh, mts)
-
-# # Read mesh and meshtags from file
-# with dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "r") as ifile:
-#     mesh, mts = ifile.read_mesh_meshtags()
-
 # Define shorthands for labelled tags
 beg = mesh_data.physical_groups["beg"][1]
 end = mesh_data.physical_groups["end"][1]
