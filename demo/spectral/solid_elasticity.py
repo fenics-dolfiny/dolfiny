@@ -186,6 +186,7 @@ opts["snes_max_it"] = 10
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
+opts["mat_mumps_cntl_1"] = 0.0
 
 # FFCx options (formulation-specific)
 if args.formulation == "spectral":

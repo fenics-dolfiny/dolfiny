@@ -302,6 +302,7 @@ opts["snes_max_it"] = 20
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
+opts["mat_mumps_cntl_1"] = 0.0
 
 problem = dolfiny.snesproblem.SNESProblem(
     [F0, F1, F2], [u, dP, dl], bcs=bcs, prefix=name, localsolver=ls
