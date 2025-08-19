@@ -174,6 +174,7 @@ opts = PETSc.Options("state_solver")  # type: ignore
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
+opts["mat_mumps_cntl_1"] = 0.0
 
 state_solver = PETSc.KSP().create(comm)  # type: ignore
 state_solver.setOptionsPrefix("state_solver")
