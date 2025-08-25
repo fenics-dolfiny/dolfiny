@@ -129,7 +129,7 @@ gη /= ufl.sqrt(ufl.dot(gη, gη))
 gξ /= ufl.sqrt(ufl.dot(gξ, gξ))
 
 # Contravariant basis
-K0 = ufl.geometry.JacobianInverse(mesh).T  # type: ignore
+K0 = ufl.geometry.JacobianInverse(mesh).T
 # Curvature tensor (tdim x tdim)
 B0 = -ufl.dot(ufl.dot(ufl.grad(gξ), J0).T, K0)  # = ufl.dot(gξ, ufl.dot(ufl.grad(K0), J0))
 # ----------------------------------------------------------------------------

@@ -31,8 +31,8 @@ boundary, boundary_keys = dolfiny.mesh.merge_meshtags(mesh, mts, mesh.topology.d
 # Material parameters
 E = dolfinx.fem.Constant(mesh, scalar(200.0))  # [GPa]
 nu = dolfinx.fem.Constant(mesh, scalar(0.25))  # [-]
-la = E * nu / (1 + nu) / (1 - 2 * nu)  # type: ignore
-mu = E / 2 / (1 + nu)  # type: ignore
+la = E * nu / (1 + nu) / (1 - 2 * nu)
+mu = E / 2 / (1 + nu)
 
 # Stabilisation factor
 ω = dolfinx.fem.Constant(mesh, scalar(1.01))
@@ -109,13 +109,13 @@ neumann = list(set(boundary_keys.values()) - set(dirichlet))  # complement to di
 
 # Form, stress-based, see Eq. 6.14 in https://doi.org/10.1016/j.ijsolstr.2024.112808
 form = (
-    (1 + nu) * ufl.inner(ufl.grad(δS), ufl.grad(S)) * dx  # type: ignore
-    - (1 + nu) * 2 * ufl.inner(δS, ufl.sym(ufl.grad(b0))) * dx  # type: ignore
+    (1 + nu) * ufl.inner(ufl.grad(δS), ufl.grad(S)) * dx
+    - (1 + nu) * 2 * ufl.inner(δS, ufl.sym(ufl.grad(b0))) * dx
     + ufl.inner(ufl.div(δS), ufl.grad(ufl.tr(S))) * dx
     + ufl.inner(ufl.grad(ufl.tr(δS)), ufl.div(S)) * dx
     - (1 + nu**2) / (1 - nu) * ufl.tr(δS) * ufl.div(b0) * dx
-    + (1 + nu) * ω * ufl.inner(ufl.div(δS), ufl.div(S)) * dx  # type: ignore
-    - (1 + nu) * ω * ufl.inner(δS, ufl.sym(ufl.grad(b0))) * dx  # type: ignore
+    + (1 + nu) * ω * ufl.inner(ufl.div(δS), ufl.div(S)) * dx
+    - (1 + nu) * ω * ufl.inner(δS, ufl.sym(ufl.grad(b0))) * dx
     - sum(ufl.inner(δS, T0) * ds(k) for k in neumann)
 )
 

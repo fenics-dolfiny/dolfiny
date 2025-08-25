@@ -21,7 +21,7 @@ workflow:
 # jobs
 default:
    interruptible: true
-   tags: [saas-linux-small-amd64]
+   tags: [ramdisk] # FIXME: saas-linux-small-amd64
 
 ruff:
    stage: lint
@@ -53,7 +53,7 @@ image build:
       - name: docker:dind
         command: ["--mtu=1450"]
    tags:
-      - saas-linux-large-$ARCH
+      - ramdisk
    before_script:
       - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
    script:
@@ -69,7 +69,7 @@ image build:
                .
    parallel:
       matrix:
-         - ARCH: [amd64, arm64]
+         - ARCH: [amd64] # FIXME: arm64
 
 image release:
    stage: release
@@ -83,14 +83,14 @@ image release:
    script:
       - echo "Gitlab registry -- create multiarch manifest"
       - docker pull $CONTAINER_COMMIT_IMAGE-amd64
-      - docker pull $CONTAINER_COMMIT_IMAGE-arm64
-      - docker buildx imagetools create -t $CONTAINER_COMMIT_IMAGE $(printf "$CONTAINER_COMMIT_IMAGE-%s " amd64 arm64)
+      # FIXME: - docker pull $CONTAINER_COMMIT_IMAGE-arm64
+      - docker buildx imagetools create -t $CONTAINER_COMMIT_IMAGE $(printf "$CONTAINER_COMMIT_IMAGE-%s " amd64) # FIXME: arm64)
       - echo "DockerHub registry -- create multiarch manifest"
       - docker tag $CONTAINER_COMMIT_IMAGE-amd64 $DOCKERHUB_COMMIT_IMAGE-amd64
-      - docker tag $CONTAINER_COMMIT_IMAGE-arm64 $DOCKERHUB_COMMIT_IMAGE-arm64
+      # FIXME: - docker tag $CONTAINER_COMMIT_IMAGE-arm64 $DOCKERHUB_COMMIT_IMAGE-arm64
       - docker push $DOCKERHUB_COMMIT_IMAGE-amd64
-      - docker push $DOCKERHUB_COMMIT_IMAGE-arm64
-      - docker buildx imagetools create -t $DOCKERHUB_COMMIT_IMAGE $(printf "$DOCKERHUB_COMMIT_IMAGE-%s " amd64 arm64)
+      # FIXME: - docker push $DOCKERHUB_COMMIT_IMAGE-arm64
+      - docker buildx imagetools create -t $DOCKERHUB_COMMIT_IMAGE $(printf "$DOCKERHUB_COMMIT_IMAGE-%s " amd64) # FIXME: arm64)
    rules:
       - if: $CI_COMMIT_TAG
         variables:
@@ -118,12 +118,12 @@ wheel release:
 .install_template:
    image: $CONTAINER_COMMIT_IMAGE-$ARCH
    tags:
-      - saas-linux-large-$ARCH
+      - ramdisk # FIXME: saas-linux-large-$ARCH
    script:
       - echo "Apply optional runtime hot-fixes here."
    parallel:
       matrix:
-         - ARCH: [amd64, arm64]
+         - ARCH: [amd64] # FIXME: arm64
 
 .test_template:
    stage: test
@@ -191,7 +191,7 @@ test/convergence:
          - "demo/*/*"
       expire_in: 2 hours
    variables:
-      PARALLEL: True
+      PARALLEL: False # FIXME
    script:
       - cd demo/$DIRECTORY
       - |
