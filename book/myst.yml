@@ -40,6 +40,8 @@ project:
     - title: Structural Optimisation
       children:
       - file: structural_optimisation/truss_sizing.ipynb
+    - title: Spectral Hyperelasticity
+      file: spectral/solid_elasticity.ipynb
     - title: Getting Involved
       file: getting-involved.md
 site:
