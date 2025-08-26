@@ -153,7 +153,7 @@ wheel release:
 test/unit/serial:
    extends: .test_template
    script:
-      - coverage run -m pytest -n $(nproc) -vsx test/unit
+      - coverage run -m pytest -vsx test/unit # FIXME: -n $(nproc)
 
 test/unit/parallel:
    extends: .test_template

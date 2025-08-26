@@ -148,11 +148,7 @@ plt.grid()
 plt.show()
 
 # %% tags=["hide-input"]
-pyvista.global_theme.font.family = "courier"
-pyvista.global_theme.font.size = 40
-pyvista.global_theme.font.title_size = 100
-
-plotter = pyvista.Plotter()  # window_size=[3840, 2160])
+plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
 
 geometry_proj = geometry.copy()
 geometry_proj[:, 2] = 0
@@ -161,7 +157,12 @@ floor_plan = pyvista.PolyData(
     np.append(geometry.shape[0], np.append(np.arange(0, geometry.shape[0]), [0])),
 ).triangulate()
 plotter.add_mesh(floor_plan, opacity=0.5, label="Floor Plan (top-down view)")
-plotter.add_mesh(pyvista.PolyData(geometry), color="black", point_size=10, label="Fixtures")
+plotter.add_mesh(
+    pyvista.PolyData(geometry),
+    color="black",
+    point_size=dolfiny.pyvista.pixels // 100,
+    label="Fixtures",
+)
 width = 1
 support_boxes = pyvista.MultiBlock(
     [
@@ -181,9 +182,7 @@ support_boxes = pyvista.MultiBlock(
 
 plotter.add_mesh(support_boxes.combine().extract_surface(), color="green", label="Support")
 plotter.add_legend()
-plotter.show_axes()
-plotter.camera.zoom(1.4)
-# plotter.show()
+plotter.show()
 
 # %% [markdown]
 # ## Meshing
@@ -217,6 +216,7 @@ def mesh_pavillon() -> dolfinx.io.gmshio.MeshData:
         return dolfinx.io.gmshio.model_to_mesh(None, comm, 0, gdim=2)
 
     gmsh.initialize()
+    gmsh.clear()
     gmsh.option.setNumber("General.Terminal", 0)  # No output
     gmsh.option.setNumber("Mesh.MeshSizeFactor", 3e-2)  # h
 
@@ -266,15 +266,12 @@ mesh_data = mesh_pavillon()
 mesh = mesh_data.mesh
 facet_tags = mesh_data.facet_tags
 
-pyvista.set_jupyter_backend("static")
 pv_grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh, 2))
-plotter = pyvista.Plotter(window_size=[3840, 2160])
+plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
 plotter.add_mesh(pv_grid, show_edges=True)
-plotter.camera.zoom(1.6)
 plotter.add_axes()
-plotter.set_position((10, -200, 200))
-plotter.camera.Roll(-10)
-plotter.camera.Pitch(-2)
+plotter.view_xy()
+plotter.camera.zoom(1.2)
 plotter.show()
 
 # %% [markdown]
@@ -376,7 +373,7 @@ bc = dolfinx.fem.dirichletbc(
 #   (unregularized) linearized surface area minimizer.
 # ```
 #
-# %%
+# %% tags=["hide-output"]
 def S(f):
     return ufl.sqrt(1 + ufl.inner(ufl.grad(f), ufl.grad(f))) * ufl.dx
 
@@ -428,33 +425,12 @@ def plot(f):
     surface[:, 2:3] = f.x.array.reshape(-1, 1)
     pv_grid.point_data[f.name] = surface
     pv_grid.warp_by_vector(f.name, inplace=True)
-    plotter = pyvista.Plotter(window_size=[3840, 2160])
-    sargs = dict(
-        height=0.8,
-        position_y=0.1,
-        title="",
-        font_family="courier",
-        title_font_size=100,
-        label_font_size=40,
-        fmt="%1.2f",
-        color="black",
-        vertical=True,
-    )
-    plotter.add_mesh(
-        pv_grid,
-        scalars=f.name,
-        specular=0.1,
-        specular_power=5,
-        scalar_bar_args=sargs,
-        smooth_shading=True,
-        split_sharp_edges=True,
-        cmap="coolwarm",
-    )
-    plotter.camera.zoom(1.6)
+    plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
+    plotter.add_mesh(pv_grid, scalars=f.name, scalar_bar_args={"title": "Surface deflection [m]"})
     plotter.add_axes()
-    plotter.set_position((10, -200, 200))
-    plotter.camera.Roll(-10)
-    plotter.camera.Pitch(-2)
+    plotter.camera.parallel_projection = False
+    plotter.camera.position = (10, -200, 200)
+    plotter.camera.focal_point = (60, 20, 0)
     plotter.show()
 
 

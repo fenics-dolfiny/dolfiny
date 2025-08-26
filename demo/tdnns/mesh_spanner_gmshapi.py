@@ -2,6 +2,8 @@
 
 from mpi4py import MPI
 
+import dolfiny
+
 
 def mesh_spanner_gmshapi(
     name="spanner",
@@ -183,26 +185,18 @@ if __name__ == "__main__":
     import pyvista
 
     grid = pyvista.read(vtk_file)
-
-    print(grid)
-
-    pixels = 2048
-    plotter = pyvista.Plotter(off_screen=True, window_size=[pixels, pixels], image_scale=1)
-    plotter.add_axes(labels_off=True)
+    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
 
     grid_surface_hires = grid.extract_surface(nonlinear_subdivision=4)
-
+    plotter.add_mesh(grid_surface_hires, color="tab:orange")
     plotter.add_mesh(
-        grid_surface_hires,
-        color="tab:orange",
-        specular=0.5,
-        specular_power=20,
-        smooth_shading=True,
-        split_sharp_edges=True,
+        grid.separate_cells().extract_surface(nonlinear_subdivision=4).extract_feature_edges(),
+        style="wireframe",
+        color="black",
+        line_width=dolfiny.pyvista.pixels // 1000,
+        render_lines_as_tubes=True,
     )
 
-    plotter.camera_position = (
-        pyvista.pyvista_ndarray([(-0.8, -1.0, 0.8), (0.05, 0.5, 0.0), (2.0, 4.0, 8.0)]) * 0.15
-    )
-
+    plotter.zoom_camera(1.3)
+    plotter.show_axes()
     plotter.screenshot("spanner.png", transparent_background=False)

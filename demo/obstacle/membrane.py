@@ -82,7 +82,7 @@
 # \phi(x, y) = \sin \left(3\pi \sqrt{x^2 + y^2} \right) \left( 1-x^2 \right) \left( 1-y^2 \right).
 # $$
 
-# %%
+# %% tags=["hide-output"]
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -146,29 +146,11 @@ def plot_deflected(f):
     u[:, 2:3] = f.x.array.reshape(-1, 1)
     pv_grid.point_data[f.name] = u
 
-    plotter = pyvista.Plotter()
-    plotter.image_scale = 4
+    plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
 
     warped = pv_grid.warp_by_vector(f.name, factor=1.0)
     warped.active_scalars_name = f.name
-    sargs = dict(
-        width=0.8,
-        position_x=0.1,
-        title=f.name,
-        font_family="courier",
-        fmt="%1.2f",
-        color="black",
-    )
-    plotter.add_mesh(
-        warped,
-        component=2,
-        scalar_bar_args=sargs,
-        specular=0.25,
-        specular_power=5,
-        smooth_shading=True,
-        split_sharp_edges=True,
-        cmap="coolwarm",
-    )
+    plotter.add_mesh(warped, component=2, scalar_bar_args={"title": f.name})
 
     plotter.camera.elevation -= 20
     plotter.show()
