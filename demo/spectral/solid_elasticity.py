@@ -42,19 +42,20 @@ nr, nt, nh = 16, 5, 8
 gmsh_model, tdim = mg.mesh_tube3d_gmshapi(name, r, t, h, nr, nt, nh, do_quads=True, order=2)
 
 # Get mesh and meshtags
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim)
-
-# Get merged MeshTags for each codimension
-subdomains, subdomains_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 0)
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-surface_lower = interfaces_keys["surface_lower"]
-surface_upper = interfaces_keys["surface_upper"]
+surface_lower = mesh_data.physical_groups["surface_lower"][1]
+surface_upper = mesh_data.physical_groups["surface_upper"][1]
 
 # Define integration measures
-dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains, metadata={"quadrature_degree": 4})
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces, metadata={"quadrature_degree": 4})
+dx = ufl.Measure(
+    "dx", domain=mesh, subdomain_data=mesh_data.cell_tags, metadata={"quadrature_degree": 4}
+)
+ds = ufl.Measure(
+    "ds", domain=mesh, subdomain_data=mesh_data.facet_tags, metadata={"quadrature_degree": 4}
+)
 
 # Define elements
 Ue = basix.ufl.element("P", mesh.basix_cell(), 2, shape=(mesh.geometry.dim,))
@@ -206,7 +207,7 @@ else:
 problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix=name, jit_options=jit_options)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-b_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_lower)
+b_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.facet_tags, surface_lower)
 
 # Set/update boundary conditions
 problem.bcs = [

@@ -26,23 +26,12 @@ gmsh_model, tdim = mg.mesh_block3d_gmshapi(
 )
 
 # Get mesh and meshtags
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim)
-
-# Write mesh and meshtags to file
-with dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w") as ofile:
-    ofile.write_mesh_meshtags(mesh, mts)
-
-# Read mesh and meshtags from file
-with dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "r") as ifile:
-    mesh, mts = ifile.read_mesh_meshtags()
-
-# Get merged MeshTags for each codimension
-subdomains, subdomains_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 0)
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-surface_left = interfaces_keys["surface_left"]
-surface_right = interfaces_keys["surface_right"]
+surface_left = mesh_data.physical_groups["surface_left"][1]
+surface_right = mesh_data.physical_groups["surface_right"][1]
 
 # Solid material parameters
 rho = dolfinx.fem.Constant(mesh, scalar(1e-9 * 1e4))  # [1e-9 * 1e+4 kg/m^3]
@@ -61,8 +50,8 @@ dt = dolfinx.fem.Constant(mesh, scalar(1e-2))  # [s]
 nT = 200
 
 # Define integration measures
-dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
+dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
+ds = ufl.Measure("ds", domain=mesh, subdomain_data=mesh_data.facet_tags)
 
 # Define elements
 Ue = basix.ufl.element("P", mesh.basix_cell(), 2, shape=(3,))
@@ -129,8 +118,9 @@ forms = ufl.extract_blocks(form)
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
-# Write mesh, meshtags
-ofile.write_mesh_meshtags(mesh, mts)
+# Write mesh data
+ofile.write_mesh_data(mesh_data)
+
 # Write initial state
 dolfiny.interpolation.interpolate(u, uo)
 dolfiny.interpolation.interpolate(S, So)
@@ -154,7 +144,7 @@ opts["mat_mumps_cntl_1"] = 0.0
 problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix=name)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-surface_left_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_left)
+surface_left_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, mesh_data.facet_tags, surface_left)
 
 # Process time steps
 for time_step in range(1, nT + 1):

@@ -23,16 +23,13 @@ gmsh_model, tdim = mg.mesh_spanner_gmshapi(name)
 
 # Get mesh and meshtags
 partitioner = dolfinx.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.shared_facet)
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim, partitioner=partitioner)
-
-# Get merged MeshTags for each codimension
-subdomains, subdomains_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 0)
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0, partitioner=partitioner)
+mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-surface_flats = interfaces_keys["surface_flats"]
-surface_crown = interfaces_keys["surface_crown"]
-surface_other = interfaces_keys["surface_other"]
+surface_flats = mesh_data.physical_groups["surface_flats"][1]
+surface_crown = mesh_data.physical_groups["surface_crown"][1]
+surface_other = mesh_data.physical_groups["surface_other"][1]
 
 # Solid material parameters, steel S235: E=210 [GPa], nue=0.30 [-], fy = 0.235 [GPa]
 mu = dolfinx.fem.Constant(mesh, scalar(81.0))  # GPa
@@ -43,8 +40,8 @@ g = dolfinx.fem.Constant(mesh, [0.0, 0.0, 0.0])  # volume force vector
 t = dolfinx.fem.Constant(mesh, [5.0e-4, 0.0, 0.0])  # boundary stress vector
 
 # Define integration measures
-dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains)
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
+dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
+ds = ufl.Measure("ds", domain=mesh, subdomain_data=mesh_data.facet_tags)
 dS = ufl.Measure("dS", domain=mesh)
 
 # Define elements
@@ -132,12 +129,20 @@ form += (
 forms = ufl.extract_blocks(form)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-surface_flats_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_flats)
-surface_crown_dofs_Sf = dolfiny.mesh.locate_dofs_topological(Sf, interfaces, surface_crown)
-surface_other_dofs_Sf = dolfiny.mesh.locate_dofs_topological(Sf, interfaces, surface_other)
+surface_flats_dofs_Uf = dolfiny.mesh.locate_dofs_topological(
+    Uf, mesh_data.facet_tags, surface_flats
+)
+surface_crown_dofs_Sf = dolfiny.mesh.locate_dofs_topological(
+    Sf, mesh_data.facet_tags, surface_crown
+)
+surface_other_dofs_Sf = dolfiny.mesh.locate_dofs_topological(
+    Sf, mesh_data.facet_tags, surface_other
+)
 
 # Provide normal-normal stress (boundary stress vector) at crown via projection
-dolfiny.projection.project_codimension(ufl.dot(t, n), Sn, normalnormal, interfaces, surface_crown)
+dolfiny.projection.project_codimension(
+    ufl.dot(t, n), Sn, normalnormal, mesh_data.facet_tags, surface_crown
+)
 
 # Define boundary conditions
 bcs = [

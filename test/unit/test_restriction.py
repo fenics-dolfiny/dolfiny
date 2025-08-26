@@ -245,14 +245,17 @@ def test_pipes_stokes():
     gmsh.model.geo.synchronize()
 
     # Bottom
-    gmsh.model.addPhysicalGroup(1, [l0, l1, l2], 1)
-    gmsh.model.setPhysicalName(1, 1, "bottom")
+    bottom_tag = gmsh.model.addPhysicalGroup(1, [l0, l1, l2])
+    gmsh.model.setPhysicalName(1, bottom_tag, "bottom")
     # Up
-    gmsh.model.addPhysicalGroup(1, [l4, l5], 2)
-    gmsh.model.setPhysicalName(1, 2, "up")
+    up_tag = gmsh.model.addPhysicalGroup(1, [l4, l5])
+    gmsh.model.setPhysicalName(1, up_tag, "up")
     # Inflow
-    gmsh.model.addPhysicalGroup(1, [l6], 3)
-    gmsh.model.setPhysicalName(1, 3, "inflow")
+    inflow_tag = gmsh.model.addPhysicalGroup(1, [l6])
+    gmsh.model.setPhysicalName(1, inflow_tag, "inflow")
+
+    # Surface (if not added as PG, only 1D entities are created)
+    gmsh.model.addPhysicalGroup(2, [s0])
 
     geo.synchronize()
     gmsh.model.mesh.generate()
@@ -262,9 +265,8 @@ def test_pipes_stokes():
 
     gmsh.model.mesh.generate()
 
-    mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh.model, 2, prune_z=True)
-
-    mt1, keys1 = dolfiny.mesh.merge_meshtags(mesh, mts, 1)
+    mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh.model, MPI.COMM_WORLD, rank=0, gdim=2)
+    mesh = mesh_data.mesh
 
     with dolfinx.io.XDMFFile(MPI.COMM_WORLD, "mesh.xdmf", "w") as out:
         out.write_mesh(mesh)
@@ -282,22 +284,26 @@ def test_pipes_stokes():
     lam = dolfinx.fem.Function(L, name="l")
     m = ufl.TestFunction(L)
 
-    ds = ufl.Measure("ds", subdomain_data=mt1, domain=mesh)
+    ds = ufl.Measure("ds", subdomain_data=mesh_data.facet_tags, domain=mesh)
     n = ufl.FacetNormal(mesh)
 
     F0 = (
         ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx(mesh)
         - p * ufl.div(v) * ufl.dx(mesh)
-        + lam * ufl.inner(v, n) * ds(keys1["bottom"])
+        + lam * ufl.inner(v, n) * ds(mesh_data.physical_groups["bottom"][1])
     )
     F1 = ufl.div(u) * q * ufl.dx(mesh) + dolfinx.fem.Constant(mesh, 0.0) * p * q * ufl.dx(mesh)
-    F2 = ufl.inner(u, n) * m * ds(keys1["bottom"])
+    F2 = ufl.inner(u, n) * m * ds(mesh_data.physical_groups["bottom"][1])
 
     u_inflow = dolfinx.fem.Function(V)
-    inflowdofsV = dolfiny.mesh.locate_dofs_topological(V, mt1, keys1["inflow"])
+    inflowdofsV = dolfiny.mesh.locate_dofs_topological(
+        V, mesh_data.facet_tags, mesh_data.physical_groups["inflow"][1]
+    )
 
     u_up = dolfinx.fem.Function(V)
-    updofsV = dolfiny.mesh.locate_dofs_topological(V, mt1, keys1["up"])
+    updofsV = dolfiny.mesh.locate_dofs_topological(
+        V, mesh_data.facet_tags, mesh_data.physical_groups["up"][1]
+    )
 
     def uinflow(x):
         values = np.zeros((2, x.shape[1]))
@@ -323,7 +329,9 @@ def test_pipes_stokes():
     bcs.append(dolfinx.fem.dirichletbc(u_up, updofsV))
     bcs.append(dolfinx.fem.dirichletbc(p_bc, bcdofsP))
 
-    lagrangedofsL = dolfiny.mesh.locate_dofs_topological(L, mt1, keys1["bottom"])
+    lagrangedofsL = dolfiny.mesh.locate_dofs_topological(
+        L, mesh_data.facet_tags, mesh_data.physical_groups["bottom"][1]
+    )
 
     Vsize = V.dofmap.index_map_bs * V.dofmap.index_map.size_local
     Psize = P.dofmap.index_map_bs * P.dofmap.index_map.size_local

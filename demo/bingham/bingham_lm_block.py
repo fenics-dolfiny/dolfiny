@@ -29,16 +29,13 @@ y0 = 0.0
 gmsh_model, tdim = mg.mesh_annulus_gmshapi(name, iR, oR, nR, nT, x0, y0, do_quads=False)
 
 # Get mesh and meshtags
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim, prune_z=True)
-
-# Get merged MeshTags for each codimension
-subdomains, subdomains_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 0)
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
+mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-ring_inner = interfaces_keys["ring_inner"]
-ring_outer = interfaces_keys["ring_outer"]
-domain = subdomains_keys["domain"]
+ring_inner = mesh_data.physical_groups["ring_inner"][1]
+ring_outer = mesh_data.physical_groups["ring_outer"][1]
+domain = mesh_data.physical_groups["domain"][1]
 
 # Fluid material parameters
 rho = dolfinx.fem.Constant(mesh, scalar(2.0))  # [kg/m^3]
@@ -60,8 +57,12 @@ dt = dolfinx.fem.Constant(mesh, scalar(0.05))  # [s]
 nT = 80
 
 # Define integration measures
-dx = ufl.Measure("dx", domain=mesh, subdomain_data=subdomains, metadata={"quadrature_degree": 4})
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces, metadata={"quadrature_degree": 4})
+dx = ufl.Measure(
+    "dx", domain=mesh, subdomain_data=mesh_data.cell_tags, metadata={"quadrature_degree": 4}
+)
+ds = ufl.Measure(
+    "ds", domain=mesh, subdomain_data=mesh_data.facet_tags, metadata={"quadrature_degree": 4}
+)
 
 
 # Inner ring velocity
@@ -110,11 +111,11 @@ no = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="n")
 to = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1)), name="t")
 
 # Set up restriction
-rdofsV = dolfiny.mesh.locate_dofs_topological(Vf, subdomains, domain)
+rdofsV = dolfiny.mesh.locate_dofs_topological(Vf, mesh_data.cell_tags, domain)
 rdofsV = dolfiny.function.unroll_dofs(rdofsV, Vf.dofmap.bs)
-rdofsP = dolfiny.mesh.locate_dofs_topological(Pf, subdomains, domain)
-rdofsN = dolfiny.mesh.locate_dofs_topological(Nf, interfaces, ring_inner)
-rdofsT = dolfiny.mesh.locate_dofs_topological(Tf, interfaces, ring_inner)
+rdofsP = dolfiny.mesh.locate_dofs_topological(Pf, mesh_data.cell_tags, domain)
+rdofsN = dolfiny.mesh.locate_dofs_topological(Nf, mesh_data.facet_tags, ring_inner)
+rdofsT = dolfiny.mesh.locate_dofs_topological(Tf, mesh_data.facet_tags, ring_inner)
 restrc = dolfiny.restriction.Restriction([Vf, Pf, Nf, Tf], [rdofsV, rdofsP, rdofsN, rdofsT])
 
 # Time integrator
@@ -173,7 +174,7 @@ forms = ufl.extract_blocks(form)
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")
 # Write mesh, meshtags
-ofile.write_mesh_meshtags(mesh, mts)
+ofile.write_mesh_data(mesh_data)
 # Write initial state
 dolfiny.interpolation.interpolate(v, vo)
 dolfiny.interpolation.interpolate(p, po)
@@ -199,8 +200,8 @@ opts["pc_factor_mat_solver_type"] = "mumps"
 problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix="bingham", restriction=restrc)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-ring_outer_dofs_Vf = dolfiny.mesh.locate_dofs_topological(Vf, interfaces, ring_outer)
-ring_inner_dofs_Pf = dolfiny.mesh.locate_dofs_topological(Pf, interfaces, ring_outer)
+ring_outer_dofs_Vf = dolfiny.mesh.locate_dofs_topological(Vf, mesh_data.facet_tags, ring_outer)
+ring_inner_dofs_Pf = dolfiny.mesh.locate_dofs_topological(Pf, mesh_data.facet_tags, ring_outer)
 
 # Process time steps
 for time_step in range(1, nT + 1):

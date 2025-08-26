@@ -13,15 +13,17 @@ import numpy as np
 
 import dolfiny
 
+comm = MPI.COMM_WORLD
 name = "notched"
 gmsh_model, tdim = mesh_notched.mesh_notched(name, clscale=0.2)
 
 # Get mesh and meshtags
-mesh, mts = dolfiny.mesh.gmsh_to_dolfin(gmsh_model, tdim, prune_z=True)
+mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
+mesh = mesh_data.mesh
 
 # Write mesh and meshtags to file
 with dolfiny.io.XDMFFile(MPI.COMM_WORLD, f"{name}.xdmf", "w") as ofile:
-    ofile.write_mesh_meshtags(mesh, mts)
+    ofile.write_mesh_data(mesh_data)
 
 top_facets = dolfinx.mesh.locate_entities_boundary(
     mesh, 1, lambda x: np.logical_and(np.isclose(x[0], 0.0), np.greater_equal(x[1], 0.5))
