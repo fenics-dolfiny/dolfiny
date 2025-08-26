@@ -213,43 +213,34 @@ if comm.rank == 0:
     grid.point_data["S"] = multiblock[1].point_data["S"]
     grid.point_data["s"] = multiblock[2].point_data["s"]
 
-    pixels = 2048
-    plotter = pyvista.Plotter(off_screen=True, window_size=[pixels, pixels], image_scale=1)
-    plotter.add_axes(labels_off=True)
-
-    sargs = dict(
-        height=0.05,
-        width=0.8,
-        position_x=0.1,
-        position_y=0.90,
-        title="von Mises stress",
-        font_family="courier",
-        fmt="%1.2f",
-        color="black",
-        title_font_size=pixels // 50,
-        label_font_size=pixels // 50,
-    )
+    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
 
     grid_warped = grid.warp_by_vector("u", factor=1.0)
 
-    if not grid.get_cell(0).is_linear:
-        grid_warped = grid_warped.extract_surface(nonlinear_subdivision=3)
+    subdivision_levels = 4 if not grid.get_cell(0).is_linear else 0
 
     plotter.add_mesh(
-        grid_warped,
+        grid_warped.extract_surface(nonlinear_subdivision=subdivision_levels),
         scalars="s",
-        scalar_bar_args=sargs,
-        cmap="coolwarm",
-        specular=0.5,
-        specular_power=20,
-        smooth_shading=True,
-        split_sharp_edges=True,
+        scalar_bar_args={"title": "von Mises stress"},
+        n_colors=10,
     )
 
-    plotter.add_mesh(grid_warped, style="wireframe", color="black", line_width=pixels // 500)
+    plotter.add_mesh(
+        grid_warped.separate_cells()
+        .extract_surface(nonlinear_subdivision=subdivision_levels)
+        .extract_feature_edges(),
+        style="wireframe",
+        color="black",
+        line_width=dolfiny.pyvista.pixels // 500,
+    )
+    plotter.add_mesh(
+        grid,
+        color="black",
+        style="wireframe",
+        opacity=0.2,
+        line_width=dolfiny.pyvista.pixels // 500,
+    )
 
-    plotter.add_mesh(grid, style="wireframe", color="lightgray", line_width=pixels // 1000)
-
-    plotter.zoom_camera(1.0)
-
+    plotter.show_axes()
     plotter.screenshot(f"{name}.png", transparent_background=False)

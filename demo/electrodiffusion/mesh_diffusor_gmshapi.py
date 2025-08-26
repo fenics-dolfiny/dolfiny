@@ -2,6 +2,8 @@
 
 from mpi4py import MPI
 
+import dolfiny
+
 
 def mesh_diffusor_gmshapi(
     name="diffusor",
@@ -184,28 +186,15 @@ if __name__ == "__main__":
 
     grid = pyvista.read(vtk_file)
 
-    print(grid)
-
-    pixels = 2048
-    plotter = pyvista.Plotter(off_screen=True, window_size=[pixels, pixels], image_scale=1)
-    plotter.add_axes(labels_off=True)
-
+    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     grid_surface_hires = grid.extract_surface(nonlinear_subdivision=3)
-
-    plotter.add_mesh(
-        grid_surface_hires,
-        color="tab:orange",
-        specular=0.5,
-        specular_power=20,
-        smooth_shading=True,
-        split_sharp_edges=True,
-    )
+    plotter.add_mesh(grid_surface_hires, color="tab:orange")
 
     plotter.add_mesh(
         grid.separate_cells().extract_surface(nonlinear_subdivision=3).extract_feature_edges(),
         style="wireframe",
         color="lightgray",
-        line_width=pixels // 1000,
+        line_width=dolfiny.pyvista.pixels // 1000,
         render_lines_as_tubes=True,
     )
 
@@ -213,6 +202,6 @@ if __name__ == "__main__":
     plotter.camera.focal_point = (-shift, shift, 0.0)
     plotter.camera.position = (-1.5 - shift, 1.0 + shift, -1.0 + 0.0)
     plotter.camera.up = (-1.0, 0.0, 0.0)
-    plotter.zoom_camera(180)
+    plotter.show_axes()
 
     plotter.screenshot("diffusor.png", transparent_background=False)
