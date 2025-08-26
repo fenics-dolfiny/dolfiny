@@ -20,7 +20,7 @@ class XDMFFile(dolfinx.io.XDMFFile):
         """
         logger = logging.getLogger("dolfiny")
 
-        logger.info("Writing mesh")
+        logger.debug("Writing mesh")
         self.write_mesh(mesh)
 
         if mts is None:
@@ -28,10 +28,10 @@ class XDMFFile(dolfinx.io.XDMFFile):
 
         keys_meshtags = {key: mt.dim for key, mt in mts.items()}
 
-        logger.info("Writing information")
+        logger.debug("Writing information")
         self.write_information(self.KEYS_OF_MESHTAGS, str(keys_meshtags))
 
-        logger.info("Writing meshtags")
+        logger.debug("Writing meshtags")
         for mt in mts.values():
             mesh.topology.create_connectivity(mt.dim, mesh.topology.dim)
             self.write_meshtags(mt, mesh.geometry)
@@ -47,15 +47,15 @@ class XDMFFile(dolfinx.io.XDMFFile):
         """
         logger = logging.getLogger("dolfiny")
 
-        logger.info("Writing mesh")
+        logger.debug("Writing mesh")
         mesh = mesh_data.mesh
         self.write_mesh(mesh)
 
-        logger.info("Writing information")
+        logger.debug("Writing information")
         pg = mesh_data.physical_groups
         self.write_information(self.KEYS_OF_MESHTAGS, str(pg.keys()))
 
-        logger.info("Writing cell meshtags")
+        logger.debug("Writing cell meshtags")
         # TODO: former connectivity computation?
         if (ct := mesh_data.cell_tags) is not None:
             self.write_meshtags(ct, mesh.geometry)
