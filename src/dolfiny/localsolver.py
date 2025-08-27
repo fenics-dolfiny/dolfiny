@@ -86,15 +86,15 @@ class LocalSolver:
 
         ```python
         F_integrals = [{dolfinx.fem.IntegralType.cell:
-                         [(-1, sc_F_cell, cell_entities)],
+                         [(0, sc_F_cell, cell_entities)],
                          dolfinx.fem.IntegralType.exterior_facet:
-                         [(1, sc_F_exterior_facet, exterior_facet_entities)]}]
+                         [(0, sc_F_exterior_facet, exterior_facet_entities)]}]
         ```
 
-        defines an integral ``sc_F_cell`` which will be assembled over cells, has default
-        marker ID ``-1`` and cell entities given by ``cell_entities``,
-        and integral ``sc_F_exterior_facet`` which is assembled over exterior facets which are
-        marked ``1`` and associated with facet entities in ``exterior_facet_entities``.
+        defines an integral ``sc_F_cell`` which will be assembled over cells, has integral index 0
+        and cell entities are given by ``cell_entities``,
+        and integral ``sc_F_exterior_facet`` which is assembled over exterior facets with integral
+        index 0 and associated with facet entities in ``exterior_facet_entities``.
 
         C++ kernels
         -----

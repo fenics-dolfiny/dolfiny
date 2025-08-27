@@ -151,7 +151,7 @@ def test_linear_elasticity(squaremesh_5):
         for idx in problem.localsolver.local_spaces_id:
             problem.u[idx].x.scatter_forward()
 
-    cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
+    all_cells = np.arange(mesh.topology.index_map(mesh.topology.dim).size_local)
     exterior_facets = dict(
         dolfinx.fem.forms.get_integration_domains(
             dolfinx.fem.IntegralType.exterior_facet, mt, np.unique(mt.values)
@@ -163,14 +163,14 @@ def test_linear_elasticity(squaremesh_5):
         local_spaces_id=[0],
         F_integrals=[
             {
-                dolfinx.fem.IntegralType.cell: [(-1, sc_F_cell, cells.get(-1, []))],
+                dolfinx.fem.IntegralType.cell: [(0, sc_F_cell, all_cells)],
                 dolfinx.fem.IntegralType.exterior_facet: [
-                    (1, sc_F_exterior_facet, exterior_facets.get(1, []))
+                    (0, sc_F_exterior_facet, exterior_facets.get(1, []))
                 ],
             }
         ],
-        J_integrals=[[{dolfinx.fem.IntegralType.cell: [(-1, sc_J, cells.get(-1, []))]}]],
-        local_integrals=[{dolfinx.fem.IntegralType.cell: [(-1, solve_stress, cells.get(-1, []))]}],
+        J_integrals=[[{dolfinx.fem.IntegralType.cell: [(0, sc_J, all_cells)]}]],
+        local_integrals=[{dolfinx.fem.IntegralType.cell: [(0, solve_stress, all_cells)]}],
         local_update=local_update,
     )
 
@@ -322,7 +322,7 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
         for idx in problem.localsolver.local_spaces_id:
             problem.u[idx].x.scatter_forward()
 
-    cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
+    all_cells = np.arange(mesh.topology.index_map(mesh.topology.dim).size_local)
     exterior_facets = dict(
         dolfinx.fem.forms.get_integration_domains(
             dolfinx.fem.IntegralType.exterior_facet, mt, np.unique(mt.values)
@@ -334,14 +334,14 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
         local_spaces_id=[0],
         F_integrals=[
             {
-                dolfinx.fem.IntegralType.cell: [(-1, sc_F_cell, cells.get(-1, []))],
+                dolfinx.fem.IntegralType.cell: [(0, sc_F_cell, all_cells)],
                 dolfinx.fem.IntegralType.exterior_facet: [
-                    (1, sc_F_exterior_facet, exterior_facets.get(1, []))
+                    (0, sc_F_exterior_facet, exterior_facets.get(1, []))
                 ],
             }
         ],
-        J_integrals=[[{dolfinx.fem.IntegralType.cell: [(-1, sc_J, cells.get(-1, []))]}]],
-        local_integrals=[{dolfinx.fem.IntegralType.cell: [(-1, solve_stress, cells.get(-1, []))]}],
+        J_integrals=[[{dolfinx.fem.IntegralType.cell: [(0, sc_J, all_cells)]}]],
+        local_integrals=[{dolfinx.fem.IntegralType.cell: [(0, solve_stress, all_cells)]}],
         local_update=local_update,
     )
 
@@ -494,7 +494,7 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
         for idx in problem.localsolver.local_spaces_id:
             problem.u[idx].x.scatter_forward()
 
-    cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
+    all_cells = np.arange(mesh.topology.index_map(mesh.topology.dim).size_local)
     exterior_facets = dict(
         dolfinx.fem.forms.get_integration_domains(
             dolfinx.fem.IntegralType.exterior_facet, mt, np.unique(mt.values)
@@ -506,14 +506,14 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
         local_spaces_id=[0],
         F_integrals=[
             {
-                dolfinx.fem.IntegralType.cell: [(-1, sc_F_cell, cells.get(-1, []))],
+                dolfinx.fem.IntegralType.cell: [(0, sc_F_cell, all_cells)],
                 dolfinx.fem.IntegralType.exterior_facet: [
-                    (1, sc_F_exterior_facet, exterior_facets.get(1, []))
+                    (0, sc_F_exterior_facet, exterior_facets.get(1, []))
                 ],
             }
         ],
-        J_integrals=[[{dolfinx.fem.IntegralType.cell: [(-1, sc_J, cells.get(-1, []))]}]],
-        local_integrals=[{dolfinx.fem.IntegralType.cell: [(-1, solve_stress, cells.get(-1, []))]}],
+        J_integrals=[[{dolfinx.fem.IntegralType.cell: [(0, sc_J, all_cells)]}]],
+        local_integrals=[{dolfinx.fem.IntegralType.cell: [(0, solve_stress, all_cells)]}],
         local_update=local_update,
     )
 
