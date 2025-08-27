@@ -12,7 +12,7 @@
 # ---
 
 # The task is to find a displacement field $u \in [H^1_0(\Omega)]^3$ which solves the variational
-# problem
+# problem (principle of virtual displacements)
 
 # $$
 # - \frac 12 \int_\Omega \delta C \colon \left(S_\text{bulk} + S_\text{shear}\right) \, \mathrm dx
@@ -38,7 +38,7 @@
 
 # $$ S = S_\text{bulk} + S_\text{shear} = 2 \frac{\partial W}{\partial C}. $$
 
-# Isotropic strain energy functionals (which the Neo-Hookean model fulfils) we can write
+# For isotropic strain energy functionals (which the Neo-Hookean model fulfils) we can write
 
 # $$ s_i = 2 \frac{\partial W}{\partial c_i}, \quad i \in \{1, 2, 3\},$$
 
@@ -277,7 +277,7 @@ def plot_tube3d_pyvista(u, s, comm=MPI.COMM_WORLD):
 # the Cauchy strain tensor, while the "spectral" formulation uses strain energy defined
 # in terms of the eigenvalues.
 
-# %%
+# %% tags=["hide-input"]
 print(f"Arguments: {args}")
 
 # %% [markdown]
@@ -444,8 +444,8 @@ else:
 # which is scaled with the reference load scale $t_\text{ref}$.
 # We first compute radial vector field in the shifted $xy$-plane
 # $$d = x - l_\text{ref} h (0,0,1)^T$$
-# which we normalize and cross product with the unit vector in $Z$ direction,
-# $$ t = \alpha t_\text{ref} \frac{d}{||d||} \times (0,0,1)^T.$$
+# which we normalize and cross product with the unit vector $e_z = (0,0,1)^T$,
+# $$ t = \alpha t_\text{ref} \frac{d}{||d||} \times e_z.$$
 # A load factor $\alpha$ is increased from 0 to 1 during the loading procedure.
 
 # %%
@@ -495,13 +495,16 @@ forms = ufl.extract_blocks(form)
 
 # %% [markdown]
 # The problem solved leads to symmetric positive definite system on the algebraic level.
-# We choose to solve it using MUMPS cholesky solver. We also skip numerical pivoting
-# by setting CNTL(1) = 0.
+# We choose to solve it using MUMPS Cholesky $LDL^T$ solver for general symmetric matrices.
+# We explicitly numerical pivoting by setting CNTL(1) = 0.
+
+# The nonlinear SNES solver is configured to use Newton line search with
+# no (basic) line search.
 
 # %%
 opts = PETSc.Options(name)  # type: ignore[attr-defined]
 opts["snes_type"] = "newtonls"
-opts["snes_linesearch_type"] = "cp"
+opts["snes_linesearch_type"] = "basic"
 opts["snes_rtol"] = 1.0e-08
 opts["snes_max_it"] = 10
 opts["ksp_type"] = "preonly"
@@ -512,7 +515,11 @@ opts["mat_mumps_cntl_1"] = 0.0
 # %% [markdown]
 # ```{note}
 #    Compilation of complicated eigenvalue expressions could take considerable time,
-#    especially form the ARM64 architecture. We disable selected optimizations.
+#    especially for the ARM64 architecture. We disable selected optimizations.
+#    Alternatively, we can disable all optimizations by setting `-O0`. We found this
+#    approach useful for fast model development and testing when compilation time matters.
+#    However, for production runs we recommend to enable optimizations e.g. keep the
+#    default `-O2` (or even `-O3`).
 # ```
 
 # %% tags=["hide-input", "hide-output"]

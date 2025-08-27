@@ -279,16 +279,16 @@ def local_update(problem):
         problem.u[idx].x.scatter_forward()
 
 
-cells = dict([(-1, np.arange(mesh.topology.index_map(mesh.topology.dim).size_local))])
+all_cells = np.arange(mesh.topology.index_map(mesh.topology.dim).size_local)
 
 ls = dolfiny.localsolver.LocalSolver(
     [Uf, Pf, Lf],
     local_spaces_id=[1, 2],
-    F_integrals=[{dolfinx.fem.IntegralType.cell: [(-1, sc_F_cell, cells[-1])]}],
-    J_integrals=[[{dolfinx.fem.IntegralType.cell: [(-1, sc_J, cells[-1])]}]],
+    F_integrals=[{dolfinx.fem.IntegralType.cell: [(0, sc_F_cell, all_cells)]}],
+    J_integrals=[[{dolfinx.fem.IntegralType.cell: [(0, sc_J, all_cells)]}]],
     local_integrals=[
-        {dolfinx.fem.IntegralType.cell: [(-1, solve_dP, cells[-1])]},
-        {dolfinx.fem.IntegralType.cell: [(-1, solve_dl, cells[-1])]},
+        {dolfinx.fem.IntegralType.cell: [(0, solve_dP, all_cells)]},
+        {dolfinx.fem.IntegralType.cell: [(0, solve_dl, all_cells)]},
     ],
     local_update=local_update,
 )
