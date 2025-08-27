@@ -309,7 +309,8 @@ plt.show()
 # %% [markdown]
 # The deformed final design (displacement scaled by $5\times10^3$)
 # %% tags=["hide-input"]
-plotter = pv.Plotter(window_size=[3840, 2160])
+pixels = dolfiny.pyvista.pixels
+plotter = pv.Plotter(theme=dolfiny.pyvista.theme, window_size=[pixels, pixels // 2])
 
 pv_grid.point_data[u.name] = u.x.array.reshape(-1, 3)
 pv_grid.cell_data[s.name] = s.x.array
@@ -319,7 +320,7 @@ plotter.add_mesh(pv_grid.warp_by_vector(u.name, factor=5e3), color="black", line
 plotter.add_axes()
 plotter.view_xy()
 plotter.camera.elevation += 20
-plotter.camera.zoom(1.7)
+plotter.camera.zoom(2.0)
 plotter.show()
 
 # %% [markdown]
@@ -327,7 +328,7 @@ plotter.show()
 # result (opacity of tubes according to ratio of maximal allowed cross sectional area).
 # Radii are scaled by factor of $5$, for visualisation purposes.
 # %% tags=["hide-input"]
-plotter = pv.Plotter(window_size=[3840, 2160])
+plotter = pv.Plotter(window_size=[pixels, pixels // 2])
 
 radius = np.sqrt(s.x.array / np.pi)
 radius_max = np.sqrt(s_max / np.pi)
@@ -341,7 +342,7 @@ for e_idx in range(e_to_v.num_nodes):
 plotter.add_axes()
 plotter.view_xy()
 plotter.camera.elevation += 20
-plotter.camera.zoom(1.7)
+plotter.camera.zoom(2.0)
 plotter.show()
 
 # %% tags=["hide-input"]
