@@ -1,5 +1,6 @@
 from mpi4py import MPI
 
+import dolfinx
 from dolfinx.mesh import meshtags
 
 import numpy as np
@@ -206,3 +207,43 @@ def merge_meshtags(mesh, mts, dim):
     mt = meshtags(mesh, dim, unique_indices, values[pos])
 
     return mt, keys
+
+
+def tag_box_facets(
+    mesh: dolfinx.mesh.Mesh, box_bounds: list[list[float]]
+) -> tuple[dolfinx.mesh.MeshTags, dict[str, dolfinx.io.gmsh.PhysicalGroup]]:
+    """Tag every facet of a box domain.
+
+    Face in space direction d at the lower bound, where x[d]==box_bounds[0][d], is named face_xd_0.
+    Face in space direction d at the upper bound, where x[d]==box_bounds[1][d], is named face_xd_1.
+    """
+    facet_dim = mesh.topology.dim - 1
+
+    facets = np.empty((0,), dtype=np.int32)
+    tags = np.empty((0,), dtype=np.int32)
+
+    mt: dict[str, dolfinx.io.gmsh.PhysicalGroup] = {}
+
+    for d in range(mesh.geometry.dim):
+        for k, kx in enumerate((box_bounds[0][d], box_bounds[1][d])):
+            facets_face = dolfinx.mesh.locate_entities(
+                mesh, facet_dim, lambda x: np.isclose(x[d], kx)
+            )
+
+            # only tag locally owned indices
+            facets_face = facets_face[facets_face < mesh.topology.index_map(facet_dim).size_local]
+            facets_face = np.unique(facets_face)
+
+            name = f"face_x{d}_{'min' if k == 0 else 'max'}"
+            tag = 2 * d + k
+            mt[name] = dolfinx.io.gmsh.PhysicalGroup(dim=facet_dim, tag=tag)
+
+            facets = np.append(facets, facets_face)  # type: ignore
+            tags = np.append(tags, np.full_like(facets_face, tag))  # type: ignore
+
+    # Sort by facet
+    perm = np.argsort(facets)
+    facets = facets[perm]  # type: ignore
+    tags = tags[perm]  # type: ignore
+
+    return dolfinx.mesh.meshtags(mesh, facet_dim, facets, tags), mt
