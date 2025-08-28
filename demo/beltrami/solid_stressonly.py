@@ -8,7 +8,6 @@ import dolfinx
 import ufl
 from dolfinx import default_scalar_type as scalar
 
-import mesh_box_onboard as mg
 import plot_box_pyvista as pl
 
 import dolfiny
@@ -23,10 +22,14 @@ e = 8  # elements in each direction
 p = 2  # ansatz order
 
 # Get mesh and meshtags
-mesh, mts = mg.mesh_box_onboard(e=e, do_quads=True)
-
-# Merge meshtags, see `boundary_keys` for identifiers of outer faces
-boundary, boundary_keys = dolfiny.mesh.merge_meshtags(mesh, mts, mesh.topology.dim - 1)
+box_bounds = [[-1.0] * 3, [1.0] * 3]
+mesh = dolfinx.mesh.create_box(
+    comm,
+    box_bounds,  # type: ignore
+    [e] * 3,
+    cell_type=dolfinx.mesh.CellType.hexahedron,
+)
+meshtags, physical_groups = dolfiny.mesh.tag_box_facets(mesh, box_bounds)
 
 # Material parameters
 E = dolfinx.fem.Constant(mesh, scalar(200.0))  # [GPa]
@@ -80,7 +83,7 @@ T0 = T(S0_expr)  # boundary stress tensor
 
 # Define integration measures
 dx = ufl.Measure("dx", domain=mesh)
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=boundary)
+ds = ufl.Measure("ds", domain=mesh, subdomain_data=meshtags)
 
 # Define elements
 Se = basix.ufl.element("P", mesh.basix_cell(), p, shape=(3, 3), symmetry=True)
@@ -104,8 +107,8 @@ uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), 
 so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")
 
 # Boundaries (via mesh tags)
-dirichlet = [0, 2, 4]  # faces = {x0 = xmin, x1 = xmin, x2 = xmin}
-neumann = list(set(boundary_keys.values()) - set(dirichlet))  # complement to dirichlet
+dirichlet = [physical_groups[f"face_x{d}_min"][1] for d in range(3)]
+neumann = [physical_groups[f"face_x{d}_max"][1] for d in range(3)]
 
 # Form, stress-based, see Eq. 6.14 in https://doi.org/10.1016/j.ijsolstr.2024.112808
 form = (
@@ -126,7 +129,8 @@ forms = ufl.extract_blocks(form)
 dolfiny.interpolation.interpolate(S0_expr, S0)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-bcsdofs_Sf = dolfiny.mesh.locate_dofs_topological(Sf, boundary, dirichlet)
+mesh.topology.create_connectivity(2, 3)
+bcsdofs_Sf = dolfiny.mesh.locate_dofs_topological(Sf, meshtags, dirichlet)
 bcs = [dolfinx.fem.dirichletbc(S0, bcsdofs_Sf)]
 
 # Options for PETSc backend
