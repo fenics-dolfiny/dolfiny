@@ -127,9 +127,9 @@ def wrap_objective_callbacks(
 
     @sync_functions(u)
     def _callback_F(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
-        F_value: float = dolfinx.fem.assemble_scalar(F_form)
-        F_value = comm.allreduce(F_value, op=MPI.SUM)
-        return F_value
+        F_value = dolfinx.fem.assemble_scalar(F_form)
+        assert isinstance(F_value, float)
+        return comm.allreduce(F_value, op=MPI.SUM)  # type: ignore
 
     @sync_functions(u)
     def _callback_J(tao: PETSc.TAO, x: PETSc.Vec, J_vec: PETSc.Vec) -> None:  # type: ignore
