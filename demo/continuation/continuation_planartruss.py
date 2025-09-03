@@ -33,11 +33,11 @@ mesh = mesh_data.mesh
 gdim = mesh.geometry.dim
 
 # Define shorthands for labelled tags
-support = mesh_data.physical_groups["support"][1]
-connect = mesh_data.physical_groups["connect"][1]
-verytop = mesh_data.physical_groups["verytop"][1]
-upper = mesh_data.physical_groups["upper"][1]
-lower = mesh_data.physical_groups["lower"][1]
+support = mesh_data.physical_groups["support"].tag
+connect = mesh_data.physical_groups["connect"].tag
+verytop = mesh_data.physical_groups["verytop"].tag
+upper = mesh_data.physical_groups["upper"].tag
+lower = mesh_data.physical_groups["lower"].tag
 
 # Define integration measures
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)

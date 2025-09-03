@@ -30,8 +30,8 @@ mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-surface_left = mesh_data.physical_groups["surface_left"][1]
-surface_right = mesh_data.physical_groups["surface_right"][1]
+surface_left = mesh_data.physical_groups["surface_left"].tag
+surface_right = mesh_data.physical_groups["surface_right"].tag
 
 # Solid material parameters
 rho = dolfinx.fem.Constant(mesh, scalar(1e-9 * 1e4))  # [1e-9 * 1e+4 kg/m^3]

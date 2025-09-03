@@ -33,8 +33,8 @@ mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-beg = mesh_data.physical_groups["beg"][1]
-end = mesh_data.physical_groups["end"][1]
+beg = mesh_data.physical_groups["beg"].tag
+end = mesh_data.physical_groups["end"].tag
 
 # Structure: section geometry
 b = 1.0  # [m]

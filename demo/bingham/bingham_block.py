@@ -36,8 +36,8 @@ mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-ring_inner = mesh_data.physical_groups["ring_inner"][1]
-ring_outer = mesh_data.physical_groups["ring_outer"][1]
+ring_inner = mesh_data.physical_groups["ring_inner"].tag
+ring_outer = mesh_data.physical_groups["ring_outer"].tag
 
 # Fluid material parameters
 tau_zero = dolfinx.fem.Constant(mesh, scalar(0.2))  # [kg/m/s^2]

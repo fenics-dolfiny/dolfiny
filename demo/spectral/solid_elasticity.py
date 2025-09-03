@@ -305,8 +305,8 @@ mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-surface_lower = mesh_data.physical_groups["surface_lower"][1]
-surface_upper = mesh_data.physical_groups["surface_upper"][1]
+surface_lower = mesh_data.physical_groups["surface_lower"].tag
+surface_upper = mesh_data.physical_groups["surface_upper"].tag
 
 # %% [markdown]
 # Quadrature rule is limited to the 4th degree for performance reasons. The
