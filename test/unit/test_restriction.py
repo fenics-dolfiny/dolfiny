@@ -265,7 +265,7 @@ def test_pipes_stokes():
 
     gmsh.model.mesh.generate()
 
-    mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh.model, MPI.COMM_WORLD, rank=0, gdim=2)
+    mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh.model, MPI.COMM_WORLD, rank=0, gdim=2)
     mesh = mesh_data.mesh
 
     with dolfinx.io.XDMFFile(MPI.COMM_WORLD, "mesh.xdmf", "w") as out:

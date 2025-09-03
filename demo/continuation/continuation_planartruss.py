@@ -28,7 +28,7 @@ p_geometry = 1  # geometry: polynomial order
 gmsh_model, tdim = mg.mesh_planartruss_gmshapi(name, L=L, nL=2, θ=θ, order=p_geometry)
 
 # Get mesh and meshtags
-mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
 mesh = mesh_data.mesh
 gdim = mesh.geometry.dim
 

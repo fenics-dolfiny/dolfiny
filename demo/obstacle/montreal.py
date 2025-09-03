@@ -25,7 +25,7 @@ from petsc4py import PETSc
 import basix
 import dolfinx
 import dolfinx.fem.petsc
-import dolfinx.io.gmshio
+import dolfinx.io.gmsh
 import ufl
 
 import gmsh
@@ -211,9 +211,9 @@ p_s = support_radius * geometry[-1, :-1] / np.linalg.norm(geometry[-1, :-1])
 p_e = support_radius * geometry[1, :-1] / np.linalg.norm(geometry[1, :-1])
 
 
-def mesh_pavillon() -> dolfinx.io.gmshio.MeshData:
+def mesh_pavillon() -> dolfinx.io.gmsh.MeshData:
     if comm.rank > 0:
-        return dolfinx.io.gmshio.model_to_mesh(None, comm, rank=0, gdim=2)
+        return dolfinx.io.gmsh.model_to_mesh(None, comm, rank=0, gdim=2)
 
     gmsh.initialize()
     gmsh.clear()
@@ -258,7 +258,7 @@ def mesh_pavillon() -> dolfinx.io.gmshio.MeshData:
     # gmsh.write("pavillon.msh")
     # gmsh.fltk.run()
 
-    return dolfinx.io.gmshio.model_to_mesh(gmsh.model, comm, rank=0, gdim=2)
+    return dolfinx.io.gmsh.model_to_mesh(gmsh.model, comm, rank=0, gdim=2)
 
 
 mesh_data = mesh_pavillon()

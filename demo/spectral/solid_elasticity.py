@@ -301,7 +301,7 @@ nr, nt, nh = 16, 5, 8
 gmsh_model, tdim = mesh_tube3d_gmshapi(name, r, t, h, nr, nt, nh, do_quads=True, order=2)
 
 # Get mesh and meshtags
-mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags

@@ -50,7 +50,7 @@ def test_simple_triangle():
     else:
         gmsh_model = None
 
-    mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, MPI.COMM_WORLD, rank=0, gdim=2)
+    mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, MPI.COMM_WORLD, rank=0, gdim=2)
     mesh = mesh_data.mesh
 
     assert mesh.geometry.dim == 2

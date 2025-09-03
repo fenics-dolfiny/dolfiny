@@ -37,7 +37,7 @@ gmsh_model, tdim = mg.mesh_iso6892_gmshapi(name, l0, d0, nr, order=o)
 # gmsh_model, tdim = dolfiny.mesh.msh_to_gmsh(f"{name}.msh")
 
 # Get mesh and meshtags
-mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
