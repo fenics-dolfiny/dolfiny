@@ -23,12 +23,12 @@ gmsh_model, tdim = mg.mesh_spanner_gmshapi(name)
 
 # Get mesh and meshtags
 partitioner = dolfinx.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.none)
-mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0, partitioner=partitioner)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0, partitioner=partitioner)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-surface_flats = mesh_data.physical_groups["surface_flats"][1]
-surface_crown = mesh_data.physical_groups["surface_crown"][1]
+surface_flats = mesh_data.physical_groups["surface_flats"].tag
+surface_crown = mesh_data.physical_groups["surface_crown"].tag
 
 # Solid material parameters, steel S235: E=210 [GPa], nue=0.30 [-], fy = 0.235 [GPa]
 mu = dolfinx.fem.Constant(mesh, scalar(81.0))  # GPa

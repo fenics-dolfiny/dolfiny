@@ -50,7 +50,7 @@ def test_simple_triangle():
     else:
         gmsh_model = None
 
-    mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, MPI.COMM_WORLD, rank=0, gdim=2)
+    mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, MPI.COMM_WORLD, rank=0, gdim=2)
     mesh = mesh_data.mesh
 
     assert mesh.geometry.dim == 2
@@ -65,8 +65,8 @@ def test_simple_triangle():
     ds = ufl.Measure("ds", subdomain_data=mesh_data.facet_tags, domain=mesh)
 
     form = dolfinx.fem.form(
-        1.0 * ds(mesh_data.physical_groups["sides"][1])
-        + 1.0 * ds(mesh_data.physical_groups["arc"][1])
+        1.0 * ds(mesh_data.physical_groups["sides"].tag)
+        + 1.0 * ds(mesh_data.physical_groups["arc"].tag)
     )
     val = dolfinx.fem.assemble_scalar(form)
 
@@ -75,7 +75,7 @@ def test_simple_triangle():
 
     dx = ufl.Measure("dx", subdomain_data=mesh_data.cell_tags, domain=mesh)
 
-    form = dolfinx.fem.form(1.0 * dx(mesh_data.physical_groups["surface"][1]))
+    form = dolfinx.fem.form(1.0 * dx(mesh_data.physical_groups["surface"].tag))
     val = dolfinx.fem.assemble_scalar(form)
 
     val = mesh.comm.allreduce(val, op=MPI.SUM)

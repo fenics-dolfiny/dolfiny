@@ -30,14 +30,14 @@ gmsh_model, tdim = mg.mesh_diffusor_gmshapi(name)
 
 # Get mesh and meshtags
 partitioner = dolfinx.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.shared_facet)
-mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-surface_one = mesh_data.physical_groups["surface_one"][1]
-surface_two = mesh_data.physical_groups["surface_two"][1]
-surface_outer = mesh_data.physical_groups["surface_outer"][1]
-surface_inner = mesh_data.physical_groups["surface_inner"][1]
+surface_one = mesh_data.physical_groups["surface_one"].tag
+surface_two = mesh_data.physical_groups["surface_two"].tag
+surface_outer = mesh_data.physical_groups["surface_outer"].tag
+surface_inner = mesh_data.physical_groups["surface_inner"].tag
 
 # System constants
 ε_r = dolfinx.fem.Constant(mesh, scalar(80.0))  # [-] -- relative permittivity

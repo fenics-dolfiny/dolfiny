@@ -18,7 +18,7 @@ name = "notched"
 gmsh_model, tdim = mesh_notched.mesh_notched(name, clscale=0.2)
 
 # Get mesh and meshtags
-mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
 mesh = mesh_data.mesh
 
 # Write mesh and meshtags to file

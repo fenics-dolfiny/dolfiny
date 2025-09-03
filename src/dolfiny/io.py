@@ -1,7 +1,7 @@
 import logging
 
 import dolfinx
-import dolfinx.io.gmshio
+import dolfinx.io.gmsh
 
 
 class XDMFFile(dolfinx.io.XDMFFile):
@@ -36,7 +36,7 @@ class XDMFFile(dolfinx.io.XDMFFile):
             mesh.topology.create_connectivity(mt.dim, mesh.topology.dim)
             self.write_meshtags(mt, mesh.geometry)
 
-    def write_mesh_data(self, mesh_data: dolfinx.io.gmshio.MeshData) -> None:
+    def write_mesh_data(self, mesh_data: dolfinx.io.gmsh.MeshData) -> None:
         """Write mesh with meshtags to XDMFFile.
 
         Parameters

@@ -37,13 +37,13 @@ gmsh_model, tdim = mg.mesh_iso6892_gmshapi(name, l0, d0, nr, order=o)
 # gmsh_model, tdim = dolfiny.mesh.msh_to_gmsh(f"{name}.msh")
 
 # Get mesh and meshtags
-mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-domain_gauge = mesh_data.physical_groups["domain_gauge"][1]
-surface_1 = mesh_data.physical_groups["surface_grip_left"][1]
-surface_2 = mesh_data.physical_groups["surface_grip_right"][1]
+domain_gauge = mesh_data.physical_groups["domain_gauge"].tag
+surface_1 = mesh_data.physical_groups["surface_grip_left"].tag
+surface_2 = mesh_data.physical_groups["surface_grip_right"].tag
 
 # Solid: material parameters
 mu = dolfinx.fem.Constant(mesh, scalar(100.0))  # [1e-9 * 1e+11 N/m^2 = 100 GPa]

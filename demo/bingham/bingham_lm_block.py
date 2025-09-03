@@ -29,13 +29,13 @@ y0 = 0.0
 gmsh_model, tdim = mg.mesh_annulus_gmshapi(name, iR, oR, nR, nT, x0, y0, do_quads=False)
 
 # Get mesh and meshtags
-mesh_data = dolfinx.io.gmshio.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
 mesh = mesh_data.mesh
 
 # Define shorthands for labelled tags
-ring_inner = mesh_data.physical_groups["ring_inner"][1]
-ring_outer = mesh_data.physical_groups["ring_outer"][1]
-domain = mesh_data.physical_groups["domain"][1]
+ring_inner = mesh_data.physical_groups["ring_inner"].tag
+ring_outer = mesh_data.physical_groups["ring_outer"].tag
+domain = mesh_data.physical_groups["domain"].tag
 
 # Fluid material parameters
 rho = dolfinx.fem.Constant(mesh, scalar(2.0))  # [kg/m^3]
