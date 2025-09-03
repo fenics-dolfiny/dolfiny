@@ -119,12 +119,12 @@ plotter.add_mesh(pv_grid, color="black", line_width=1.5)
 
 for v in vertices_load:
     v_coords = mesh.geometry.x[v]
-    arrow = pv.Arrow(v_coords + np.array([0, 4, 0]), [0, -1, 0], scale=4)
+    arrow = pv.Arrow(start=v_coords + np.array([0, 4, 0]), direction=[0, -1, 0], scale=4)
     plotter.add_mesh(arrow, color="green", opacity=0.5)
 
 for v in vertices_fixed:
     v_coords = mesh.geometry.x[v]
-    sphere = pv.Sphere(0.5, v_coords)
+    sphere = pv.Sphere(radius=0.5, center=v_coords)
     plotter.add_mesh(sphere, color="red")
 
 plotter.view_xy()
@@ -206,7 +206,7 @@ state_solver.solve()
 # $s_\text{min} = 10^{-3} s_\text{max}$.
 
 
-# %%
+# %% tags=["hide-output"]
 compliance_form = dolfinx.fem.form(compliance)
 
 
@@ -336,7 +336,12 @@ e_to_v = mesh.topology.connectivity(1, 0)
 for e_idx in range(e_to_v.num_nodes):
     a, b = e_to_v.links(e_idx)
     plotter.add_mesh(
-        pv.Tube(mesh.geometry.x[a], mesh.geometry.x[b], radius=radius[e_idx] * 5, capping=True),
+        pv.Tube(
+            pointa=mesh.geometry.x[a],
+            pointb=mesh.geometry.x[b],
+            radius=radius[e_idx] * 5,
+            capping=True,
+        ),
         opacity=radius[e_idx] / radius_max,
     )
 plotter.add_axes()
