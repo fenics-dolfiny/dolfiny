@@ -1,4 +1,4 @@
-# Getting Involved
+# Getting involved
 
 You enjoy using `dolfiny` and would like to get involved?
 Great, we value contributions of all kind, from comments, corrections, extensions to new features.
