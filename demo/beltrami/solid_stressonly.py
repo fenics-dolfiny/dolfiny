@@ -107,8 +107,8 @@ uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), 
 so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")
 
 # Boundaries (via mesh tags)
-dirichlet = [physical_groups[f"face_x{d}_min"][1] for d in range(3)]
-neumann = [physical_groups[f"face_x{d}_max"][1] for d in range(3)]
+dirichlet = [physical_groups[f"face_x{d}_min"].tag for d in range(3)]
+neumann = [physical_groups[f"face_x{d}_max"].tag for d in range(3)]
 
 # Form, stress-based, see Eq. 6.14 in https://doi.org/10.1016/j.ijsolstr.2024.112808
 form = (

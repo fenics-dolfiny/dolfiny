@@ -28,12 +28,12 @@ mesh.topology.create_connectivity(tdim - 1, tdim)
 meshtags, physical_groups = dolfiny.mesh.tag_box_facets(mesh, [ox, rx])
 
 # Define shorthands for labelled tags
-surface_left = physical_groups["face_x0_min"][1]
-surface_right = physical_groups["face_x0_max"][1]
-surface_bottom = physical_groups["face_x1_min"][1]
-surface_top = physical_groups["face_x1_max"][1]
-surface_front = physical_groups["face_x2_min"][1]
-surface_back = physical_groups["face_x2_max"][1]
+surface_left = physical_groups["face_x0_min"].tag
+surface_right = physical_groups["face_x0_max"].tag
+surface_bottom = physical_groups["face_x1_min"].tag
+surface_top = physical_groups["face_x1_max"].tag
+surface_front = physical_groups["face_x2_min"].tag
+surface_back = physical_groups["face_x2_max"].tag
 
 # Solid material parameters
 mu = dolfinx.fem.Constant(mesh, scalar(100.0))  # GPa
