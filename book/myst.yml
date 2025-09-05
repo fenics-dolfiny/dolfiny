@@ -48,6 +48,6 @@ site:
   template: book-theme
   options:
     folders: true
-    logo: https://avatars.githubusercontent.com/u/172019188
+    logo: logo.svg
+    favicon: favicon.ico
     logo_text: Dolfiny
-    # favicon: favicon.ico
