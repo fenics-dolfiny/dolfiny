@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Truss Sizing Optimisation with 🐬
+# # Truss Sizing Optimisation
 #
 # This demo showcases how a sizing optimisation of a truss structure can be addressed.
 # For this example we will optimise an *inverse truss bridge* design.
