@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Minimal surfaces in Architecture
+# # Minimal surfaces in architecture
 #
 # ```{note}
 #   This demo builds on top of the [previous](https://dolfiny.uni.lu/obstacle/membrane) example.

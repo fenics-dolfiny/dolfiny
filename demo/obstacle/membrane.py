@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Obstacle Problems with 🐬
+# # The obstacle problem
 #
 # This demo showcases how to solve obstacle problems using the Dolfiny interface to PETSc/TAO.
 # Both linear and non-linear formulations are considered.
