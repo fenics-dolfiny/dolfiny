@@ -200,8 +200,13 @@ def merge_meshtags(mesh, mts, dim):
 
         keys[name] = value
 
-    indices, pos = np.unique(indices, return_index=True)
-    mt = meshtags(mesh, dim, indices, values[pos])
+    unique_indices, pos = np.unique(indices, return_index=True)
+
+    # Check disjoint
+    if unique_indices.size != indices.size:
+        raise RuntimeError("Overlapping MeshTags are not supported.")
+
+    mt = meshtags(mesh, dim, unique_indices, values[pos])
 
     return mt, keys
 
