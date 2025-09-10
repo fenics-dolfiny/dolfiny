@@ -100,7 +100,7 @@ def mesh_block3d_gmshapi(
         gmsh.model.geo.synchronize()
 
         # Get model entities
-        points, lines, surfaces, volumes = (gmsh.model.getEntities(d) for d in [0, 1, 2, 3])
+        _points, _lines, surfaces, volumes = (gmsh.model.getEntities(d) for d in [0, 1, 2, 3])
 
         # Extract surfaces and volumes
         s0, s1, s2, s3, s4, s5 = (

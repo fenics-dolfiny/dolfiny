@@ -73,7 +73,7 @@ def mesh_diffusor_gmshapi(
         gmsh.model.occ.synchronize()
 
         # Get model entities
-        points, lines, surfaces, volumes = (gmsh.model.occ.get_entities(d) for d in [0, 1, 2, 3])
+        _points, _lines, surfaces, volumes = (gmsh.model.occ.get_entities(d) for d in [0, 1, 2, 3])
         boundaries = gmsh.model.get_boundary(volumes, oriented=False)  # noqa: F841
 
         # Assertions, problem-specific

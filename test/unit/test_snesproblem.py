@@ -19,11 +19,9 @@ def test_monolithic(V1, V2, squaremesh_5):
     u = dolfinx.fem.Function(W)
     u0, u1 = ufl.split(u)
 
-    v = ufl.TestFunction(W)
-    v0, v1 = ufl.split(v)
-
     Phi = (ufl.sin(u0) - 0.5) ** 2 * ufl.dx(mesh) + (4.0 * u0 - u1) ** 2 * ufl.dx(mesh)
 
+    v = ufl.TestFunction(W)
     F = ufl.derivative(Phi, u, v)
 
     opts = PETSc.Options("monolithic")

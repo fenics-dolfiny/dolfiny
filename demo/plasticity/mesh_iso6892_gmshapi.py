@@ -76,7 +76,7 @@ def mesh_iso6892_gmshapi(
         gmsh.model.occ.synchronize()
 
         # Get model entities
-        points, lines, surfaces, volumes = (gmsh.model.getEntities(d) for d in [0, 1, 2, 3])
+        points, _lines, _surfaces, _volumes = (gmsh.model.getEntities(d) for d in [0, 1, 2, 3])
 
         # Extract tags of relevant surfaces and volumes
         s0, s1, s2, s3 = 1, 5, 3, 7  # ordering by inspection
