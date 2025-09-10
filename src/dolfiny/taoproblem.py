@@ -231,7 +231,7 @@ def wrap_constraint_callbacks(
     if len(g_forms) != 1 or len(Jg_forms) != 1:
         raise NotImplementedError("Packing of multiple constraints not supported.")
 
-    (g_lhs, g_rhs) = g_forms[0]
+    (g_lhs, _g_rhs) = g_forms[0]
 
     arity = g_lhs.rank
     if arity == 0:

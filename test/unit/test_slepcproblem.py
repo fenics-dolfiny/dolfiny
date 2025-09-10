@@ -62,7 +62,7 @@ def test_neohooke():
     with dolfinx.io.XDMFFile(MPI.COMM_WORLD, "eigvec.xdmf", "w") as ofile:
         ofile.write_mesh(mesh)
         for i in range(nev):
-            eigval, ur, ui = slepcp.getEigenpair(i)
+            eigval, ur, _ui = slepcp.getEigenpair(i)
 
             # Expect first 6 eignevalues 0, i.e. rigid body modes
             if i < 6:

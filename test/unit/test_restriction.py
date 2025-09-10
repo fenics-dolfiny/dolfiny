@@ -101,7 +101,7 @@ def test_coupled_poisson():
     problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1, F2], [w0, w1, lam], bcs=bcs, restriction=r, prefix="poisson"
     )
-    s0, s1, s2 = problem.solve()
+    s0, s1, _s2 = problem.solve()
 
     assert problem.snes.getConvergedReason() > 0
     assert problem.snes.getIterationNumber() == 1
@@ -210,7 +210,7 @@ def test_sloped_stokes():
     problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1, F2], [u, p, lam], bcs=bcs, restriction=r, prefix="stokes"
     )
-    s0, s1, s2 = problem.solve()
+    problem.solve()
 
     assert problem.snes.getConvergedReason() > 0
     assert problem.snes.getIterationNumber() == 1
@@ -354,6 +354,6 @@ def test_pipes_stokes():
     problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1, F2], [u, p, lam], bcs=bcs, restriction=r, prefix="pipes"
     )
-    s0, s1, s2 = problem.solve()
+    s0, _s1, _s2 = problem.solve()
 
     assert problem.snes.getConvergedReason() > 0

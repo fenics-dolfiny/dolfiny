@@ -89,7 +89,7 @@ def test_buckingham_pi_basic(mesh):
     velocity = Quantity(mesh, 1.0, unit=syu.meter / syu.second, symbol=V)
 
     # Buckingham Pi theorem: for 3 quantities, 2 fundamental units (L, T), expect 1 Pi group
-    dim_matrix, base_dims, pi_groups = buckingham_pi_analysis([length, time, velocity])
+    _dim_matrix, _base_dims, pi_groups = buckingham_pi_analysis([length, time, velocity])
     assert isinstance(pi_groups, list)
     assert len(pi_groups) == 1
     # The pi group should be a sympy matrix representing the dimensionless combination

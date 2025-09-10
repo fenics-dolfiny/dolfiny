@@ -18,7 +18,7 @@ class Plotter:
         self.ax1 = ax1
 
     def add(self, mesh, q, m, μ):
-        x0, (ui, wi, ri) = self.interpolate_on_mesh(mesh, q, m)
+        x0, (ui, wi, _ri) = self.interpolate_on_mesh(mesh, q, m)
 
         color = (0.5 + μ.value * 0.5, 0.5 - μ.value * 0.5, 0.5 - μ.value * 0.5)
         endco = (0.5 - μ.value * 0.5, 0.5 - μ.value * 0.5, 0.5 + μ.value * 0.5)
