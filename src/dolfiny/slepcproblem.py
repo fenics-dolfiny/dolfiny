@@ -126,7 +126,7 @@ class SLEPcProblem:
         self.eps.solve()
 
     def getEigenpair(self, i):
-        xr = dolfinx.fem.petsc.create_vector(self.F_form, kind="mpi")
+        xr = dolfinx.fem.petsc.create_vector([f.function_space for f in self.u], kind="mpi")
         xi = xr.duplicate()
         eigval = self.eps.getEigenpair(i, xr, xi)
 
