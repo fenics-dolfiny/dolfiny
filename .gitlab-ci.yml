@@ -21,7 +21,8 @@ workflow:
 # jobs
 default:
    interruptible: true
-   tags: [ramdisk] # FIXME: saas-linux-small-amd64
+   tags: 
+      - zed
 
 ruff:
    stage: lint
@@ -53,7 +54,7 @@ image build:
       - name: docker:dind
         command: ["--mtu=1450"]
    tags:
-      - ramdisk
+      - zed
    before_script:
       - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
    script:
@@ -118,7 +119,8 @@ wheel release:
 .install_template:
    image: $CONTAINER_COMMIT_IMAGE-$ARCH
    tags:
-      - ramdisk # FIXME: saas-linux-large-$ARCH
+      - zed
+      - saas-linux-large-$ARCH
    script:
       - echo "Apply optional runtime hot-fixes here."
    parallel:
