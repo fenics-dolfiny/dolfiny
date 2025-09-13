@@ -193,7 +193,7 @@ test/convergence:
          - "demo/*/*"
       expire_in: 2 hours
    variables:
-      PARALLEL: False # FIXME
+      PARALLEL: True
    script:
       - cd demo/$DIRECTORY
       - |
