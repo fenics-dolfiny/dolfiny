@@ -142,7 +142,9 @@ class SNESProblem:
                 raise RuntimeError("LocalSolver for MATNEST not yet supported.")
 
             self.J = dolfinx.fem.petsc.create_matrix(self.J_form, kind=PETSc.Mat.Type.NEST)
-            self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Vec.Type.NEST)
+            self.F = dolfinx.fem.petsc.create_vector(
+                dolfinx.fem.extract_function_spaces(self.F_form), kind=PETSc.Vec.Type.NEST
+            )
             self.x = self.F.copy()
             self.x0 = self.F.copy()
 
@@ -155,13 +157,15 @@ class SNESProblem:
                 # TODO: this might be a bug in dolfinx: doc claims None and MPI should have same
                 #       behavior, None does not work atm.
                 self.xloc = dolfinx.fem.petsc.create_vector(
-                    self.local_form, kind=PETSc.Vec.Type.MPI
+                    dolfinx.fem.extract_function_spaces(self.local_form),
+                    kind=PETSc.Vec.Type.MPI,
                 )
 
             self.J = dolfinx.fem.petsc.create_matrix(self.J_form)
             # TODO: this might be a bug in dolfinx: doc claims None and MPI should have same
             #       behavior, None does not work atm.
-            self.F = dolfinx.fem.petsc.create_vector(self.F_form, kind=PETSc.Vec.Type.MPI)
+            spaces = dolfinx.fem.extract_function_spaces(self.F_form)
+            self.F = dolfinx.fem.petsc.create_vector(spaces, kind=PETSc.Vec.Type.MPI)
             self.x = self.F.copy()
             self.x.setAttr("_blocks", self.F.getAttr("_blocks"))
 

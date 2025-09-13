@@ -118,7 +118,7 @@ def wrap_objective_callbacks(
     J_form: Sequence[dolfinx.fem.Form] = compile(J)
     H_form: Sequence[Sequence[dolfinx.fem.Form]] = compile(H)
 
-    x0 = dolfinx.fem.petsc.create_vector(J_form, kind=PETSc.Vec.Type.MPI)  # type: ignore
+    x0 = dolfinx.fem.petsc.create_vector([f.function_space for f in u], kind=PETSc.Vec.Type.MPI)  # type: ignore
 
     jacobian = x0.copy()
     jacobian.setAttr("_blocks", x0.getAttr("_blocks"))
@@ -143,7 +143,7 @@ def wrap_objective_callbacks(
         dolfinx.fem.petsc.apply_lifting(
             J_vec,
             a=H_form,
-            bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(H_form, 1), bcs),
+            bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(H_form, 1), bcs),  # type: ignore
             x0=x,
             alpha=-1.0,
         )
@@ -152,7 +152,7 @@ def wrap_objective_callbacks(
 
         dolfinx.fem.petsc.set_bc(
             J_vec,
-            bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(J_form), bcs),
+            bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(J_form), bcs),  # type: ignore
             x0=x,
             alpha=-1.0,
         )
@@ -256,7 +256,10 @@ def wrap_constraint_callbacks(
         Jg_mat = Jg_mat_T  # TODO: document
     elif arity == 1:
         # TODO: fix blocking mess
-        g_vec = dolfinx.fem.petsc.create_vector([g_lhs], kind="mpi")
+        g_vec = dolfinx.fem.petsc.create_vector(
+            dolfinx.fem.extract_function_spaces(g_lhs),
+            kind=PETSc.Vec.Type.MPI,  # type: ignore
+        )
         Jg_mat = dolfinx.fem.petsc.create_matrix(Jg_forms)
     else:
         raise TypeError(f"Constraint-lhs has arity {arity}. Only arity 0 and 1 are supported.")
@@ -431,10 +434,7 @@ class TAOProblem:
         else:
             # direct objective
             assert len(self._u) == 1  # TODO!!
-            self._x0 = dolfinx.la.petsc.create_vector(
-                self._u[0].function_space.dofmap.index_map,
-                self._u[0].function_space.dofmap.index_map_bs,
-            )
+            self._x0 = dolfinx.fem.petsc.create_vector(self._u[0].function_space)
             self._J = J  # type: ignore
             self._H = H  # type: ignore
 
