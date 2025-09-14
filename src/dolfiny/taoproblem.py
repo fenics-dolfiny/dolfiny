@@ -268,13 +268,16 @@ def wrap_constraint_callbacks(
     def _g_callback(tao, x, c):
         (g_lhs, g_rhs) = g_forms[0]
 
+        # Constraints are of form (equivalently with equality, which is not sign dependant)
+        #           g_lhs <= g_rhs
+        #   iff.    g_rhs - g_lhs >= 0
         match g_lhs.rank:
             case 0:
                 g_lhs_value = dolfinx.fem.assemble_scalar(g_lhs)
                 g_lhs_value = comm.allreduce(g_lhs_value, MPI.SUM)
 
                 if comm.rank == 0:
-                    c[0] = g_lhs_value - g_rhs
+                    c[0] = g_rhs - g_lhs_value
             case 1:
                 x.setAttr("_blocks", x0.getAttr("_blocks"))
 
@@ -299,8 +302,8 @@ def wrap_constraint_callbacks(
                     x0=x,
                     alpha=-1.0,
                 )
-
-                c.shift(-g_rhs)
+                c.scale(-1)
+                c.shift(g_rhs)
             case _:
                 raise RuntimeError()
         c.assemble()
@@ -318,6 +321,7 @@ def wrap_constraint_callbacks(
 
                 Jg_vec = dolfinx.fem.petsc.assemble_vector(_Jg)
                 Jg_vec.ghostUpdate(PETSc.InsertMode.ADD, PETSc.ScatterMode.REVERSE)  # type: ignore
+                Jg_vec.scale(-1)
 
                 offset = Jg_vec.getOwnershipRange()[0]
                 local_size = Jg_vec.getLocalSize()
@@ -330,6 +334,8 @@ def wrap_constraint_callbacks(
             case 2:
                 J.zeroEntries()
                 dolfinx.fem.petsc.assemble_matrix(J, Jg_forms, bcs=bcs, diag=1.0)  # type: ignore
+                J.assemble()
+                J.scale(-1)
             case _:
                 raise RuntimeError()
 
