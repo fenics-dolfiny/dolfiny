@@ -325,11 +325,11 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
 
     C = L2_norm_unconstrained * 0.5
     g = [u**2 * ufl.dx == C**2] if eq_constrained else None
-    h = [(u**2) * ufl.dx >= C**2] if not eq_constrained else None
+    h = [(u**2) * ufl.dx <= C**2] if not eq_constrained else None
 
     v = ufl.TestFunction(W)
     Jg = None if not eq_constrained or autodiff else [[2 * u * v * ufl.dx]]
-    Jh = None if eq_constrained or autodiff else [[-2 * u * v * ufl.dx]]
+    Jh = None if eq_constrained or autodiff else [[2 * u * v * ufl.dx]]
 
     opts = PETSc.Options("poisson_constrained")  # type: ignore
 
