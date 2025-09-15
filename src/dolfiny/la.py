@@ -45,3 +45,41 @@ def is_symmetric(A, rtol=1e-06, atol=1e-08, normtype=PETSc.NormType.INFINITY):
         dolfiny.utils.pprint(f"relative asymmetry measure = {norm_asymA / A.norm(normtype):.3e}")
 
         return norm_asymA < atol or norm_asymA / A.norm(normtype) < rtol
+
+
+def positive_part(A: PETSc.Mat) -> None:  # type: ignore
+    """Assign positive part to matrix.
+
+    Note:
+        Positive part A⁺ is defined as
+
+            (A⁺)ᵢⱼ = ⎧ 0     if (A)ᵢⱼ < 0
+                     ⎩ (A)ᵢⱼ else.
+
+    """
+    A_type = A.getType()
+    if A_type == PETSc.Mat.Type.SEQDENSE:  # type: ignore
+        A_array = A.getDenseArray()
+        A_array[A_array < 0] = 0
+    elif A_type == PETSc.Mat.Type.SEQAIJ:  # type: ignore
+        for row in range(A.getLocalSize()[0]):
+            cols, vals = A.getRow(row)
+            vals[vals < 0] = 0
+            A.setValues([row], cols, vals)
+            A.assemble()  # TODO: bad?
+    else:
+        raise NotImplementedError()
+
+
+def negative_part(A: PETSc.Mat) -> None:  # type: ignore
+    """Negative part of matrix.
+
+    Note:
+        Positive part A⁻ is defined as
+
+            (A⁻)ᵢⱼ = ⎧ 0      if (A)ᵢⱼ > 0
+                     ⎩ -(A)ᵢⱼ else.
+
+    """
+    A.scale(-1)
+    return positive_part(A)
