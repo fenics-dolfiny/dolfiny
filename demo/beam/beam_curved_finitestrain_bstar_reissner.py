@@ -244,7 +244,7 @@ form = sum(normalized.values(), ufl.form.Zero())
 # form = dolfiny.expression.linearise(form, m)  # linearise around zero state
 
 # Overall form (as list of forms)
-forms = ufl.extract_blocks(form)
+forms = ufl.extract_blocks(form)  # type: ignore
 
 # Create output xdmf file -- open in Paraview with Xdmf3ReaderT
 ofile = dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w")

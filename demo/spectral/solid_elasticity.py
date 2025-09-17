@@ -491,7 +491,7 @@ normalized = dolfiny.units.normalize(factorized, reference_term, quantities)
 form = sum(normalized.values(), ufl.form.Zero())
 
 # Overall form (as list of forms)
-forms = ufl.extract_blocks(form)
+forms = ufl.extract_blocks(form)  # type: ignore
 
 # %% [markdown]
 # The problem solved leads to symmetric positive definite system on the algebraic level.
