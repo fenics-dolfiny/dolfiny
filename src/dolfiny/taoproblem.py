@@ -489,6 +489,13 @@ class TAOProblem:
 
             self._tao.setEqualityConstraints(*self._g)
             self._tao.setJacobianEquality(*self._Jg)
+
+            # Workaround until https://gitlab.com/petsc/petsc/-/merge_requests/8619 is in a release
+            if self._tao.getType() == "python":
+                ctx = self._tao.getPythonContext()
+                ctx.setInequalityConstraints(self._tao, *self._g)
+                ctx.setJacobianInequality(self._tao, *self._Jg)
+
         else:
             self._g = None
             self._Jg = None
@@ -509,6 +516,12 @@ class TAOProblem:
             else:
                 self._h = h  # type: ignore
                 self._Jh = Jh  # type: ignore
+
+            # Workaround until https://gitlab.com/petsc/petsc/-/merge_requests/8619 is in a release
+            if self._tao.getType() == "python":
+                ctx = self._tao.getPythonContext()
+                ctx.setInequalityConstraints(self._tao, *self._h)
+                ctx.setJacobianInequality(self._tao, *self._Jh)
 
             self._tao.setInequalityConstraints(*self._h)
             self._tao.setJacobianInequality(*self._Jh)

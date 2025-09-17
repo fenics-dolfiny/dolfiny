@@ -108,11 +108,11 @@ class MMA:
         if not np.isclose(self._raai, 0.0):
             raise RuntimeError("raai 0 only supported.")
 
-        if self._asymptote_min >= 1.0:
-            raise RuntimeError("Asymptote min. must be >= 1.")
+        if self._asymptote_min > 1.0:
+            raise RuntimeError(f"Asymptote min. ({self._asymptote_min}) must be ≤ 1.")
 
-        if self._asymptote_max <= 1.0:
-            raise RuntimeError("Asymptote max. must be <= 1.")
+        if self._asymptote_max < 1.0:
+            raise RuntimeError(f"Asymptote max. ({self._asymptote_max}) must be ≥ 1.")
 
         self._subsolver.setOptionsPrefix(f"{prefix}tao_mma_subsolver_")
         self._subsolver.setFromOptions()
@@ -232,7 +232,8 @@ class MMA:
         # TAO 0-th iteration is a convergence check.
         self._x = tao.getSolution()
 
-        self._objective = tao.computeObjectiveGradient(self._x, self._gradient)
+        self._f = tao.computeObjectiveGradient(self._x, self._gradient)
+        tao.monitor(f=self._f)
 
         # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
         gatol, _, _ = tao.getTolerances()
@@ -292,6 +293,7 @@ class MMA:
             # Update moving asymptotes L/U
             factor = self._x.copy()
             factor.set(1.0)
+            factor.assemble()
             if it < 4:
                 # L = x - asymptote_init * x_range
                 self._x.copy(self._L)
@@ -307,9 +309,11 @@ class MMA:
                 diff_23.axpy(-1, x_m3)
 
                 sign_change = np.sign(diff_12.getArray()) * np.sign(diff_23.getArray())
-                factor[:] = self._asymptote_increment * (sign_change > 0)
-                factor[:] += self._asymptote_decrement * (sign_change < 0)
-                factor[:] += 1.0 * (sign_change == 0)
+                factor.setArray(
+                    self._asymptote_increment * (sign_change > 0)
+                    + self._asymptote_decrement * (sign_change < 0)
+                    + 1.0 * (sign_change == 0)
+                )
 
                 # L = x - f ⊙ (x - L)
                 self._x.copy(self._L)
@@ -431,10 +435,22 @@ class MMA:
                 self._r_h = self._constraint[1].copy()  # h(x)
 
                 J_p = self._constraint_jacobian[1].copy()
-                positive_part(J_p)
+                if J_p.getType() == PETSc.Mat.Type.TRANSPOSE:
+                    # Note: J_p is a SHELL matrix and has been scaled by -1 (lazily), therefore we
+                    # compute the negative part here, which with the scaling computes the correct
+                    # positive part.
+                    negative_part(J_p.getTransposeMat())
+                else:
+                    positive_part(J_p)
 
                 J_m = self._constraint_jacobian[1].copy()
-                negative_part(J_m)
+                if J_m.getType() == PETSc.Mat.Type.TRANSPOSE:
+                    # Note: J_m is a SHELL matrix and has been scaled by -1 (lazily), therefore we
+                    # compute the positive part here, which with the scaling computes the correct
+                    # negative part.
+                    positive_part(J_m.getTransposeMat())
+                else:
+                    negative_part(J_m)
 
                 # P = (1+theta) J_p + theta J_m + TODO figure kappa out
                 self._P = J_p.copy()
