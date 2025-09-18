@@ -31,27 +31,28 @@ def test_petsc_to_scipy():
     assert np.isclose(A_scipy[0, 1], 2.0)
 
 
-@skip_in_parallel
-def test_positive_negative_seqdense():
-    A = PETSc.Mat().createDense((2, 2))
-    A[0, 0] = 1
-    A[0, 1] = 2
-    A[1, 0] = -3
-    A[1, 1] = -4
+def test_positive_negative_dense():
+    comm = MPI.COMM_WORLD
+    A = PETSc.Mat().createDense(((2, PETSc.DECIDE), (2, PETSc.DECIDE)))
+    offset = comm.rank * 2
+    A[0 + offset, 0 + offset] = 1
+    A[0 + offset, 1 + offset] = 2
+    A[1 + offset, 0 + offset] = -3
+    A[1 + offset, 1 + offset] = -4
     A.assemble()
 
     A_p = A.copy()
     positive_part(A_p)
-    assert np.isclose(A_p[0, 0], 1)
-    assert np.isclose(A_p[0, 1], 2)
-    assert np.isclose(A_p[1, 0], 0)
-    assert np.isclose(A_p[1, 1], 0)
+    assert np.isclose(A_p[0 + offset, 0 + offset], 1)
+    assert np.isclose(A_p[0 + offset, 1 + offset], 2)
+    assert np.isclose(A_p[1 + offset, 0 + offset], 0)
+    assert np.isclose(A_p[1 + offset, 1 + offset], 0)
 
     negative_part(A)
-    assert np.isclose(A[0, 0], 0)
-    assert np.isclose(A[0, 1], 0)
-    assert np.isclose(A[1, 0], 3)
-    assert np.isclose(A[1, 1], 4)
+    assert np.isclose(A[0 + offset, 0 + offset], 0)
+    assert np.isclose(A[0 + offset, 1 + offset], 0)
+    assert np.isclose(A[1 + offset, 0 + offset], 3)
+    assert np.isclose(A[1 + offset, 1 + offset], 4)
 
 
 @skip_in_parallel

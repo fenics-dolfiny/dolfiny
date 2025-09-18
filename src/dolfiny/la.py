@@ -58,7 +58,7 @@ def positive_part(A: PETSc.Mat) -> None:  # type: ignore
 
     """
     A_type = A.getType()
-    if A_type == PETSc.Mat.Type.SEQDENSE:  # type: ignore
+    if A_type in (PETSc.Mat.Type.SEQDENSE, PETSc.Mat.Type.MPIDENSE):  # type: ignore
         A_array = A.getDenseArray()
         A_array[A_array < 0] = 0
     elif A_type == PETSc.Mat.Type.SEQAIJ:  # type: ignore
