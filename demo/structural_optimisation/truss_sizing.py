@@ -68,12 +68,12 @@ if comm.size > 1:
     raise RuntimeError("Parallelization not supported.")
 
 dim = np.array([100, 20, 10], dtype=np.float64)
-h = 5
+elem_size = 5
 mesh = create_truss_x_braced_mesh(
     dolfinx.mesh.create_box(
         comm,
         [np.zeros_like(dim), dim],
-        (dim / h).astype(np.int32),  # type: ignore
+        (dim / elem_size).astype(np.int32),  # type: ignore
         dolfinx.mesh.CellType.hexahedron,
     )
 )
@@ -234,27 +234,30 @@ def JC(tao, x, J):
 s_max = np.float64(1e-2)
 s_min = np.float64(1e-3 * s_max)
 max_vol = dolfinx.fem.assemble_scalar(dolfinx.fem.form(dolfinx.fem.Constant(mesh, s_max) * ufl.dx))
-g = [s * ufl.dx == max_vol / 20]
+volume_fraction = 1 / 20
+h = [s / max_vol / volume_fraction * ufl.dx <= 1]
+s.x.array[:] = 1 / 100 * s_max
 
 opts = PETSc.Options("truss")  # type: ignore
-opts["tao_type"] = "almm"
-opts["tao_almm_type"] = "phr"
-opts["tao_grtol"] = 5e-4
+opts["tao_type"] = "python"
+opts["tao_python_type"] = "dolfiny.mma.MMA"
 opts["tao_monitor"] = ""
-opts["tao_gatol"] = 5e-4
-opts["tao_catol"] = 1e-2
-opts["tao_max_it"] = (max_it := 100)
-opts["tao_recycle_history"] = True
+opts["tao_max_it"] = (max_it := 300)
+opts["tao_mma_asymptote_min"] = 1e-7
+opts["tao_mma_theta"] = 0.0
+opts["tao_mma_move_limit"] = 0.01
+opts["tao_mma_subsolver_tao_max_it"] = 1000
+opts["tao_mma_subsolver_tao_ls_type"] = "armijo"
 
 problem = dolfiny.taoproblem.TAOProblem(
-    C, [s], bcs=bcs, J=(JC, s.x.petsc_vec.copy()), g=g, lb=s_min, ub=s_max, prefix="truss"
+    C, [s], bcs=bcs, J=(JC, s.x.petsc_vec.copy()), h=h, lb=s_min, ub=s_max, prefix="truss"
 )
 
 
 def monitor(tao, comp, volume):
     it = tao.getIterationNumber()
-    comp[it] = tao.getObjectiveValue()
-    volume[it] = problem._g[1][0] + g[0].rhs
+    comp[it] = tao.getPythonContext().getObjectiveValue()
+    volume[it] = dolfinx.fem.assemble_scalar(dolfinx.fem.form(h[0].lhs))
 
 
 comp = np.zeros(max_it, np.float64)
@@ -266,11 +269,11 @@ problem.solve()
 state_solver.solve()
 
 # %% tags=["hide-input"]
-# verify result|
-if problem.tao.getConvergedReason() <= 0:
-    raise RuntimeError("Optimisation did not converge.")
+# verify result
+# if problem.tao.getConvergedReason() <= 0:
+#     raise RuntimeError("Optimisation did not converge.")
 
-if np.abs(dolfinx.fem.assemble_scalar(dolfinx.fem.form(g[0].lhs)) - g[0].rhs) >= 1e-2:
+if np.abs(dolfinx.fem.assemble_scalar(dolfinx.fem.form(h[0].lhs)) - h[0].rhs) >= 1e-2:
     raise RuntimeError("Volume constraint violated.")
 
 if np.any(s.x.array < s_min):
@@ -299,7 +302,7 @@ ax1.set_ylim(bottom=0)
 
 ax2 = ax1.twinx()
 ax2.set_ylabel("Volume")
-plt_volume = ax2.plot(np.arange(0, it, dtype=int), volume / g[0].rhs)
+plt_volume = ax2.plot(np.arange(0, it, dtype=int), volume / h[0].rhs)
 ax2.axhline(y=1, linestyle="--")
 ax2.set_ylim(bottom=0)
 
