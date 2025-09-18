@@ -153,7 +153,7 @@ bc2 = dolfinx.fem.dirichletbc(scalar(0.0), dof0, Pf)
 # Collect Dirichlet boundary conditions
 bcs = [bc0, bc1, bc2]
 
-form_nondimensional_blocks = ufl.extract_blocks(form_nondimensional)
+form_nondimensional_blocks = ufl.extract_blocks(form_nondimensional)  # type: ignore
 
 opts = PETSc.Options("ns")  # type: ignore[attr-defined]
 opts["snes_max_it"] = 5

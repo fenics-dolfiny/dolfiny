@@ -101,7 +101,7 @@ def wrap_objective_callbacks(
     if J is None:
         δu = ufl.TestFunctions(ufl.MixedFunctionSpace(*(_u.function_space for _u in u)))
         J = ufl.derivative(F, u, δu)
-        J = ufl.extract_blocks(J)
+        J = ufl.extract_blocks(J)  # type: ignore
 
     if H is None:
         assert J is not None

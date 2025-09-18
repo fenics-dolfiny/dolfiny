@@ -7,6 +7,7 @@ from petsc4py.typing import TAOConstraintsFunction, TAOConstraintsJacobianFuncti
 import numpy as np
 
 import dolfiny.logging
+from dolfiny.la import negative_part, positive_part
 
 
 class MMA:
@@ -430,13 +431,10 @@ class MMA:
                 self._r_h = self._constraint[1].copy()  # h(x)
 
                 J_p = self._constraint_jacobian[1].copy()
-                J_p_array = J_p.getDenseArray()
-                J_p_array[J_p_array < 0] = 0
+                positive_part(J_p)
 
                 J_m = self._constraint_jacobian[1].copy()
-                J_m_array = J_m.getDenseArray()
-                J_m_array *= -1
-                J_m_array[J_m_array < 0] = 0
+                negative_part(J_m)
 
                 # P = (1+theta) J_p + theta J_m + TODO figure kappa out
                 self._P = J_p.copy()
