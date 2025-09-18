@@ -301,7 +301,6 @@ structural_optimisation:
    extends: .demo_template
    variables:
       DIRECTORY: structural_optimisation
-      PARALLEL: False
       SCRIPTS: truss_sizing.py
 
 electrodiffusion:
