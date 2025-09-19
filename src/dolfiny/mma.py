@@ -391,6 +391,9 @@ class MMA:
             if not np.all(self._beta.getArray() < self._U.getArray()):
                 raise RuntimeError("beta < U not fulfilled.")
 
+            if not np.all(self._alpha.getArray() <= self._beta.getArray()):
+                raise RuntimeError("alpha <= beta not fulfilled.")
+
             zero = self._x.copy()
             zero.set(0.0)
 
