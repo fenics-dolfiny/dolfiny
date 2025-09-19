@@ -488,6 +488,9 @@ class MMA:
 
                 self._subsolver.solve()
 
+                if self._subsolver.getConvergedReason() < 0:
+                    raise RuntimeError("Subsolver diverged.")
+
                 self.x(self._subsolver.getSolution(), self._x)
             else:
                 tmp_p = self._p.copy()
