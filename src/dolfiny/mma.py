@@ -260,8 +260,6 @@ class MMA:
         x_m1.set(0.0)
         x_m2 = self._x.copy()
         x_m2.set(0.0)
-        x_m3 = self._x.copy()
-        x_m3.set(0.0)
 
         xmL = None
         Umx = None
@@ -294,7 +292,7 @@ class MMA:
             factor = self._x.copy()
             factor.set(1.0)
             factor.assemble()
-            if it < 4:
+            if it < 3:
                 # L = x - asymptote_init * x_range
                 self._x.copy(self._L)
                 self._L.axpy(-self._asymptote_init, x_range)
@@ -303,10 +301,8 @@ class MMA:
                 self._x.copy(self._U)
                 self._U.axpy(self._asymptote_init, x_range)
             else:
-                diff_12 = x_m1.copy()
-                diff_12.axpy(-1, x_m2)
-                diff_23 = x_m2.copy()
-                diff_23.axpy(-1, x_m3)
+                diff_12 = self._x - x_m1
+                diff_23 = x_m1 - x_m2
 
                 sign_change = np.sign(diff_12.getArray()) * np.sign(diff_23.getArray())
                 factor.setArray(
@@ -315,15 +311,17 @@ class MMA:
                     + 1.0 * (sign_change == 0)
                 )
 
-                # L = x - f ⊙ (x - L)
-                self._x.copy(self._L)
+                # Note: the computation of L/U is based on the offsets of the previous iterate x_m1
+                #       to the previous L/U.
 
-                xmLf = xmL.copy()
+                # L = x - f ⊙ (x_m1 - L)
+                xmLf = x_m1 - self._L
                 xmLf.pointwiseMult(xmLf, factor)
 
+                self._x.copy(self._L)
                 self._L -= xmLf
 
-                # L_min = x - _asymptote_max * x_range
+                # L_min = x - asymptote_max * x_range
                 L_min = self._x.copy()
                 L_min.axpy(-self._asymptote_max, x_range)
 
@@ -335,12 +333,11 @@ class MMA:
                 self._L.pointwiseMax(self._L, L_min)
                 self._L.pointwiseMin(self._L, L_max)
 
-                # U = x + f ⊙ (U - x)
+                # U = x + f ⊙ (U - x_m1)
+                Umxf = self._U - x_m1
+                Umxf.pointwiseMult(Umxf, factor)
+
                 self._U = self._x.copy()
-
-                Umxf = Umx.copy()
-                Umxf.pointwiseMult(Umx, factor)
-
                 self._U += Umxf
 
                 # U_min = x + asymptote_min * x_range
@@ -391,6 +388,9 @@ class MMA:
             if not np.all(self._beta.getArray() < self._U.getArray()):
                 raise RuntimeError("beta < U not fulfilled.")
 
+            if not np.all(self._alpha.getArray() <= self._beta.getArray()):
+                raise RuntimeError("alpha <= beta not fulfilled.")
+
             zero = self._x.copy()
             zero.set(0.0)
 
@@ -430,6 +430,10 @@ class MMA:
             xmL_recp = xmL.copy()
             xmL_recp.reciprocal()
             self._r = self._f - Umx_recp.dot(self._p) - xmL_recp.dot(self._q)
+
+            # Update history (before overwriting x with new solution)
+            x_m1.copy(x_m2)
+            self._x.copy(x_m1)
 
             if self._constraint is not None:
                 self._r_h = self._constraint[1].copy()  # h(x)
@@ -504,11 +508,6 @@ class MMA:
 
                 self._x.pointwiseMax(self._x, lb)
                 self._x.pointwiseMin(self._x, ub)
-
-            # Update history
-            x_m2.copy(x_m3)
-            x_m1.copy(x_m2)
-            self._x.copy(x_m1)
 
             # convergence and logging
             self._objective = tao.computeObjectiveGradient(self._x, self._gradient)
