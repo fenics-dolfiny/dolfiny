@@ -278,8 +278,10 @@ if np.any(s.x.array > s_max):
     raise RuntimeError("Upper bound violated.")
 
 # %% [markdown]
-# Convergence of the optimisation, compliance vs. volume with shown volume constraint.
-# Relative to the first iterate, for compliance, and relative to the uppoer bound, for volume.
+# Convergence of the optimisation, that is the compliance and the volume vs. outer MMA iteration
+# are shown below. Compliance is measured relative to the initial compliance $C_0$, which is
+# compliance for the initial guess of $s_\text{init} = 10^{-2} \, \text{m}^2$. Volume is
+# shown relative to the upper bound $V_\text{max}$.
 # %% tags=["hide-input"]
 matplotlib_inline.backend_inline.set_matplotlib_formats("png")
 it = problem.tao.getIterationNumber()
@@ -300,10 +302,10 @@ ax1.set_yscale("log")
 ax1.grid(True, which="both")
 
 ax2 = ax1.twinx()
-ax2.set_ylabel(r"Rel. volume $V / V_\text{max}$")
-plt_volume = ax2.plot(np.arange(0, it, dtype=int), volume / h[0].rhs, marker=".")
+ax2.set_ylabel(r"$|1 - V / V_\text{max}|$")
+plt_volume = ax2.plot(np.arange(0, it, dtype=int), np.abs(1 - volume / h[0].rhs), marker=".")
 ax2.axhline(y=1, linestyle="--")
-ax2.set_ylim(bottom=0)
+ax2.set_yscale("log")
 ax1.legend(plt_compliance + plt_volume, ["compliance", "volume"], loc=7)
 
 plt.show()
