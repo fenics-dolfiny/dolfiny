@@ -297,12 +297,6 @@ def test_MMA(problem):
     tao = PETSc.TAO().createPython(MMA())
 
     opts = PETSc.Options()
-    opts["tao_type"] = "python"
-    opts["tao_mma_asymptote_min"] = 1e-12
-    opts["tao_mma_subsolver_tao_gatol"] = 1e-12
-    opts["tao_mma_subsolver_tao_grtol"] = 1e-12
-    opts["tao_mma_subsolver_tao_max_it"] = 100
-
     tao.setFromOptions()
 
     x, f, atol = problem(tao)

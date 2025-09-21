@@ -284,7 +284,13 @@ class MMA:
                 # h(x) ≥ 0). To account for this change we sign flip the callback
                 # results - interpreting the constraint as if it was in the h(x) ≥ 0.
                 c.scale(-1)
-                J.scale(-1)
+                if J.getType() == PETSc.Mat.Type.TRANSPOSE:
+                    # Note: this ensures we never introduce a lazy scaling but, have the right
+                    #       scaling on the underlying matrix, which we need for the splits based on
+                    #       sign for P/Q.
+                    J.getTransposeMat().scale(-1)
+                else:
+                    J.scale(-1)
 
             # Compute MMA subproblem dependencies
 
@@ -440,19 +446,13 @@ class MMA:
 
                 J_p = self._constraint_jacobian[1].copy()
                 if J_p.getType() == PETSc.Mat.Type.TRANSPOSE:
-                    # Note: J_p is a SHELL matrix and has been scaled by -1 (lazily), therefore we
-                    # compute the negative part here, which with the scaling computes the correct
-                    # positive part.
-                    negative_part(J_p.getTransposeMat())
+                    positive_part(J_p.getTransposeMat())
                 else:
                     positive_part(J_p)
 
                 J_m = self._constraint_jacobian[1].copy()
                 if J_m.getType() == PETSc.Mat.Type.TRANSPOSE:
-                    # Note: J_m is a SHELL matrix and has been scaled by -1 (lazily), therefore we
-                    # compute the positive part here, which with the scaling computes the correct
-                    # negative part.
-                    positive_part(J_m.getTransposeMat())
+                    negative_part(J_m.getTransposeMat())
                 else:
                     negative_part(J_m)
 
