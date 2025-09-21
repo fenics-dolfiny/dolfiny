@@ -88,7 +88,6 @@ u = dolfinx.fem.Function(V_u, name="displacement")
 
 V_s = dolfinx.fem.functionspace(mesh, ("DG", 0))
 s = dolfinx.fem.Function(V_s, name="cross-sectional-area")
-s.x.array[:] = 1 / 20
 
 # %% [markdown]
 # ## Boundary Conditions and Load Surface
@@ -184,7 +183,6 @@ state_solver = dolfinx.fem.petsc.LinearProblem(
     },
     petsc_options_prefix="state_solver",
 )
-state_solver.solve()
 
 # %% [markdown]
 # ## Optimisation of Cross-sectional Areas
@@ -242,12 +240,9 @@ opts = PETSc.Options("truss")  # type: ignore
 opts["tao_type"] = "python"
 opts["tao_python_type"] = "dolfiny.mma.MMA"
 opts["tao_monitor"] = ""
-opts["tao_max_it"] = (max_it := 300)
-opts["tao_mma_asymptote_min"] = 1e-7
-opts["tao_mma_theta"] = 0.0
-opts["tao_mma_move_limit"] = 0.01
-opts["tao_mma_subsolver_tao_max_it"] = 1000
-opts["tao_mma_subsolver_tao_ls_type"] = "armijo"
+opts["tao_max_it"] = (max_it := 50)
+opts["tao_mma_move_limit"] = 0.05
+opts["tao_mma_subsolver_tao_max_it"] = 30
 
 problem = dolfiny.taoproblem.TAOProblem(
     C, [s], bcs=bcs, J=(JC, s.x.petsc_vec.copy()), h=h, lb=s_min, ub=s_max, prefix="truss"
@@ -283,8 +278,10 @@ if np.any(s.x.array > s_max):
     raise RuntimeError("Upper bound violated.")
 
 # %% [markdown]
-# Convergence of the optimisation, compliance vs. volume with shown volume constraint.
-# Relative to the first iterate, for compliance, and relative to the uppoer bound, for volume.
+# Convergence of the optimisation, that is the compliance and the volume vs. outer MMA iteration
+# are shown below. Compliance is measured relative to the initial compliance $C_0$, which is
+# compliance for the initial guess of $s_\text{init} = 10^{-2} \, \text{m}^2$. Volume is
+# shown relative to the upper bound $V_\text{max}$.
 # %% tags=["hide-input"]
 matplotlib_inline.backend_inline.set_matplotlib_formats("png")
 it = problem.tao.getIterationNumber()
@@ -292,28 +289,31 @@ comp = comp[:it]  # type: ignore
 volume = volume[:it]  # type: ignore
 
 fig, ax1 = plt.subplots(dpi=400)
-ax1.grid()
 ax1.set_xlim(0, it - 1)
-ax1.set_xlabel("Iteration")
-ax1.set_xticks(range(0, it))
-ax1.set_ylabel("Compliance")
-plt_compliance = ax1.plot(np.arange(0, it, dtype=int), comp / comp[0], color="tab:orange")
-ax1.set_ylim(bottom=0)
+ax1.set_xlabel("Outer MMA iteration")
+ax1.set_ylabel("Rel. compliance $C / C_0$")
+plt_compliance = ax1.plot(
+    np.arange(0, it, dtype=int),
+    comp / comp[0],
+    color="tab:orange",
+    marker="x",
+)
+ax1.set_yscale("log")
+ax1.grid(True, which="both")
 
 ax2 = ax1.twinx()
-ax2.set_ylabel("Volume")
-plt_volume = ax2.plot(np.arange(0, it, dtype=int), volume / h[0].rhs)
+ax2.set_ylabel(r"$|1 - V / V_\text{max}|$")
+plt_volume = ax2.plot(np.arange(0, it, dtype=int), np.abs(1 - volume / h[0].rhs), marker=".")
 ax2.axhline(y=1, linestyle="--")
-ax2.set_ylim(bottom=0)
-
-ax1.legend(plt_compliance + plt_volume, ["Compliance", "Volume"], loc=7)
+ax2.set_yscale("log")
+ax1.legend(plt_compliance + plt_volume, ["compliance", "volume"], loc=7)
 
 plt.show()
 # %% [markdown]
 # The deformed final design (displacement scaled by $5\times10^3$)
 # %% tags=["hide-input"]
 pixels = dolfiny.pyvista.pixels
-plotter = pv.Plotter(theme=dolfiny.pyvista.theme, window_size=[pixels, pixels // 2])
+plotter = pv.Plotter(window_size=[pixels, pixels // 2])
 
 pv_grid.point_data[u.name] = u.x.array.reshape(-1, 3)
 pv_grid.cell_data[s.name] = s.x.array
