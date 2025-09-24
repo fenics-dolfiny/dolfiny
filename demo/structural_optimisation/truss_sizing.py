@@ -69,11 +69,13 @@ dim = np.array([100, 20, 10], dtype=np.float64)
 elem_size = 5
 mesh = create_truss_x_braced_mesh(
     dolfinx.mesh.create_box(
-        comm,
+        MPI.COMM_SELF,
         [np.zeros_like(dim), dim],
         (dim / elem_size).astype(np.int32),  # type: ignore
         dolfinx.mesh.CellType.hexahedron,
     )
+    if comm.rank == 0
+    else None
 )
 
 # %% [markdown]
@@ -107,6 +109,8 @@ vertices_load = dolfinx.mesh.locate_entities(
     mesh, 0, lambda x: np.isclose(x[1], dim[1]) & np.greater(x[0], 0) & np.less(x[0], dim[0])
 )
 meshtags = dolfinx.mesh.meshtags(mesh, 0, vertices_load, 1)
+vertices_load_local = vertices_load[vertices_load < mesh.topology.index_map(0).size_local]
+
 
 # %% tags=["hide-input"]
 pv.set_jupyter_backend("static")
@@ -128,7 +132,7 @@ plotter.view_xy()
 plotter.add_axes()
 plotter.camera.elevation += 20
 plotter.camera.zoom(1.7)
-# plotter.show()
+plotter.show()
 
 # %% [markdown]
 # ## Truss Model and Forward Problem
@@ -159,7 +163,8 @@ N = E * s * ε  # normal_force
 
 dP = ufl.Measure("dP", domain=mesh, subdomain_data=meshtags)
 total_load = 300 * 1e3
-F = ufl.as_vector([0, -total_load / comm.allreduce(vertices_load.size), 0])
+num_load_vertices = comm.allreduce(vertices_load_local.size)
+F = ufl.as_vector([0, -total_load / num_load_vertices, 0])
 compliance = ufl.inner(F, u) * dP(1)
 
 E = 1 / 2 * ufl.inner(N, ε) * ufl.dx - compliance
