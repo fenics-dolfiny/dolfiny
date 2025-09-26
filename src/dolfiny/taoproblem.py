@@ -603,7 +603,7 @@ class TAOProblem:
         for i, u in enumerate(self._u):
             # TODO: this breaks
             # message = f"# sub {i:1d} |x|={u.x.petsc_vec.norm():9.3e}"
-            s = u.x.index_map.size_local * u.x.block_size
+            s = u.x.index_map.size_global * u.x.block_size
             message = f"{color}# sub   {i:1d} [{prefixify(s):s}] |x|={dolfinx.la.norm(u.x):9.3e}"
             if self._J is not None:
                 if blocks is not None:
