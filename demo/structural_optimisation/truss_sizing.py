@@ -64,18 +64,18 @@ from dolfiny.mesh import create_truss_x_braced_mesh
 #
 # %%
 comm = MPI.COMM_WORLD
-if comm.size > 1:
-    raise RuntimeError("Parallelization not supported.")
 
 dim = np.array([100, 20, 10], dtype=np.float64)
 elem_size = 5
 mesh = create_truss_x_braced_mesh(
     dolfinx.mesh.create_box(
-        comm,
+        MPI.COMM_SELF,
         [np.zeros_like(dim), dim],
         (dim / elem_size).astype(np.int32),  # type: ignore
         dolfinx.mesh.CellType.hexahedron,
     )
+    if comm.rank == 0
+    else None
 )
 
 # %% [markdown]
@@ -109,6 +109,8 @@ vertices_load = dolfinx.mesh.locate_entities(
     mesh, 0, lambda x: np.isclose(x[1], dim[1]) & np.greater(x[0], 0) & np.less(x[0], dim[0])
 )
 meshtags = dolfinx.mesh.meshtags(mesh, 0, vertices_load, 1)
+vertices_load_local = vertices_load[vertices_load < mesh.topology.index_map(0).size_local]
+
 
 # %% tags=["hide-input"]
 pv.set_jupyter_backend("static")
@@ -161,7 +163,8 @@ N = E * s * ε  # normal_force
 
 dP = ufl.Measure("dP", domain=mesh, subdomain_data=meshtags)
 total_load = 300 * 1e3
-F = ufl.as_vector([0, -total_load / vertices_load.size, 0])
+num_load_vertices = comm.allreduce(vertices_load_local.size)
+F = ufl.as_vector([0, -total_load / num_load_vertices, 0])
 compliance = ufl.inner(F, u) * dP(1)
 
 E = 1 / 2 * ufl.inner(N, ε) * ufl.dx - compliance
@@ -211,7 +214,7 @@ compliance_form = dolfinx.fem.form(compliance)
 @dolfiny.taoproblem.sync_functions([s])
 def C(tao, x) -> float:
     state_solver.solve()
-    return dolfinx.fem.assemble_scalar(compliance_form)  # type: ignore
+    return comm.allreduce(dolfinx.fem.assemble_scalar(compliance_form))  # type: ignore
 
 
 # p = -u
@@ -227,11 +230,14 @@ def JC(tao, x, J):
     p.x.array[:] = -u.x.array
 
     dolfinx.fem.petsc.assemble_vector(J, gx)
+    J.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
 
 s_max = np.float64(1e-2)
 s_min = np.float64(1e-3 * s_max)
-max_vol = dolfinx.fem.assemble_scalar(dolfinx.fem.form(dolfinx.fem.Constant(mesh, s_max) * ufl.dx))
+max_vol = comm.allreduce(
+    dolfinx.fem.assemble_scalar(dolfinx.fem.form(dolfinx.fem.Constant(mesh, s_max) * ufl.dx))
+)
 volume_fraction = 1 / 20
 h = [s / max_vol / volume_fraction * ufl.dx <= 1]
 s.x.array[:] = 1 / 100 * s_max
@@ -258,7 +264,8 @@ def monitor(tao, comp, volume):
 comp = np.zeros(max_it, np.float64)
 volume = np.zeros(max_it, np.float64)
 
-problem.tao.setMonitor(monitor, (comp, volume))
+if comm.size == 1:
+    problem.tao.setMonitor(monitor, (comp, volume))
 problem.solve()
 
 state_solver.solve()
@@ -268,7 +275,10 @@ state_solver.solve()
 # if problem.tao.getConvergedReason() <= 0:
 #     raise RuntimeError("Optimisation did not converge.")
 
-if np.abs(dolfinx.fem.assemble_scalar(dolfinx.fem.form(h[0].lhs)) - h[0].rhs) >= 1e-2:
+if (
+    np.abs(comm.allreduce(dolfinx.fem.assemble_scalar(dolfinx.fem.form(h[0].lhs))) - h[0].rhs)
+    >= 1e-2
+):
     raise RuntimeError("Volume constraint violated.")
 
 if np.any(s.x.array < s_min):
@@ -276,6 +286,14 @@ if np.any(s.x.array < s_min):
 
 if np.any(s.x.array > s_max):
     raise RuntimeError("Upper bound violated.")
+
+with dolfinx.io.VTXWriter(comm, "S.bp", s, "bp4") as file:
+    file.write(0.0)
+with dolfinx.io.VTXWriter(comm, "u.bp", u, "bp4") as file:
+    file.write(0.0)
+
+if comm.size > 1:
+    exit()
 
 # %% [markdown]
 # Convergence of the optimisation, that is the compliance and the volume vs. outer MMA iteration
@@ -352,9 +370,3 @@ plotter.view_xy()
 plotter.camera.elevation += 20
 plotter.camera.zoom(2.0)
 plotter.show()
-
-# %% tags=["hide-input"]
-with dolfinx.io.VTXWriter(comm, "S.bp", s, "bp4") as file:
-    file.write(0.0)
-with dolfinx.io.VTXWriter(comm, "u.bp", u, "bp4") as file:
-    file.write(0.0)
