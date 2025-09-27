@@ -325,34 +325,8 @@ def test_MMA_options():
 
 
 @pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
-def test_MMA_simple():
-    tao = PETSc.TAO().createPython(MMA())
-
-    opts = PETSc.Options()
-    opts["tao_type"] = "python"
-    opts["tao_mma_subsolver_tao_type"] = "bqnls"
-    opts["tao_mma_subsolver_tao_ls_type"] = "more-thuente"
-
-    tao.setFromOptions()
-
-    x, f, atol = simple(tao)
-    tao.setMaximumIterations(50)
-    tao.solve()
-
-    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
-    # assert tao.getConvergedReason() > 0
-    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
-
-    assert np.allclose([tao.getPythonContext().getObjectiveValue()], [f], atol=atol, rtol=0.0)
-    assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
-
-    opts.clear()
-    tao.destroy()
-
-
-@pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
 @pytest.mark.parametrize(
-    "problem", [simple_constrained, svanberg_cantilever_beam, svanberg_two_bar_truss]
+    "problem", [simple, simple_constrained, svanberg_cantilever_beam, svanberg_two_bar_truss]
 )
 def test_MMA(problem):
     tao = PETSc.TAO().createPython(MMA())
