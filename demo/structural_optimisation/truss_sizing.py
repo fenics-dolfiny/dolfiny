@@ -10,6 +10,8 @@
 # 3. the interface to PETSc/TAO for otimisation solvers.
 #
 # %%
+import argparse
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -25,6 +27,17 @@ import pyvista as pv
 import dolfiny
 import dolfiny.taoproblem
 from dolfiny.mesh import create_truss_x_braced_mesh
+
+# %% tags=["hide-input"]
+parser = argparse.ArgumentParser(description="Truss sizing demo")
+parser.add_argument(
+    "-a",
+    "--algorithm",
+    choices=["conlin", "mma"],
+    default="mma",
+    help="Choose optimisation algorithm",
+)
+args, _unknown = parser.parse_known_args()
 
 # %% [markdown]
 # ## Generation of Truss Meshes
@@ -244,11 +257,14 @@ s.x.array[:] = 1 / 100 * s_max
 
 opts = PETSc.Options("truss")  # type: ignore
 opts["tao_type"] = "python"
-opts["tao_python_type"] = "dolfiny.mma.MMA"
 opts["tao_monitor"] = ""
 opts["tao_max_it"] = (max_it := 50)
-opts["tao_mma_move_limit"] = 0.05
-opts["tao_mma_subsolver_tao_max_it"] = 30
+if args.algorithm == "conlin":
+    opts["tao_python_type"] = "dolfiny.conlin.CONLIN"
+else:  # mma
+    opts["tao_python_type"] = "dolfiny.mma.MMA"
+    opts["tao_mma_move_limit"] = 0.05
+    opts["tao_mma_subsolver_tao_max_it"] = 30
 
 problem = dolfiny.taoproblem.TAOProblem(
     C, [s], bcs=bcs, J=(JC, s.x.petsc_vec.copy()), h=h, lb=s_min, ub=s_max, prefix="truss"

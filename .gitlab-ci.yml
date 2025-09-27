@@ -301,7 +301,9 @@ structural_optimisation:
    extends: .demo_template
    variables:
       DIRECTORY: structural_optimisation
-      SCRIPTS: truss_sizing.py
+      SCRIPTS: |
+         "truss_sizing.py --algorithm conlin"
+         "truss_sizing.py --algorithm mma"
 
 electrodiffusion:
    extends: .demo_template
