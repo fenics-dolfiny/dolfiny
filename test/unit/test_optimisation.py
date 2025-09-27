@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from numpy import typing as npt
 
+from dolfiny.conlin import CONLIN
 from dolfiny.mma import MMA
 
 
@@ -265,7 +266,40 @@ def test_almm(problem):
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
     assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
 
-    opts.clear()
+    # TODO: opt.clear() not enough?!
+    for k in opts.getAll().keys():
+        del opts[k]
+
+    tao.destroy()
+
+
+@pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
+@pytest.mark.parametrize("problem", [simple_constrained])
+def test_CONLIN(problem):
+    tao = PETSc.TAO().createPython(CONLIN())
+
+    opts = PETSc.Options()
+    opts.view()
+    tao.setFromOptions()
+
+    x, f, atol = problem(tao)
+    tao.setMaximumIterations(50)
+    tao.solve()
+
+    assert tao.getType() == "python"
+    assert tao.getPythonType() == "dolfiny.conlin.CONLIN"
+
+    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
+    # assert tao.getConvergedReason() > 0
+    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
+
+    assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
+    assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
+
+    # TODO: opt.clear() not enough?!
+    for k in opts.getAll().keys():
+        del opts[k]
+
     tao.destroy()
 
 
