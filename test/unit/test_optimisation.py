@@ -25,12 +25,17 @@ def simple(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # t
         J.getArray()[0] = 2 * x[0]
         J.assemble()
 
+    def hessian(tao: PETSc.TAO, x: PETSc.Vec, P: PETSc.Mat, H: PETSc.Mat) -> None:  # type: ignore
+        H[0, 0] = 2.0
+        H.assemble()
+
     x = PETSc.Vec().createSeq(1)  # type: ignore
     x.set(5.0)
     tao.setSolution(x)
 
     tao.setObjective(objective)
     tao.setGradient(gradient, x.copy())
+    tao.setHessian(hessian, PETSc.Mat().createDense(1))  # type: ignore
 
     lb = x.copy()
     lb.set(2)
