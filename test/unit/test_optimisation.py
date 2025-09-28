@@ -9,6 +9,7 @@ from numpy import typing as npt
 
 from dolfiny.conlin import CONLIN
 from dolfiny.mma import MMA
+from dolfiny.sqp import SQP
 
 
 def quadratic(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
@@ -353,6 +354,32 @@ def test_CONLIN(problem):
     # TODO: opt.clear() not enough?!
     for k in opts.getAll().keys():
         del opts[k]
+
+    tao.destroy()
+
+
+@pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
+@pytest.mark.parametrize("problem", [trigonometric, quadratic, simple, quadratic_constrained])
+def test_SQP(problem):
+    tao = PETSc.TAO().createPython(SQP())
+
+    x, f, atol = problem(tao)
+    tao.setMaximumIterations(300)
+    tao.solve()
+
+    assert tao.getType() == "python"
+    assert tao.getPythonType() == "dolfiny.sqp.SQP"
+
+    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
+    # assert tao.getConvergedReason() > 0
+    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
+
+    if problem not in (simple, quadratic_constrained):
+        assert tao.getConvergedReason() > 0
+    if problem in (quadratic,):  # quadratic_constrained
+        assert tao.getIterationNumber() == 1
+    assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
+    assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
 
     tao.destroy()
 
