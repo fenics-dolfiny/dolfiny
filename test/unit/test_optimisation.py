@@ -47,6 +47,39 @@ def quadratic(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  
     return np.array([1.0, 2.0]), 0.0, 1e-8
 
 
+def trigonometric(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
+    """
+    min  -sin(x + π/2)
+     x
+    """
+
+    def objective(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
+        return -1 * math.sin(x[0] + math.pi / 2)
+
+    def gradient(tao: PETSc.TAO, x: PETSc.Vec, g: PETSc.Vec) -> None:  # type: ignore
+        g[0] = math.sin(x[0])
+        g.assemble()
+
+    def hessian(tao: PETSc.TAO, x: PETSc.Vec, P: PETSc.Mat, H: PETSc.Mat) -> None:  # type: ignore
+        H[0, 0] = math.cos(x[0])
+        H.assemble()
+
+    x = PETSc.Vec().createSeq(1)  # type: ignore
+    x.set(math.pi / 4)
+    tao.setSolution(x)
+
+    tao.setObjective(objective)
+    tao.setGradient(gradient, x.copy())
+
+    H = PETSc.Mat().create()  # type: ignore
+    H.setType("dense")
+    H.setSizes(1)
+    H.assemble()
+    tao.setHessian(hessian, H)
+
+    return np.array([0.0]), -1, 1e-8
+
+
 def simple(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
     """
     min  x^2
