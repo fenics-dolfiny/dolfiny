@@ -11,6 +11,42 @@ from dolfiny.conlin import CONLIN
 from dolfiny.mma import MMA
 
 
+def quadratic(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
+    """
+    min  (x₁ - 1)^2 + (x₂ - 2)^2
+     x
+    """
+
+    def objective(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
+        return (x[0] - 1.0) ** 2 + (x[1] - 2.0) ** 2  # type: ignore
+
+    def gradient(tao: PETSc.TAO, x: PETSc.Vec, g: PETSc.Vec) -> None:  # type: ignore
+        g[0] = 2.0 * (x[0] - 1.0)
+        g[1] = 2.0 * (x[1] - 2.0)
+        g.assemble()
+
+    def hessian(tao: PETSc.TAO, x: PETSc.Vec, P: PETSc.Mat, H: PETSc.Mat) -> None:  # type: ignore
+        H[0, 0] = 2.0
+        H[0, 1] = 0.0
+        H[1, 0] = 0.0
+        H[1, 1] = 2.0
+        H.assemble()
+
+    x = PETSc.Vec().createSeq(2)  # type: ignore
+    tao.setSolution(x)
+
+    tao.setObjective(objective)
+    tao.setGradient(gradient, x.copy())
+
+    H = PETSc.Mat().create()  # type: ignore
+    H.setType("dense")
+    H.setSizes(2)
+    H.assemble()
+    tao.setHessian(hessian, H)
+
+    return np.array([1.0, 2.0]), 0.0, 1e-8
+
+
 def simple(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
     """
     min  x^2
