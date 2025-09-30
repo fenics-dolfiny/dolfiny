@@ -7,7 +7,7 @@
 # In particular this demo emphasizes
 # 1. implementation of a linear elastic truss model with `ufl`,
 # 2. creation of (braced) truss meshes, and
-# 3. the interface to PETSc/TAO for otimisation solvers.
+# 3. the interface to PETSc/TAO for optimisation solvers.
 #
 # %%
 import argparse
