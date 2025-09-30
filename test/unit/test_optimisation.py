@@ -7,6 +7,7 @@ import numpy as np
 import pytest
 from numpy import typing as npt
 
+from dolfiny.conlin import CONLIN
 from dolfiny.mma import MMA
 
 
@@ -38,6 +39,58 @@ def simple(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # t
     tao.setVariableBounds(lb, ub)
 
     return np.array([2.0]), 4.0, 1e-8
+
+
+def simple_constrained(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
+    """
+    min  x^2
+     x
+    s.t. 2 ≤ x ≤ 10
+         x^2 - 9 ≥ 0
+    """
+
+    def objective(tao, x: PETSc.Vec) -> float:  # type: ignore
+        return x[0] ** 2  # type: ignore
+
+    def gradient(tao, x: PETSc.Vec, J: PETSc.Vec) -> None:  # type: ignore
+        J.getArray()[0] = 2 * x[0]
+        J.assemble()
+
+    def constraint(tao, x: PETSc.Vec, c: PETSc.Vec) -> None:  # type: ignore
+        c[0] = x[0] ** 2 - 9
+        c.assemble()
+
+    def constraint_jacobian(tao, x: PETSc.Vec, J: PETSc.Mat, P: PETSc.Mat) -> None:  # type: ignore
+        J[0, 0] = 2 * x[0]
+        J.assemble()
+
+    x = PETSc.Vec().createSeq(1)  # type: ignore
+    x.set(5.0)
+    tao.setSolution(x)
+
+    tao.setObjective(objective)
+    tao.setGradient(gradient, x.copy())
+
+    c = PETSc.Vec().createSeq(1)  # type: ignore
+    tao.setInequalityConstraints(constraint, c)
+
+    J_c = PETSc.Mat().createDense((1, 1))  # type: ignore
+    J_c.assemble()
+    tao.setJacobianInequality(constraint_jacobian, J_c)
+
+    # Workaround until https://gitlab.com/petsc/petsc/-/merge_requests/8619 is in a release
+    if tao.getType() == "python":
+        ctx = tao.getPythonContext()
+        ctx.setInequalityConstraints(tao, constraint, c)
+        ctx.setJacobianInequality(tao, constraint_jacobian, J_c)
+
+    lb = x.copy()
+    lb.set(2)
+    ub = x.copy()
+    ub.set(10)
+    tao.setVariableBounds(lb, ub)
+
+    return np.array([3.0]), 9, 1e-5
 
 
 def svanberg_cantilever_beam(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
@@ -213,7 +266,41 @@ def test_almm(problem):
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
     assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
 
-    opts.clear()
+    # TODO: opt.clear() not enough?!
+    for k in opts.getAll().keys():
+        del opts[k]
+
+    tao.destroy()
+
+
+@pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
+@pytest.mark.parametrize("problem", [simple_constrained])
+def test_CONLIN(problem):
+    tao = PETSc.TAO().createPython(CONLIN())
+
+    opts = PETSc.Options()
+    opts.view()
+    tao.setFromOptions()
+
+    x, f, atol = problem(tao)
+    tao.setMaximumIterations(50)
+    tao.solve()
+
+    assert tao.getType() == "python"
+    assert tao.getPythonType() == "dolfiny.conlin.CONLIN"
+
+    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
+    # assert tao.getConvergedReason() > 0
+    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
+
+    assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
+    assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
+
+    # TODO: opt.clear() not enough?!
+    for k in opts.getAll().keys():
+        del opts[k]
+
+    tao.destroy()
 
 
 @pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
@@ -263,36 +350,18 @@ def test_MMA_options():
     assert opts.used("tao_mma_theta")
     assert opts.used("tao_mma_subsolver_tao_type")
     assert not opts.used("tao_mma_bad_option")
-    opts.clear()
+
+    # TODO: opt.clear() not enough?!
+    for k in opts.getAll().keys():
+        del opts[k]
 
     tao.destroy()
 
 
 @pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
-def test_MMA_simple():
-    tao = PETSc.TAO().createPython(MMA())
-
-    opts = PETSc.Options()
-    opts["tao_type"] = "python"
-    opts["tao_mma_subsolver_tao_type"] = "bqnls"
-    opts["tao_mma_subsolver_tao_ls_type"] = "more-thuente"
-
-    tao.setFromOptions()
-
-    x, f, atol = simple(tao)
-    tao.setMaximumIterations(50)
-    tao.solve()
-
-    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
-    # assert tao.getConvergedReason() > 0
-    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
-
-    assert np.allclose([tao.getPythonContext().getObjectiveValue()], [f], atol=atol, rtol=0.0)
-    assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
-
-
-@pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
-@pytest.mark.parametrize("problem", [svanberg_cantilever_beam, svanberg_two_bar_truss])
+@pytest.mark.parametrize(
+    "problem", [simple, simple_constrained, svanberg_cantilever_beam, svanberg_two_bar_truss]
+)
 def test_MMA(problem):
     tao = PETSc.TAO().createPython(MMA())
 
@@ -314,3 +383,4 @@ def test_MMA(problem):
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
 
     opts.clear()
+    tao.destroy()
