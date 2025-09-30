@@ -273,9 +273,7 @@ def test_CONLIN(problem):
 
     # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
     # assert tao.getConvergedReason() > 0
-    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
-
-    assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
+    assert np.allclose(tao.getObjectiveValue(), f, atol=atol, rtol=0.0)
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
 
     # TODO: opt.clear() not enough?!
@@ -359,9 +357,8 @@ def test_MMA(problem):
 
     # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
     # assert tao.getConvergedReason() > 0
-    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
 
-    assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
+    assert np.allclose(tao.getObjectiveValue(), f, atol=atol, rtol=0.0)
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
 
     opts.clear()

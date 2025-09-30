@@ -273,7 +273,7 @@ problem = dolfiny.taoproblem.TAOProblem(
 
 def monitor(tao, comp, volume):
     it = tao.getIterationNumber()
-    comp[it] = tao.getPythonContext().getObjectiveValue()
+    comp[it] = tao.getObjectiveValue()
     volume[it] = dolfinx.fem.assemble_scalar(dolfinx.fem.form(h[0].lhs))
 
 

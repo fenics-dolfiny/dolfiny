@@ -522,9 +522,6 @@ class MMA:
     def subsolver(self) -> PETSc.TAO:  # type: ignore
         return self._subsolver
 
-    def getObjectiveValue(self) -> float:
-        return self._f
-
     @property
     def albefa(self) -> float:
         return self._albefa

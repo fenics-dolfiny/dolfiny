@@ -298,9 +298,6 @@ class CONLIN:
     def subsolver(self) -> PETSc.TAO:  # type: ignore
         return self._subsolver
 
-    def getObjectiveValue(self) -> float:
-        return self._f
-
     def destroy(self, tao: PETSc.TAO):  # type: ignore
         self._logger.debug(f"{__name__}.destroy")
 
