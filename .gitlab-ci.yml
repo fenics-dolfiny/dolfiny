@@ -304,6 +304,8 @@ structural_optimisation:
       SCRIPTS: |
          "truss_sizing.py --algorithm conlin"
          "truss_sizing.py --algorithm mma"
+         "topopt_simp.py --algorithm conlin"
+         "topopt_simp.py --algorithm mma"
 
 electrodiffusion:
    extends: .demo_template
