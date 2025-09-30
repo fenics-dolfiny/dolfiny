@@ -162,6 +162,60 @@ def simple_constrained(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, 
     return np.array([3.0]), 9, 1e-5
 
 
+def simple_eq_constrained(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
+    """
+    min  (x₁ - 1)^2 + (x₂ - 2)^2
+     x
+    s.t. x₁ + 2x₂ + .5 = 0
+    """
+
+    def objective(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
+        return (x[0] - 1.0) ** 2 + (x[1] - 2.0) ** 2  # type: ignore
+
+    def gradient(tao: PETSc.TAO, x: PETSc.Vec, g: PETSc.Vec) -> None:  # type: ignore
+        g[0] = 2.0 * (x[0] - 1.0)
+        g[1] = 2.0 * (x[1] - 2.0)
+        g.assemble()
+
+    def hessian(tao: PETSc.TAO, x: PETSc.Vec, P: PETSc.Mat, H: PETSc.Mat) -> None:  # type: ignore
+        H[0, 0] = 2.0
+        H[0, 1] = 0.0
+        H[1, 0] = 0.0
+        H[1, 1] = 2.0
+        H.assemble()
+
+    def constraint(tao, x: PETSc.Vec, c: PETSc.Vec) -> None:  # type: ignore
+        c[0] = x[0] + 2 * x[1] + 0.5
+        c.assemble()
+
+    def constraint_jacobian(tao, x: PETSc.Vec, J: PETSc.Mat, P: PETSc.Mat) -> None:  # type: ignore
+        J[0, 0] = 1.0
+        J[0, 1] = 2.0
+        J.assemble()
+
+    x = PETSc.Vec().createSeq(2)  # type: ignore
+    tao.setSolution(x)
+
+    tao.setObjective(objective)
+    tao.setGradient(gradient, x.copy())
+
+    H = PETSc.Mat().create()  # type: ignore
+    H.setType("dense")
+    H.setSizes(2)
+    H.assemble()
+    tao.setHessian(hessian, H)
+
+    c = PETSc.Vec().createSeq(1)  # type: ignore
+    tao.setEqualityConstraints(constraint, c)
+    tao.setInequalityConstraints(constraint, c)
+
+    J_c = PETSc.Mat().createDense((1, 2))  # type: ignore
+    J_c.assemble()
+    tao.setJacobianEquality(constraint_jacobian, J_c)
+
+    return np.array([-0.1, -0.2]), 6.05, 1e-8
+
+
 def svanberg_cantilever_beam(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
     """
     Cantilever beam from ref. https://doi.org/10.1002/nme.1620240207.
@@ -359,24 +413,21 @@ def test_CONLIN(problem):
 
 
 @pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
-@pytest.mark.parametrize("problem", [trigonometric, quadratic, simple, quadratic_constrained])
+@pytest.mark.parametrize("problem", [trigonometric, quadratic, simple, simple_eq_constrained])
 def test_SQP(problem):
     tao = PETSc.TAO().createPython(SQP())
 
     x, f, atol = problem(tao)
-    tao.setMaximumIterations(300)
+    tao.setMaximumIterations(30)
     tao.solve()
 
     assert tao.getType() == "python"
     assert tao.getPythonType() == "dolfiny.sqp.SQP"
 
-    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
-    # assert tao.getConvergedReason() > 0
-    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
-
-    if problem not in (simple, quadratic_constrained):
+    assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
+    if problem not in (simple, simple_eq_constrained):  # TODO
         assert tao.getConvergedReason() > 0
-    if problem in (quadratic,):  # quadratic_constrained
+    if problem in (quadratic,):  # simple_eq_constrained
         assert tao.getIterationNumber() == 1
     assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
