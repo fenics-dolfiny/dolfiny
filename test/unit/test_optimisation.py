@@ -271,7 +271,6 @@ def test_CONLIN(problem):
     assert tao.getType() == "python"
     assert tao.getPythonType() == "dolfiny.conlin.CONLIN"
 
-    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
     # assert tao.getConvergedReason() > 0
     assert np.allclose(tao.getObjectiveValue(), f, atol=atol, rtol=0.0)
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
@@ -355,9 +354,7 @@ def test_MMA(problem):
     assert tao.getType() == "python"
     assert tao.getPythonType() == "dolfiny.mma.MMA"
 
-    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
     # assert tao.getConvergedReason() > 0
-
     assert np.allclose(tao.getObjectiveValue(), f, atol=atol, rtol=0.0)
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
 

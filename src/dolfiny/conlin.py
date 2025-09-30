@@ -291,8 +291,8 @@ class CONLIN:
                 tao.setConvergedReason(PETSc.TAO.ConvergedReason.CONVERGED_GATOL)
 
             tao.setIterationNumber(it)
-
-            tao.monitor(f=self._objective)
+            tao.monitor(f=self._objective, res=self._gradient.norm())  # TODO: cnorm
+            tao.checkConverged()
 
     @property
     def subsolver(self) -> PETSc.TAO:  # type: ignore
