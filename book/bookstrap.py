@@ -9,6 +9,7 @@ demo_files = [  # relative from demo/
     "obstacle/montreal.py",
     "spectral/solid_elasticity.py",
     "structural_optimisation/truss_sizing.py",
+    # "structural_optimisation/topopt_simp.py",
 ]
 
 parser = argparse.ArgumentParser("bookstrap")

@@ -34,6 +34,7 @@ RUN pip install --no-cache-dir --index-url https://gitlab.com/api/v4/projects/59
 # Install python dependencies for efficient rebuilds
 RUN pip install --no-cache-dir -v \
     coverage \
+    imageio \
     jupyter \
     jupyter-book==v2.0.0b2 \
     jupytext \
