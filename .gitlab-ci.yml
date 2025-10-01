@@ -44,7 +44,7 @@ typos:
    stage: lint
    image: python:3.13-slim
    script:
-      - pip install typos
+      - pip install typos==1.36.3
       - typos
 
 image build:

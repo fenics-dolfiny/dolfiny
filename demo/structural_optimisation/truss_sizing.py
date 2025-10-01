@@ -7,7 +7,7 @@
 # In particular this demo emphasizes
 # 1. implementation of a linear elastic truss model with `ufl`,
 # 2. creation of (braced) truss meshes, and
-# 3. the interface to PETSc/TAO for otimisation solvers.
+# 3. the interface to PETSc/TAO for optimisation solvers.
 #
 # %%
 import argparse
@@ -273,7 +273,7 @@ problem = dolfiny.taoproblem.TAOProblem(
 
 def monitor(tao, comp, volume):
     it = tao.getIterationNumber()
-    comp[it] = tao.getPythonContext().getObjectiveValue()
+    comp[it] = tao.getObjectiveValue()
     volume[it] = dolfinx.fem.assemble_scalar(dolfinx.fem.form(h[0].lhs))
 
 

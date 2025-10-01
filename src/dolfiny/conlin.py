@@ -1,8 +1,6 @@
-from collections.abc import Callable
 from logging import Logger
 
 from petsc4py import PETSc
-from petsc4py.typing import TAOConstraintsFunction, TAOConstraintsJacobianFunction
 
 import dolfiny.logging
 from dolfiny.la import negative_part, positive_part
@@ -46,10 +44,6 @@ class CONLIN:
     _Q: PETSc.Mat  # type: ignore
     _logger: Logger
 
-    # constraint management
-    _constraint: tuple[TAOConstraintsFunction, PETSc.Vec]  # type: ignore
-    _constraint_jacobian: tuple[TAOConstraintsJacobianFunction, PETSc.Vec]  # type: ignore
-
     # options
     _grad_eps: float
 
@@ -64,8 +58,6 @@ class CONLIN:
         self._q = None
         self._P = None
         self._Q = None
-        self._constraint = None
-        self._constraint_jacobian = None
 
     def create(self, tao: PETSc.TAO) -> None:  # type: ignore
         self._logger.debug(f"{__name__}.create")
@@ -131,8 +123,9 @@ class CONLIN:
         #      λ
         #     s.t.    λ ≥ 0
         #
-        if self._constraint is not None:
-            self._λ = self._constraint[1].copy()
+
+        if (constraint := tao.getInequalityConstraints())[1] is not None:
+            self._λ = constraint[0].copy()
             self._λ.assemble()
             self._J_λ = self._λ.copy()
             self._J_λ.assemble()
@@ -170,7 +163,7 @@ class CONLIN:
             G.scale(-1)
             return -W  # type: ignore
 
-        if self._constraint is not None:
+        if (constraint := tao.getInequalityConstraints())[1] is not None:
             self._subsolver.setSolution(self._λ)
             self._subsolver.setObjectiveGradient(dual_objective_and_gradient, self._J_λ)
 
@@ -192,6 +185,12 @@ class CONLIN:
         self._f = tao.computeObjectiveGradient(self._x, self._gradient)
         tao.monitor(f=self._f)
 
+        c, h_tuple = tao.getInequalityConstraints()
+        h, h_args, h_kwargs = h_tuple if h_tuple else (None, None, None)
+
+        J, _, Jh_tuple = tao.getJacobianInequality()
+        Jh, Jh_args, Jh_kwargs = Jh_tuple if Jh_tuple else (None, None, None)
+
         # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
         gatol, _, _ = tao.getTolerances()
         if self._gradient.norm() <= gatol:
@@ -208,12 +207,9 @@ class CONLIN:
             # Compute f(x), ∇f(x), h(x) and J_h(x)
             self._f = tao.computeObjectiveGradient(self._x, self._gradient)
 
-            if self._constraint is not None:
-                h, c = self._constraint
-                h(tao, self._x, c)
-
-                Jh, J = self._constraint_jacobian
-                Jh(tao, self._x, J, None)
+            if h:
+                h(tao, self._x, c, *h_args, **h_kwargs)
+                Jh(tao, self._x, J, None, *Jh_args, **Jh_kwargs)
 
                 # The implemented CONLIN formulation relies on a form where h(x) ≤ 0 holds (not
                 # h(x) ≥ 0). To account for this change we sign flip the callback
@@ -246,16 +242,16 @@ class CONLIN:
             x_recip.reciprocal()
             self._r = self._f - self._p.dot(self._x) - self._q.dot(x_recip)
 
-            if self._constraint is not None:
-                self._r_h = self._constraint[1].copy()  # h(x)
+            if h:
+                self._r_h = c.copy()  # h(x)
 
-                self._P = self._constraint_jacobian[1].copy()
+                self._P = J.copy()
                 if self._P.getType() == PETSc.Mat.Type.TRANSPOSE:
                     positive_part(self._P.getTransposeMat())
                 else:
                     positive_part(self._P)
 
-                self._Q = self._constraint_jacobian[1].copy()
+                self._Q = J.copy()
                 if self._Q.getType() == PETSc.Mat.Type.TRANSPOSE:
                     negative_part(self._Q.getTransposeMat())
                 else:
@@ -295,25 +291,12 @@ class CONLIN:
                 tao.setConvergedReason(PETSc.TAO.ConvergedReason.CONVERGED_GATOL)
 
             tao.setIterationNumber(it)
-
-            tao.monitor(f=self._objective)
+            tao.monitor(f=self._objective, res=self._gradient.norm())  # TODO: cnorm
+            tao.checkConverged()
 
     @property
     def subsolver(self) -> PETSc.TAO:  # type: ignore
         return self._subsolver
-
-    def getObjectiveValue(self) -> float:
-        return self._f
-
-    def setInequalityConstraints(self, tao: PETSc.TAO, constraint: Callable, c: PETSc.Vec) -> None:  # type: ignore
-        """TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8619."""
-        self._constraint = (constraint, c)
-        tao.setInequalityConstraints(*self._constraint)
-
-    def setJacobianInequality(self, tao: PETSc.TAO, jacobian: Callable, J: PETSc.Mat) -> None:  # type: ignore
-        """TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8619."""
-        self._constraint_jacobian = (jacobian, J)
-        tao.setJacobianInequality(*self._constraint_jacobian)
 
     def destroy(self, tao: PETSc.TAO):  # type: ignore
         self._logger.debug(f"{__name__}.destroy")
@@ -335,11 +318,5 @@ class CONLIN:
 
         if self._Q is not None:
             self._Q.destroy()
-
-        if self._constraint is not None:
-            self._constraint[1].destroy()
-
-        if self._constraint_jacobian is not None:
-            self._constraint_jacobian[1].destroy()
 
         self._subsolver.destroy()

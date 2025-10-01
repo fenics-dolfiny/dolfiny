@@ -78,12 +78,6 @@ def simple_constrained(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, 
     J_c.assemble()
     tao.setJacobianInequality(constraint_jacobian, J_c)
 
-    # Workaround until https://gitlab.com/petsc/petsc/-/merge_requests/8619 is in a release
-    if tao.getType() == "python":
-        ctx = tao.getPythonContext()
-        ctx.setInequalityConstraints(tao, constraint, c)
-        ctx.setJacobianInequality(tao, constraint_jacobian, J_c)
-
     lb = x.copy()
     lb.set(2)
     ub = x.copy()
@@ -151,12 +145,6 @@ def svanberg_cantilever_beam(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], f
     J_c = PETSc.Mat().createDense((1, 5))  # type: ignore
     J_c.assemble()
     tao.setJacobianInequality(constraint_jacobian, J_c)
-
-    # Workaround until https://gitlab.com/petsc/petsc/-/merge_requests/8619 is in a release
-    if tao.getType() == "python":
-        ctx = tao.getPythonContext()
-        ctx.setInequalityConstraints(tao, constraint, c)
-        ctx.setJacobianInequality(tao, constraint_jacobian, J_c)
 
     lb = x.copy()
     lb.set(1e-12)
@@ -228,12 +216,6 @@ def svanberg_two_bar_truss(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], flo
     J_c = PETSc.Mat().createDense((2, 2))  # type: ignore
     tao.setJacobianInequality(constraint_jacobian, J_c)
 
-    # Workaround until https://gitlab.com/petsc/petsc/-/merge_requests/8619 is in a release
-    if tao.getType() == "python":
-        ctx = tao.getPythonContext()
-        ctx.setInequalityConstraints(tao, constraint, c)
-        ctx.setJacobianInequality(tao, constraint_jacobian, J_c)
-
     lb = x.copy()
     lb[0] = 0.2
     lb[1] = 0.1
@@ -289,11 +271,8 @@ def test_CONLIN(problem):
     assert tao.getType() == "python"
     assert tao.getPythonType() == "dolfiny.conlin.CONLIN"
 
-    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
     # assert tao.getConvergedReason() > 0
-    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
-
-    assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
+    assert np.allclose(tao.getObjectiveValue(), f, atol=atol, rtol=0.0)
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
 
     # TODO: opt.clear() not enough?!
@@ -375,11 +354,8 @@ def test_MMA(problem):
     assert tao.getType() == "python"
     assert tao.getPythonType() == "dolfiny.mma.MMA"
 
-    # TODO: workaround - see https://gitlab.com/petsc/petsc/-/merge_requests/8618.
     # assert tao.getConvergedReason() > 0
-    # assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
-
-    assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
+    assert np.allclose(tao.getObjectiveValue(), f, atol=atol, rtol=0.0)
     assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
 
     opts.clear()
