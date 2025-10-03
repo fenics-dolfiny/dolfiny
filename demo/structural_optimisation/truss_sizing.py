@@ -26,7 +26,6 @@ import pyvista as pv
 
 import dolfiny
 import dolfiny.taoproblem
-from dolfiny.mesh import create_truss_x_braced_mesh
 
 # %% tags=["hide-input"]
 parser = argparse.ArgumentParser(description="Truss sizing demo")
@@ -80,7 +79,7 @@ comm = MPI.COMM_WORLD
 
 dim = np.array([100, 20, 10], dtype=np.float64)
 elem_size = 5
-mesh = create_truss_x_braced_mesh(
+mesh = dolfiny.mesh_generation.create_truss_x_braced_mesh(
     dolfinx.mesh.create_box(
         MPI.COMM_SELF,
         [np.zeros_like(dim), dim],
