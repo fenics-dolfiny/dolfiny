@@ -490,12 +490,6 @@ class TAOProblem:
             self._tao.setEqualityConstraints(*self._g)
             self._tao.setJacobianEquality(*self._Jg)
 
-            # Workaround until https://gitlab.com/petsc/petsc/-/merge_requests/8619 is in a release
-            if self._tao.getType() == "python":
-                ctx = self._tao.getPythonContext()
-                ctx.setInequalityConstraints(self._tao, *self._g)
-                ctx.setJacobianInequality(self._tao, *self._Jg)
-
         else:
             self._g = None
             self._Jg = None
