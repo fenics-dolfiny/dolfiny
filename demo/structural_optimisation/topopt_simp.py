@@ -2,16 +2,14 @@
 # # Topology optimisation
 #
 # This demo showcases the mother of all topology optimisation problems: compliance minimisation of a
-# **s**olid **i**sotropic **m**aterial with **p**enalisation (SIMP) regularised with a Helmholtz
+# **s**olid **i**sotropic **m**aterial with **p**enalisation (SIMP), regularised with a Helmholtz
 # filter.
 #
 # In particular this demo emphasizes
-# 1. ... TODO
-# 1. ~implementation of a linear elastic truss model with ufl,~
-# 2. ~creation of (braced) truss meshes, and~
-# 3. ~the interface to PETSc/TAO for otimisation solvers.~
+# 1. the use of custom optimisation solvers and
+# 2. multi-step adjoint computations.
 #
-# %%
+# %% tags=["hide-input"]
 import argparse
 
 from mpi4py import MPI
@@ -27,7 +25,6 @@ import pyvista as pv
 
 import dolfiny
 
-# %% tags=["hide-input"]
 output = False
 parser = argparse.ArgumentParser(description="Truss sizing demo")
 parser.add_argument(
@@ -42,8 +39,10 @@ args, _unknown = parser.parse_known_args()
 # %% [markdown]
 # ## Computational domain
 #
-# The computational domain is given by $\Omega = (0, 2) \times (0,1) \subset \mathbb{R}^2$ and is
-# discretized by $(2n, n)$ quadrilateral elements.
+# For the topological dimension $d \in \{ 2, 3\}$ the computational domain is given by
+# $\Omega = (0, 2)^{d-1} \times (0,1) \subset \mathbb{R}^d$ and is
+# discretized by $(2n, n)$ quadrilateral or $(2n, n, n)$ hexahedral elements respectively, yielding
+# a tesseltation $\mathcal{T}$.
 # %%
 tdim = 2
 n = 50
@@ -59,9 +58,19 @@ mesh = (
 )
 
 # %% [markdown]
-# ## Function spaces
+# ## Problem formulation
 #
-# TODO:
+# We define three function spaces associated with *density* $\rho$, *filtered-density* $\hat{\rho}$,
+# and displacement $u$:
+# 1. $V_\rho = \mathcal{P}_0 (\mathcal{T})$
+# 2. $V_{\hat{\rho}} = \mathcal{P}_1 (\mathcal{T})$
+# 3. $V_u = \mathcal{P}_1^3 (\mathcal{T})$.
+#
+# ```{note}
+#   Later we will introduce a filter, i.e. a smoothing operation, which produces for a given $\rho$
+#   a filtered/regularised $\hat{\rho}$.
+#   Therefore the space $V_{\hat{\rho}}$ has higher regularity than $V_\rho$.
+# ```
 # %%
 V_u = dolfinx.fem.functionspace(mesh, ("Lagrange", 1, (tdim,)))
 V_ρ = dolfinx.fem.functionspace(mesh, ("Discontinuous Lagrange", 0))
@@ -71,6 +80,29 @@ V_ρ_f = dolfinx.fem.functionspace(mesh, ("Lagrange", 1))
 ρ_f = dolfinx.fem.Function(V_ρ_f, name="density-filtered")
 u = dolfinx.fem.Function(V_u, name="u")
 
+# %% [markdown]
+# ## State problem (elasticity)
+#
+# The next step is to define the elasticity problem.
+# We consider a linear isotropic material model, together with classic SIMP penalisation
+# https://doi.org/10.1016/0045-7825(88)90086-2, which defines the Young's modulus E as
+# $$
+#   E(\hat{\rho}) = (\rho_\text{min} + (1-\rho_\text{min}) \hat{\rho}^p) E_0
+# $$
+# where $E_0$ is Young's modulus of the solid material (associated with the phase $\rho=1$), and
+# $p > 1$ is the *penalty* factor.
+#
+# ```{note}
+#   The penalty factor is a critical parameter to the problem formulation.
+#   It ensures, with increasing value, that intermediate densities $\rho \in (\rho_\text{min}, 1)$
+#   are avoided in the final design.
+#   At the same time, for $p$ larger the problem becomes more and more non-linear and harder to
+#   solve.
+# ```
+#
+# As boundary conditions we fix the $x=0$ plane of the design and apply a constant force $f$
+# (Neumann boundary condition) on the center of the facet at $x=2$.
+# %%
 ρ_min = np.float64(1e-9)
 penalty = 3
 
@@ -158,7 +190,36 @@ elas_prob = dolfinx.fem.petsc.LinearProblem(
     ),
     petsc_options_prefix="elasticity_ksp",
 )
-
+# %% [markdown]
+# ## Filtering
+#
+# We use a Helmholtz filter on the density field, first introduced by
+# https://doi.org/10.1002/nme.3072 in the context of topology optimisation.
+#
+# In short, this boils down to solving for a given density $\rho$ a Helmholtz equation, yielding the
+# filtered-density $\hat{\rho}$
+#
+# $$
+#   \int_\Omega r^2 \nabla \hat{\rho} \cdot \nabla \tau + \hat{\rho} \tau \ \text{d}x
+#   = \int_\Omega \rho \tau \ \text{d}x
+#   \qquad \forall \tau \in V_{\hat{\rho}}.
+# $$
+#
+# $r$ is a parameter that controls the filter radius, we choose $r$ to be dependent on the local
+# cell diameter.
+#
+# ```{note}
+#   The filter radius $r$ will be a constant for a uniformly refined mesh, but will capture
+#   correctly the different scales of locally refined meshes.
+# ```
+#
+# Since the Helmholtz equation is self-adjoint and we need to evaluate the adjoint of it for the
+# gradient computation later on, we set up the solver to allow for handling of generic right hand
+# sides.
+# Thus we only have one linear solver and operator matrix stored for both forward and adjoint
+# problem.
+#
+# %%
 r = 0.45 * ufl.CellDiameter(mesh)  # factor 1-3
 u_f, v_f = ufl.TrialFunction(V_ρ_f), ufl.TestFunction(V_ρ_f)
 a_filter = dolfinx.fem.form(
@@ -198,6 +259,36 @@ def apply_filter(rhs, f) -> None:
     filter_ksp.solve(b_filter, f.x.petsc_vec)
     f.x.petsc_vec.ghostUpdate(PETSc.InsertMode.INSERT, PETSc.ScatterMode.FORWARD)  # type: ignore
 
+
+# %% [markdown]
+# ## Optimisation problem
+#
+# With the state and filtering problems defined we can define the objective and gradient of the
+# (reduced) optimisation problem.
+#
+# The objective, to be minimised, is *compliance*
+#
+# $$
+#   \int_\Omega f \cdot u \ \text{d}x.
+# $$
+#
+# We constrain the density to lower and upper bounds
+#
+# $$
+#   \rho_\text{min} \leq \rho \leq 1,
+# $$
+#
+# and the volume of the design to a volume fraction $V_f \in (0, 1)$
+#
+# $$
+#   \frac{1}{\text{Vol} (\Omega)} \int_\Omega \rho \ \text{d}x \leq V_f.
+# $$
+#
+# The the optimisation problem is stated in reduced form in $\rho$.
+# So, $\hat{\rho}$ and $u$ only appear as intermediates.
+# Gradients are then computed through the adjoint formulation.
+#
+# %%
 
 J_form = dolfinx.fem.form(compliance(u))
 DJ_form = dolfinx.fem.form(-ufl.derivative(elastic_energy(u), ρ_f))
@@ -266,6 +357,13 @@ def DJ(tao, _, G):
     G.scale(J_scale)
 
 
+# %% [markdown]
+# ## Custom optimisation routines
+#
+# For the optimisation we rely on our custom implementations of the Method of Moving Asymptotes
+# (MMA) https://doi.org/10.1002/nme.1620240207 or Convex Linearisation (CONLIN) https://doi.org/10.1007/BF01637664.
+#
+# %%
 opts = PETSc.Options()  # type: ignore
 opts["tao_type"] = "python"
 opts["tao_monitor"] = ""
@@ -282,44 +380,99 @@ problem = dolfiny.taoproblem.TAOProblem(
     J, [ρ], J=(DJ, ρ.x.petsc_vec.copy()), h=[g], lb=ρ_min, ub=np.float64(1)
 )
 
+# %% tags=["hide-input"]
 if comm.size == 1:
-    plotter = pv.Plotter(off_screen=True, window_size=(1024, 1024))
+    plotter = pv.Plotter(off_screen=False, window_size=(1024, int(512 * 1.4)))
     plotter.open_gif("topopt_simp.gif", fps=5)
     pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
     pv_grid.cell_data[ρ.name] = ρ.x.array
     plotter.add_mesh(pv_grid, scalars=ρ.name, clim=[ρ_min, 1], cmap="coolwarm")
     text = plotter.add_text("")
     plotter.view_xy()
+    plotter.camera.zoom(1.5)
+
+    plotter_f = pv.Plotter(off_screen=True, window_size=(1024, int(512 * 1.4)))
+    plotter_f.open_gif("topopt_simp_filtered.gif", fps=5)
+    pv_grid.point_data[ρ_f.name] = ρ_f.x.array
+    plotter_f.add_mesh(pv_grid, scalars=ρ_f.name, clim=[ρ_min, 1], cmap="coolwarm")
+    text_f = plotter_f.add_text("")
+    plotter_f.view_xy()
+    plotter_f.camera.zoom(1.5)
 
 
 def monitor(tao):
     it = tao.getIterationNumber()
     if comm.size == 1:
-        text.SetText(2, f"Iteration {it}")
+        text.SetText(0, f"Iteration {it}")
         pv_grid.cell_data[ρ.name] = ρ.x.array
         plotter.render()
         plotter.write_frame()
-    if output:
+
+        text_f.SetText(0, f"Iteration {it}")
+        pv_grid.point_data[ρ_f.name] = ρ_f.x.array
+        plotter_f.render()
+        plotter_f.write_frame()
+
+    if not output:
+        return
+
+    with dolfinx.io.XDMFFile(comm, f"topopt_simp/data_{it}.xdmf", "w") as file:
+        file.write_mesh(mesh)
         for f in (ρ, ρ_f, u):
-            with dolfinx.io.XDMFFile(comm, f"topopt_simp/{f.name}_{it}.xdmf", "w") as file:
-                file.write_mesh(mesh)
-                file.write_function(f, it)
+            file.write_function(f, it)
 
 
+# %% tags=["hide-output"]
 problem.tao.setMonitor(monitor)
 problem.solve()
-problem.tao.view()
 
+# %% tags=["hide-input"]
 if comm.size == 1:
     plotter.close()
+    plotter_f.close()
 
-# %%[markdown]
+with dolfinx.io.XDMFFile(comm, "topopt_simp/data.xdmf", "w") as file:
+    file.write_mesh(mesh)
+    for f in (ρ, ρ_f, u):
+        file.write_function(f)
+
+# %% [markdown]
+# ## Results
+#
+# We plot the {ref}`density<gif-density>` and {ref}`filtered-density<gif-filtered-density>` across
+# MMA iterations.
+#
+#
+# The density field drives for a 'black/white' design, i.e. for a discrete split into phase
+# ($\rho=1$) and void ($\rho=0$).
+# This results (due to the nature of discretization) in heavy stair-casing to occur along the phase
+# interface.
+#
+#
+# In contrast the filtered-density (computed from the corresponding density field in every
+# iteration) smears our the interface and thus will never result in a 'black/white' design.
+#
 # ```{image} topopt_simp.gif
 # :alt: Optimisation iterations
 # :align: center
+# :name: gif-density
+#
+# Density $\rho$ across throughout the MMA iterations.
+#
 # ```
-
-for f in (ρ, ρ_f, u):
-    with dolfinx.io.XDMFFile(comm, f"topopt_simp/{f.name}.xdmf", "w") as file:
-        file.write_mesh(mesh)
-        file.write_function(f)
+#
+# ```{image} topopt_simp_filtered.gif
+# :alt: Optimisation iterations
+# :align: center
+# :name: gif-filtered-density
+#
+# Filtered-density $\hat{\rho}$ across throughout the MMA iterations.
+#  ```
+#
+# ```{important}
+#   We want to stress that both outputs are relevant for the interpretation of the obtained result.
+#   Having pure phases in the density field is what one is naturally interested in, there is no
+#   immediate physical interpretation of an intermediate density.
+#   However no one will manufacture a voxelized design, the filtered-density allows for the
+# extracion of smoothed designs (by considering iso-contours of the density field).
+# ```
