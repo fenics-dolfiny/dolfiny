@@ -308,6 +308,8 @@ def wrap_constraint_callbacks(
                 raise RuntimeError()
         c.assemble()
 
+    Jg_vec = dolfinx.fem.petsc.create_vector(dolfinx.fem.extract_function_spaces(Jg_forms[0][0]))
+
     @sync_functions(u)
     def _Jg_callback(tao, x, J, P) -> None:
         _Jg: dolfinx.fem.Form = Jg_forms[0][0]
@@ -319,7 +321,9 @@ def wrap_constraint_callbacks(
                 JT = J.getTransposeMat()
                 JT.zeroEntries()
 
-                Jg_vec = dolfinx.fem.petsc.assemble_vector(_Jg)
+                with Jg_vec.localForm() as lf:
+                    lf.set(0.0)
+                dolfinx.fem.petsc.assemble_vector(Jg_vec, _Jg)  # type: ignore
                 Jg_vec.ghostUpdate(PETSc.InsertMode.ADD, PETSc.ScatterMode.REVERSE)  # type: ignore
                 Jg_vec.scale(-1)
 
