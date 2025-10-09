@@ -214,6 +214,7 @@ def svanberg_two_bar_truss(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], flo
     tao.setInequalityConstraints(constraint, c)
 
     J_c = PETSc.Mat().createDense((2, 2))  # type: ignore
+    J_c.assemble()
     tao.setJacobianInequality(constraint_jacobian, J_c)
 
     lb = x.copy()
