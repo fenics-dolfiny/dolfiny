@@ -24,25 +24,16 @@ nn = [10, 4, 4]
 
 # Get mesh and meshtags
 mesh, tdim = dolfinx.mesh.create_box(comm, [ox, rx], nn), 3
-mts = {}
-for d in range(mesh.geometry.dim):
-    for k, kx in enumerate((ox[d], rx[d])):
-        facets = dolfinx.mesh.locate_entities(mesh, tdim - 1, lambda x: np.isclose(x[d], kx))
-        mt = dolfinx.mesh.meshtags(mesh, tdim - 1, facets, 2 * d + k)
-        mts[f"face_x{d}={'min' if k == 0 else 'max'}"] = mt
-
 mesh.topology.create_connectivity(tdim - 1, tdim)
-
-# Get merged MeshTags for each codimension
-interfaces, interfaces_keys = dolfiny.mesh.merge_meshtags(mesh, mts, tdim - 1)
+meshtags, physical_groups = dolfiny.mesh.tag_box_facets(mesh, [ox, rx])
 
 # Define shorthands for labelled tags
-surface_left = interfaces_keys["face_x0=min"]
-surface_right = interfaces_keys["face_x0=max"]
-surface_bottom = interfaces_keys["face_x1=min"]
-surface_top = interfaces_keys["face_x1=max"]
-surface_front = interfaces_keys["face_x2=min"]
-surface_back = interfaces_keys["face_x2=max"]
+surface_left = physical_groups["face_x0_min"].tag
+surface_right = physical_groups["face_x0_max"].tag
+surface_bottom = physical_groups["face_x1_min"].tag
+surface_top = physical_groups["face_x1_max"].tag
+surface_front = physical_groups["face_x2_min"].tag
+surface_back = physical_groups["face_x2_max"].tag
 
 # Solid material parameters
 mu = dolfinx.fem.Constant(mesh, scalar(100.0))  # GPa
@@ -54,7 +45,7 @@ t = dolfinx.fem.Constant(mesh, [0.0, 0.1, 0.0])  # tangential boundary stress ve
 
 # Define integration measures
 dx = ufl.Measure("dx", domain=mesh)
-ds = ufl.Measure("ds", domain=mesh, subdomain_data=interfaces)
+ds = ufl.Measure("ds", domain=mesh, subdomain_data=meshtags)
 dS = ufl.Measure("dS", domain=mesh)
 
 # Define elements
@@ -129,9 +120,9 @@ form += (
 forms = ufl.extract_blocks(form)
 
 # Identify dofs of function spaces associated with tagged interfaces/boundaries
-surface_left_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, interfaces, surface_left)
+surface_left_dofs_Uf = dolfiny.mesh.locate_dofs_topological(Uf, meshtags, surface_left)
 surface_rest_dofs_Sf = dolfiny.mesh.locate_dofs_topological(
-    Sf, interfaces, [surface_right, surface_top, surface_bottom, surface_front, surface_back]
+    Sf, meshtags, [surface_right, surface_top, surface_bottom, surface_front, surface_back]
 )
 
 # Define boundary conditions

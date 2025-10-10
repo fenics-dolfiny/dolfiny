@@ -97,3 +97,34 @@ def test_truss_x_braced(gdim):
     for i in range(mesh.topology.index_map(0).size_local):
         links = v_to_e.links(i)
         assert links.size == (3 if gdim == 2 else 7)  # connected to all vertices up to self
+
+
+@pytest.mark.parametrize("dim", (1, 2, 3))
+def test_tag_box_facets(dim):
+    comm = MPI.COMM_WORLD
+
+    box_bounds = [[-1] * dim, [1] * dim]
+    if dim == 1:
+        mesh = dolfinx.mesh.create_interval(comm, 10, [-1, 1])
+    elif dim == 2:
+        mesh = dolfinx.mesh.create_rectangle(comm, box_bounds, [10, 10])
+    elif dim == 3:
+        mesh = dolfinx.mesh.create_box(comm, box_bounds, [10, 10, 10])
+    else:
+        assert False
+
+    meshtags, mts = dolfiny.mesh.tag_box_facets(mesh, box_bounds)
+
+    ds = ufl.Measure("ds", domain=mesh, subdomain_data=meshtags)
+
+    for d in range(dim):
+        for side in ("min", "max"):
+            name = f"face_x{d}_{side}"
+            assert name in mts.keys()
+            face_dim, tag = mts[name]
+            assert face_dim == dim - 1
+
+            area = dolfinx.fem.assemble_scalar(dolfinx.fem.form(1 * ds(tag)))
+            area = comm.allreduce(area)
+
+            assert area == pytest.approx(2 ** (dim - 1))
