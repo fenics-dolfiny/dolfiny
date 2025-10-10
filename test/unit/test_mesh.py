@@ -89,7 +89,7 @@ def test_truss_x_braced(gdim):
         if gdim == 2
         else dolfinx.mesh.create_unit_cube(MPI.COMM_SELF, 1, 1, 1, dolfinx.mesh.CellType.hexahedron)
     )
-    mesh = dolfiny.mesh.create_truss_x_braced_mesh(orig_mesh, comm=MPI.COMM_SELF)
+    mesh = dolfiny.mesh_generation.create_truss_x_braced_mesh(orig_mesh, comm=MPI.COMM_SELF)
 
     assert mesh.geometry.x.shape == orig_mesh.geometry.x.shape  # equal up to reorder
     mesh.topology.create_connectivity(0, 1)
