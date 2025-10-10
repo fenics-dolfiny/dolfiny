@@ -93,19 +93,15 @@ class CONLIN:
 
         + bounds projection.
         """
-        # tmp_p = √(p + λᵀP)
-        tmp_p = x.copy()
-        self._P.multTransposeAdd(λ, self._p, tmp_p)
-        tmp_p.sqrtabs()
+        # tmp = √(p + λᵀP)
+        self._P.multTransposeAdd(λ, self._p, self._tmp)
+        self._tmp.sqrtabs()
 
-        # tmp_q = √(q + λᵀQ)
-        tmp_q = x.copy()
-        self._Q.multTransposeAdd(λ, self._q, tmp_q)
-        tmp_q.sqrtabs()
+        # x(λ) = √(q + λᵀQ) ⨸ tmp
+        self._Q.multTransposeAdd(λ, self._q, x)
+        x.sqrtabs()
 
-        # x(λ) = tmp_q ⨸ tmp_p
-        tmp_q.copy(x)
-        x.pointwiseDivide(x, tmp_p)
+        x.pointwiseDivide(x, self._tmp)
 
         # bounds projection
         x.pointwiseMax(self._lb, x)
@@ -136,28 +132,28 @@ class CONLIN:
             # x(λ)
             self.x(λ, self._x)
 
-            x_recp = self._x.copy()
-            x_recp.reciprocal()
-
-            # tmp_p = p + λᵀP
-            tmp_p = self._p.copy()
-            self._P.multTransposeAdd(λ, tmp_p, tmp_p)
-
-            # tmp_q = q + λᵀQ
-            tmp_q = self._q.copy()
-            self._Q.multTransposeAdd(λ, tmp_q, tmp_q)
+            self._x.copy(self._x_recip)
+            self._x_recip.reciprocal()
 
             # W(λ) = r + λᵀr_h + (p + λᵀP) x(λ) + (q + λᵀQ) ⊙ x(λ)⁻¹
             #      = r + λᵀr_h + tmp_p ⊙ x(λ) + tmp_q ⊙ x(λ)⁻¹
             W = self._r
             W += λ.dot(self._r_h)
-            W += tmp_p.dot(self._x)
-            W += tmp_q.dot(x_recp)
+
+            # tmp = p + λᵀP
+            self._P.multTransposeAdd(λ, self._p, self._tmp)
+
+            W += self._tmp.dot(self._x)
+
+            # tmp_q = q + λᵀQ
+            self._Q.multTransposeAdd(λ, self._q, self._tmp)
+
+            W += self._tmp.dot(self._x_recip)
 
             # ∇W(λ) = r_h + P x + Q x⁻¹
             self._r_h.copy(G)
             self._P.multAdd(self._x, G, G)
-            self._Q.multAdd(x_recp, G, G)
+            self._Q.multAdd(self._x_recip, G, G)
 
             # Flip for max. to min.
             G.scale(-1)
@@ -174,6 +170,17 @@ class CONLIN:
             self._subsolver.setVariableBounds((lb, ub))
 
             self._subsolver.setUp()
+
+        self._x = tao.getSolution()
+
+        self._p = self._x.copy()
+        self._q = self._x.copy()
+        self._x_recip = self._x.copy()
+
+        self._zero = self._x.copy()
+        self._zero.set(self._grad_eps)
+
+        self._tmp = self._x.copy()
 
     def solve(self, tao):
         """Follows TaoSolve_Python_default."""
@@ -197,6 +204,14 @@ class CONLIN:
             tao.setConvergedReason(PETSc.TAO.ConvergedReason.CONVERGED_GATOL)
 
         self._lb, self._ub = tao.getVariableBounds()
+
+        if c:
+            tmp_h = c.copy()
+            self._r_h = c.copy()
+
+        if J:
+            self._P = J.copy()
+            self._Q = J.copy()
 
         for it in range(1, tao.getMaximumIterations()):
             if tao.reason:
@@ -223,51 +238,48 @@ class CONLIN:
                 else:
                     J.scale(-1)
 
-            zero = self._x.copy()
-            zero.set(self._grad_eps)
-
             # p = ∇f(x₀)⁺
-            self._p = self._gradient.copy()
-            self._p.pointwiseMax(self._p, zero)
+            self._gradient.copy(self._p)
+            self._p.pointwiseMax(self._p, self._zero)
 
             # q = ∇f(x₀)⁻ ⊙ x₀⁻²
-            self._q = self._gradient.copy()
+            self._gradient.copy(self._q)
             self._q.scale(-1)
-            self._q.pointwiseMax(self._q, zero)
-            x0_square = self._x.copy()
-            x0_square.pointwiseMult(x0_square, x0_square)
-            self._q.pointwiseMult(self._q, x0_square)
+            self._q.pointwiseMax(self._q, self._zero)
 
-            x_recip = self._x.copy()
-            x_recip.reciprocal()
-            self._r = self._f - self._p.dot(self._x) - self._q.dot(x_recip)
+            self._x.copy(self._tmp)
+            # x0_square = self._x.copy()  # TODO
+            self._tmp.pointwiseMult(self._tmp, self._tmp)
+            self._q.pointwiseMult(self._q, self._tmp)
+
+            self._x.copy(self._x_recip)
+            self._x_recip.reciprocal()
+            self._r = self._f - self._p.dot(self._x) - self._q.dot(self._x_recip)
 
             if h:
-                self._r_h = c.copy()  # h(x)
+                c.copy(self._r_h)
 
-                self._P = J.copy()
+                J.copy(self._P)
                 if self._P.getType() == PETSc.Mat.Type.TRANSPOSE:
                     positive_part(self._P.getTransposeMat())
                 else:
                     positive_part(self._P)
 
-                self._Q = J.copy()
+                J.copy(self._Q)
                 if self._Q.getType() == PETSc.Mat.Type.TRANSPOSE:
                     negative_part(self._Q.getTransposeMat())
                 else:
                     negative_part(self._Q)
 
-                self._Q.diagonalScale(L=None, R=x0_square)
+                self._Q.diagonalScale(L=None, R=self._tmp)
 
                 # r_h -= P x
-                tmp = self._r_h.copy()
-                self._P.mult(self._x, tmp)
-                self._r_h -= tmp
+                self._P.mult(self._x, tmp_h)
+                self._r_h -= tmp_h
 
                 # r_h -= Q x⁻¹
-                tmp = self._r_h.copy()
-                self._Q.mult(x_recip, tmp)
-                self._r_h -= tmp
+                self._Q.mult(self._x_recip, tmp_h)
+                self._r_h -= tmp_h
 
                 self._subsolver.solve()
 
@@ -294,6 +306,9 @@ class CONLIN:
             tao.monitor(f=self._objective, res=self._gradient.norm())  # TODO: cnorm
             tao.checkConverged()
 
+        if tmp_h is not None:
+            tmp_h.destroy()
+
     @property
     def subsolver(self) -> PETSc.TAO:  # type: ignore
         return self._subsolver
@@ -301,22 +316,18 @@ class CONLIN:
     def destroy(self, tao: PETSc.TAO):  # type: ignore
         self._logger.debug(f"{__name__}.destroy")
 
-        if self._λ is not None:
-            self._λ.destroy()
-
-        if self._J_λ is not None:
-            self._J_λ.destroy()
-
-        if self._p is not None:
-            self._p.destroy()
-
-        if self._q is not None:
-            self._q.destroy()
-
-        if self._P is not None:
-            self._P.destroy()
-
-        if self._Q is not None:
-            self._Q.destroy()
+        to_destroy = (
+            self._λ,
+            self._J_λ,
+            self._p,
+            self._q,
+            self._P,
+            self._Q,
+            self._zero,
+            self._r_h,
+            self._x_recip,
+        )
+        for o in filter(lambda o: o is not None, to_destroy):
+            o.destroy()
 
         self._subsolver.destroy()
