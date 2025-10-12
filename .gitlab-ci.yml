@@ -50,15 +50,15 @@ typos:
 image build:
    stage: image
    image: docker:git
+   tags:
+      - $TAG
    services:
       - name: docker:dind
         command: ["--mtu=1450"]
-   tags:
-      - zed
    before_script:
       - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
    script:
-      - echo CONTAINER_COMMIT_IMAGE = "$CONTAINER_COMMIT_IMAGE"
+      - echo "Building $CONTAINER_COMMIT_IMAGE-$ARCH on $(uname -m)"
       - docker pull $CONTAINER_COMMIT_IMAGE-$ARCH || true
       - docker build
                --cache-from $CONTAINER_COMMIT_IMAGE-$ARCH
@@ -66,11 +66,13 @@ image build:
                --pull
                --push
                --tag $CONTAINER_COMMIT_IMAGE-$ARCH
-               --file docker/Dockerfile
-               .
+               --file docker/Dockerfile .
    parallel:
       matrix:
-         - ARCH: [amd64, arm64]
+         - ARCH: amd64
+           TAG: zed
+         - ARCH: arm64
+           TAG: saas-linux-medium-arm64
 
 image release:
    stage: release
@@ -85,13 +87,13 @@ image release:
       - echo "Gitlab registry -- create multiarch manifest"
       - docker pull $CONTAINER_COMMIT_IMAGE-amd64
       - docker pull $CONTAINER_COMMIT_IMAGE-arm64
-      - docker buildx imagetools create -t $CONTAINER_COMMIT_IMAGE $(printf "$CONTAINER_COMMIT_IMAGE-%s " amd64) # FIXME: arm64)
+      - docker buildx imagetools create -t $CONTAINER_COMMIT_IMAGE $(printf "$CONTAINER_COMMIT_IMAGE-%s " amd64 arm64)
       - echo "DockerHub registry -- create multiarch manifest"
       - docker tag $CONTAINER_COMMIT_IMAGE-amd64 $DOCKERHUB_COMMIT_IMAGE-amd64
       - docker tag $CONTAINER_COMMIT_IMAGE-arm64 $DOCKERHUB_COMMIT_IMAGE-arm64
       - docker push $DOCKERHUB_COMMIT_IMAGE-amd64
       - docker push $DOCKERHUB_COMMIT_IMAGE-arm64
-      - docker buildx imagetools create -t $DOCKERHUB_COMMIT_IMAGE $(printf "$DOCKERHUB_COMMIT_IMAGE-%s " amd64) # FIXME: arm64)
+      - docker buildx imagetools create -t $DOCKERHUB_COMMIT_IMAGE $(printf "$DOCKERHUB_COMMIT_IMAGE-%s " amd64 arm64)
    rules:
       - if: $CI_COMMIT_TAG
         variables:
