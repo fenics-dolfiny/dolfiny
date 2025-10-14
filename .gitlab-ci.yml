@@ -319,14 +319,42 @@ electrodiffusion:
          pnp_4species_steadystate_scaled.py
          diffusor_4species_steadystate.py
 
+bookstrap:
+   stage: demo
+   image: $CONTAINER_COMMIT_IMAGE-amd64
+   tags:
+      - zed
+   rules:
+      - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+      - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
+            ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
+   before_script:
+      - cd book
+   script:
+      - python bookstrap.py --filter $REGEX
+   artifacts:
+      expire_in: 2 hours
+      paths:
+         - book/**/*.ipynb
+         - book/**/*.gif
+   parallel:
+      matrix:
+         - REGEX:
+            - obstacle/membrane.py 
+            - obstacle/montreal.py 
+            - spectral/solid_elasticity.py
+            - structural_optimisation/truss_sizing.py
+            - structural_optimisation/topopt_simp.py
+
 book build:
    stage: book
    image: $CONTAINER_COMMIT_IMAGE-amd64
+   dependencies:
+      - bookstrap
    script:
       - apt-get -y update
       - apt-get -y install nodejs npm
       - cd book
-      - python bookstrap.py
       - jupyter book build --html
    after_script:
       - mv book/_build/html public
