@@ -68,7 +68,9 @@ Presentations about `dolfiny` functionality:
 - [Physical units in UFL](https://hdl.handle.net/10993/65288)
   at FEniCS 2025 conference,
 - [Dimensional analysis in UFL](https://hdl.handle.net/10993/65290)
-  at FEniCS 2025 conference.
+  at FEniCS 2025 conference,
+- [Sequential quadratic and convex optimisation with FEniCSx and PETSc](https://hdl.handle.net/10993/65998)
+  at KLAIM 2025 conference.
 
 # Authors
 
