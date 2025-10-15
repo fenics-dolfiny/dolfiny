@@ -269,6 +269,8 @@ def plot_tube3d_pyvista(u, s, comm=MPI.COMM_WORLD):
 
     plotter.show_axes()
     plotter.show()
+    plotter.close()
+    plotter.deep_clean()
 
 
 # %% [markdown]

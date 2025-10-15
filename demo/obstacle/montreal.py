@@ -183,6 +183,8 @@ support_boxes = pyvista.MultiBlock(
 plotter.add_mesh(support_boxes.combine().extract_surface(), color="green", label="Support")
 plotter.add_legend()
 plotter.show()
+plotter.close()
+plotter.deep_clean()
 
 # %% [markdown]
 # ## Meshing
@@ -432,6 +434,8 @@ def plot(f):
     plotter.camera.position = (10, -200, 200)
     plotter.camera.focal_point = (60, 20, 0)
     plotter.show()
+    plotter.close()
+    plotter.deep_clean()
 
 
 # %% [markdown]

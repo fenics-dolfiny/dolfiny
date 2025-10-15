@@ -154,6 +154,8 @@ def plot_deflected(f):
 
     plotter.camera.elevation -= 20
     plotter.show()
+    plotter.close()
+    plotter.deep_clean()
 
 
 # %%

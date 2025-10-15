@@ -145,6 +145,8 @@ plotter.add_axes()
 plotter.camera.elevation += 20
 plotter.camera.zoom(1.7)
 plotter.show()
+plotter.close()
+plotter.deep_clean()
 
 # %% [markdown]
 # ## Truss Model and Forward Problem
@@ -358,6 +360,8 @@ plotter.view_xy()
 plotter.camera.elevation += 20
 plotter.camera.zoom(2.0)
 plotter.show()
+plotter.close()
+plotter.deep_clean()
 
 # %% [markdown]
 # Visualisation of the optimised truss structure, each truss plotted corresponding to optimisation
@@ -385,3 +389,5 @@ plotter.view_xy()
 plotter.camera.elevation += 20
 plotter.camera.zoom(2.0)
 plotter.show()
+plotter.close()
+plotter.deep_clean()
