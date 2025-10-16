@@ -5,14 +5,12 @@ theme = themes.DocumentTheme()
 pixels = 4 * 1024
 theme.window_size = (pixels, pixels)
 
-theme.anti_aliasing = "ssaa"
 theme.axes.show = True
 theme.camera.parallel_projection = True
 theme.cmap = "coolwarm"
 theme.jupyter_backend = "static"
 theme.lighting_params.specular = 0.2
 theme.lighting_params.specular_power = 10
-theme.smooth_shading = True
 theme.split_sharp_edges = True
 
 theme.font.family = "courier"

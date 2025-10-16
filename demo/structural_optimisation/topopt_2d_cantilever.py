@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Topology optimisation
+# # Topology optimisation of a 2D cantilever beam
 #
 # This demo showcases the mother of all topology optimisation problems: compliance minimisation of a
 # **s**olid **i**sotropic **m**aterial with **p**enalisation (SIMP), regularised with a Helmholtz
