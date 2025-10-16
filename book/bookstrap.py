@@ -9,7 +9,8 @@ demo_files = [  # relative from demo/
     "obstacle/montreal.py",
     "spectral/solid_elasticity.py",
     "structural_optimisation/truss_sizing.py",
-    "structural_optimisation/topopt_simp.py",
+    "structural_optimisation/topopt_2d_cantilever.py",
+    "structural_optimisation/topopt_3d_ge_bracket.py",
 ]
 
 parser = argparse.ArgumentParser("bookstrap")
@@ -26,28 +27,57 @@ if os.getcwd() != os.path.dirname(os.path.abspath(__file__)):
     raise RuntimeError("setup.py expects to be executed from the book/ directory.")
 
 
+# Step 1: Copy entire demo directories to book structure
+# Collect unique directories to avoid copying the same directory multiple times
+demo_dirs = set()
 for demo in demo_files:
-    notebook = pathlib.Path(demo).with_suffix(".ipynb")
+    if re.match(filter, demo):
+        demo_dirs.add(pathlib.Path(demo).parent)
+
+for book_dir in sorted(demo_dirs):
+    demo_dir = pathlib.Path(f"../demo/{book_dir}")
+
+    print(f"📁 Copying directory: {demo_dir} → {book_dir}", flush=True)
+    subprocess.run(["mkdir", "-p", str(book_dir)], check=True)
+
+    # Copy all files from demo directory to book directory
+    if demo_dir.exists():
+        for file in demo_dir.iterdir():
+            if file.is_file():
+                subprocess.run(["cp", str(file), str(book_dir)], check=True)
+
+# Step 2: Convert Python scripts to notebooks
+for demo in demo_files:
+    script = pathlib.Path(demo)
+    notebook = script.with_suffix(".ipynb")
 
     if not re.match(filter, demo):
-        print(f"♻️ {demo} → {notebook} (Skipped)", flush=True)
+        print(f"♻️  Converting script (Skipped): {script} → {notebook}", flush=True)
         continue
 
-    print(f"♻️ {demo} → {notebook}", flush=True)
-    subprocess.run(["mkdir", "-p", notebook.parent], check=True)
+    if not script.exists():
+        print(f"♻️  Converting script (Not found): {script} → {notebook}", flush=True)
+        continue
+
+    print(f"♻️  Converting script to notebook: {script} → {notebook}", flush=True)
     subprocess.run(
-        ["jupytext", f"../demo/{demo}", "--to", "ipynb", "--quiet", "--output", notebook],
+        ["jupytext", str(script), "--to", "ipynb", "--quiet", "--output", str(notebook)],
         check=True,
     )
 
+# Step 3: Execute notebooks
 for demo in demo_files:
     notebook = pathlib.Path(demo).with_suffix(".ipynb")
 
     if not re.match(filter, demo):
-        print(f"🚧 {notebook} (Skipped)", flush=True)
+        print(f"🚧 Executing notebook (Skipped): {notebook}", flush=True)
         continue
 
-    print(f"🚧 {notebook}", flush=True)
+    if not notebook.exists():
+        print(f"🚧 Executing notebook (Not found): {notebook}", flush=True)
+        continue
+
+    print(f"🚧 Executing notebook: {notebook}", flush=True)
     subprocess.run(
         [
             "jupyter",
@@ -58,7 +88,7 @@ for demo in demo_files:
             "--inplace",
             "--clear-output",
             "--log-level=WARN",
-            notebook,
+            str(notebook),
         ],
         check=True,
     )

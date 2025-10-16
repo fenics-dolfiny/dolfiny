@@ -307,7 +307,7 @@ def test_MMA_options():
     assert tao.getType() == "python"
     assert tao.getPythonType() == "dolfiny.mma.MMA"
 
-    ctx: MMA = tao.getPythonContext()
+    ctx: MMA = tao.getPythonContext()  # type: ignore
     assert np.isclose(ctx.albefa, albefa)
     assert np.isclose(ctx.move_limit, move_limit)
     assert np.isclose(ctx.asymptote_init, asymp_init)

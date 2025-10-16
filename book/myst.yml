@@ -40,7 +40,8 @@ project:
     - title: Structural optimisation
       children:
       - file: structural_optimisation/truss_sizing.ipynb
-      - file: structural_optimisation/topopt_simp.ipynb
+      - file: structural_optimisation/topopt_2d_cantilever.ipynb
+      - file: structural_optimisation/topopt_3d_ge_bracket.ipynb
     - file: spectral/solid_elasticity.ipynb
     - file: getting-involved.md
 site:

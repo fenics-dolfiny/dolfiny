@@ -59,12 +59,10 @@ image build:
       - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
    script:
       - echo "Building $CONTAINER_COMMIT_IMAGE-$ARCH on $(uname -m)"
-      - docker pull $CONTAINER_COMMIT_IMAGE-$ARCH || true
-      - docker build
-               --cache-from $CONTAINER_COMMIT_IMAGE-$ARCH
-               --build-arg BUILDKIT_INLINE_CACHE=1
+      - docker buildx build
+               --cache-from type=registry,ref=$CI_REGISTRY/$CONTAINER_COMMIT_IMAGE-$ARCH
+               --cache-to type=inline
                --pull
-               --push
                --tag $CONTAINER_COMMIT_IMAGE-$ARCH
                --file docker/Dockerfile .
    parallel:
@@ -306,8 +304,8 @@ structural_optimisation:
       SCRIPTS: |
          "truss_sizing.py --algorithm conlin"
          "truss_sizing.py --algorithm mma"
-         "topopt_simp.py --algorithm conlin"
-         "topopt_simp.py --algorithm mma"
+         "topopt_2d_cantilever.py --algorithm conlin"
+         "topopt_2d_cantilever.py --algorithm mma"
 
 electrodiffusion:
    extends: .demo_template
@@ -337,6 +335,7 @@ bookstrap:
       paths:
          - book/**/*.ipynb
          - book/**/*.gif
+         - book/**/*.png
    parallel:
       matrix:
          - REGEX:
@@ -344,7 +343,8 @@ bookstrap:
             - obstacle/montreal.py 
             - spectral/solid_elasticity.py
             - structural_optimisation/truss_sizing.py
-            - structural_optimisation/topopt_simp.py
+            - structural_optimisation/topopt_2d_cantilever.py
+            - structural_optimisation/topopt_3d_ge_bracket.py
 
 book build:
    stage: book
