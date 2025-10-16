@@ -9,7 +9,6 @@ ENV PYVISTA_TRAME_SERVER_PROXY_PREFIX="/proxy/"
 ENV PYVISTA_TRAME_SERVER_PROXY_ENABLED="True"
 ENV PYVISTA_JUPYTER_BACKEND="html"
 ENV LIBGL_ALWAYS_SOFTWARE=1
-ENV DISPLAY=:99
 
 # Install system dependencies
 RUN apt-get -y update && \
@@ -18,7 +17,6 @@ RUN apt-get -y update && \
         libgl1-mesa-dev \
         libgraphviz-dev \
         libosmesa6 \
-        xvfb \
     && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
