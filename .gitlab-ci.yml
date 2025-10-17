@@ -59,12 +59,15 @@ image build:
       - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
    script:
       - echo "Building $CONTAINER_COMMIT_IMAGE-$ARCH on $(uname -m)"
-      - docker buildx build
-               --cache-from type=registry,ref=$CI_REGISTRY/$CONTAINER_COMMIT_IMAGE-$ARCH
-               --cache-to type=inline
+      - docker pull $CONTAINER_COMMIT_IMAGE-$ARCH || true
+      - docker build
+               --cache-from $CONTAINER_COMMIT_IMAGE-$ARCH
+               --build-arg BUILDKIT_INLINE_CACHE=1
                --pull
+               --push
                --tag $CONTAINER_COMMIT_IMAGE-$ARCH
                --file docker/Dockerfile .
+
    parallel:
       matrix:
          - ARCH: amd64
