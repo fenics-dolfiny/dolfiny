@@ -1,4 +1,4 @@
-FROM dolfinx/dolfinx:nightly
+FROM dolfinx/dolfinx:v0.10.0
 
 ARG EXTRA_CLING_ARGS="-O2"
 

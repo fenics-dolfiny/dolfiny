@@ -34,7 +34,7 @@ ruff:
 
 mypy:
    stage: lint
-   image: dolfinx/dolfinx:nightly
+   image: dolfinx/dolfinx:v0.10.0
    script:
       - pip install .[typing]
       - mypy -p dolfiny
