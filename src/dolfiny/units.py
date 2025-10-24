@@ -281,7 +281,7 @@ def _transform_form(form: Form, mapping: dict) -> Form:
         transformed_integrand = map_expr_dag(transformer, integral.integrand())
 
         # Scale by measure change
-        tdim = integral.ufl_domain().topological_dimension()
+        tdim = integral.ufl_domain().topological_dimension
         measure_dim = tdim - _integral_type_codim[integral.integral_type()]
         scaled_integrand = transformed_integrand * (transformer._mesh_scale**measure_dim)
 
