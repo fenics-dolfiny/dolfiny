@@ -1,6 +1,6 @@
-# dolfiny: high-level and convenience wrappers for DOLFINx
+# `dolfiny`: high-level convenience wrappers for DOLFINx
 
-The `dolfiny` package provides a set of high-level and convenience wrappers for 
+The `dolfiny` package provides a set of high-level convenience wrappers for 
 [DOLFINx](https://github.com/FEniCS/dolfinx), the [FEniCS library](https://www.fenicsproject.org).
 
 While DOLFINx involves many low-level operations - from handling ghosted values 
@@ -50,9 +50,9 @@ docker pull dolfiny/dolfiny
 
 # Documentation
 
-In preparation.
+Some of our demos are available as documented and rendered `jupyter notebooks` on our website at [dolfiny.uni.lu](https://dolfiny.uni.lu/).
 
-In the meantime please check available [demos](demo/) or [unit tests](test/).
+Beside this, other references are [demos](https://github.com/fenics-dolfiny/dolfiny/tree/main/demo) or [unit tests](https://github.com/fenics-dolfiny/dolfiny/tree/main/test).
 
 Presentations about `dolfiny` functionality:
 - [dolfiny: Convenience wrappers for DOLFINx](https://hdl.handle.net/10993/47422)
@@ -84,6 +84,8 @@ We are always looking for contributions and help with `dolfiny`.
 If you have ideas, nice applications or code contributions then we would 
 be happy to help you get them included.
 We ask you to follow the FEniCS Project git workflow.
+
+For more information and opportunities to get involved, see [here](https://dolfiny.uni.lu/getting-involved/).
 
 # Issues and Support
 
