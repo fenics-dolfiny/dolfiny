@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir -v \
     coverage \
     imageio \
     jupyter \
-    jupyter-book==v2.0.0b2 \
+    jupyter-book>=2.0.0 \
     jupytext \
     matplotlib \
     mypy \
