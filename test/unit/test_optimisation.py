@@ -9,6 +9,76 @@ from numpy import typing as npt
 
 from dolfiny.conlin import CONLIN
 from dolfiny.mma import MMA
+from dolfiny.sqp import SQP
+
+
+def quadratic(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
+    """
+    min  (x₁ - 1)^2 + (x₂ - 2)^2
+     x
+    """
+
+    def objective(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
+        return (x[0] - 1.0) ** 2 + (x[1] - 2.0) ** 2  # type: ignore
+
+    def gradient(tao: PETSc.TAO, x: PETSc.Vec, g: PETSc.Vec) -> None:  # type: ignore
+        g[0] = 2.0 * (x[0] - 1.0)
+        g[1] = 2.0 * (x[1] - 2.0)
+        g.assemble()
+
+    def hessian(tao: PETSc.TAO, x: PETSc.Vec, P: PETSc.Mat, H: PETSc.Mat) -> None:  # type: ignore
+        H[0, 0] = 2.0
+        H[0, 1] = 0.0
+        H[1, 0] = 0.0
+        H[1, 1] = 2.0
+        H.assemble()
+
+    x = PETSc.Vec().createSeq(2)  # type: ignore
+    tao.setSolution(x)
+
+    tao.setObjective(objective)
+    tao.setGradient(gradient, x.copy())
+
+    H = PETSc.Mat().create()  # type: ignore
+    H.setType("dense")
+    H.setSizes(2)
+    H.assemble()
+    tao.setHessian(hessian, H)
+
+    return np.array([1.0, 2.0]), 0.0, 1e-8
+
+
+def trigonometric(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
+    """
+    min  -sin(x + π/2)
+     x
+    """
+
+    def objective(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
+        return -1 * math.sin(x[0] + math.pi / 2)
+
+    def gradient(tao: PETSc.TAO, x: PETSc.Vec, g: PETSc.Vec) -> None:  # type: ignore
+        g[0] = math.sin(x[0])
+        g.assemble()
+
+    def hessian(tao: PETSc.TAO, x: PETSc.Vec, P: PETSc.Mat, H: PETSc.Mat) -> None:  # type: ignore
+        H[0, 0] = math.cos(x[0])
+        H.assemble()
+
+    x = PETSc.Vec().createSeq(1)  # type: ignore
+    x.set(math.pi / 4)
+    tao.setSolution(x)
+
+    tao.setObjective(objective)
+    tao.setGradient(gradient, x.copy())
+
+    H = PETSc.Mat().create()  # type: ignore
+    H.setType("dense")
+    H.setSizes(1)
+    H.assemble()
+    tao.setHessian(hessian, H)
+
+    return np.array([0.0]), -1, 1e-8
 
 
 def simple(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
@@ -25,12 +95,17 @@ def simple(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # t
         J.getArray()[0] = 2 * x[0]
         J.assemble()
 
+    def hessian(tao: PETSc.TAO, x: PETSc.Vec, P: PETSc.Mat, H: PETSc.Mat) -> None:  # type: ignore
+        H[0, 0] = 2.0
+        H.assemble()
+
     x = PETSc.Vec().createSeq(1)  # type: ignore
     x.set(5.0)
     tao.setSolution(x)
 
     tao.setObjective(objective)
     tao.setGradient(gradient, x.copy())
+    tao.setHessian(hessian, PETSc.Mat().createDense(1))  # type: ignore
 
     lb = x.copy()
     lb.set(2)
@@ -85,6 +160,60 @@ def simple_constrained(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, 
     tao.setVariableBounds(lb, ub)
 
     return np.array([3.0]), 9, 1e-5
+
+
+def simple_eq_constrained(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
+    """
+    min  (x₁ - 1)^2 + (x₂ - 2)^2
+     x
+    s.t. x₁ + 2x₂ + .5 = 0
+    """
+
+    def objective(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
+        return (x[0] - 1.0) ** 2 + (x[1] - 2.0) ** 2  # type: ignore
+
+    def gradient(tao: PETSc.TAO, x: PETSc.Vec, g: PETSc.Vec) -> None:  # type: ignore
+        g[0] = 2.0 * (x[0] - 1.0)
+        g[1] = 2.0 * (x[1] - 2.0)
+        g.assemble()
+
+    def hessian(tao: PETSc.TAO, x: PETSc.Vec, P: PETSc.Mat, H: PETSc.Mat) -> None:  # type: ignore
+        H[0, 0] = 2.0
+        H[0, 1] = 0.0
+        H[1, 0] = 0.0
+        H[1, 1] = 2.0
+        H.assemble()
+
+    def constraint(tao, x: PETSc.Vec, c: PETSc.Vec) -> None:  # type: ignore
+        c[0] = x[0] + 2 * x[1] + 0.5
+        c.assemble()
+
+    def constraint_jacobian(tao, x: PETSc.Vec, J: PETSc.Mat, P: PETSc.Mat) -> None:  # type: ignore
+        J[0, 0] = 1.0
+        J[0, 1] = 2.0
+        J.assemble()
+
+    x = PETSc.Vec().createSeq(2)  # type: ignore
+    tao.setSolution(x)
+
+    tao.setObjective(objective)
+    tao.setGradient(gradient, x.copy())
+
+    H = PETSc.Mat().create()  # type: ignore
+    H.setType("dense")
+    H.setSizes(2)
+    H.assemble()
+    tao.setHessian(hessian, H)
+
+    c = PETSc.Vec().createSeq(1)  # type: ignore
+    tao.setEqualityConstraints(constraint, c)
+    tao.setInequalityConstraints(constraint, c)
+
+    J_c = PETSc.Mat().createDense((1, 2))  # type: ignore
+    J_c.assemble()
+    tao.setJacobianEquality(constraint_jacobian, J_c)
+
+    return np.array([-0.1, -0.2]), 6.05, 1e-8
 
 
 def svanberg_cantilever_beam(tao: PETSc.TAO) -> tuple[npt.NDArray[np.float64], float, float]:  # type: ignore
@@ -279,6 +408,29 @@ def test_CONLIN(problem):
     # TODO: opt.clear() not enough?!
     for k in opts.getAll().keys():
         del opts[k]
+
+    tao.destroy()
+
+
+@pytest.mark.skipif(MPI.COMM_WORLD.size > 1, reason="Sequential only.")
+@pytest.mark.parametrize("problem", [trigonometric, quadratic, simple, simple_eq_constrained])
+def test_SQP(problem):
+    tao = PETSc.TAO().createPython(SQP())
+
+    x, f, atol = problem(tao)
+    tao.setMaximumIterations(30)
+    tao.solve()
+
+    assert tao.getType() == "python"
+    assert tao.getPythonType() == "dolfiny.sqp.SQP"
+
+    assert np.allclose(tao.getObjectiveValue(), f, atol=atol)
+    if problem not in (simple, simple_eq_constrained):  # TODO
+        assert tao.getConvergedReason() > 0
+    if problem in (quadratic,):  # simple_eq_constrained
+        assert tao.getIterationNumber() == 1
+    assert np.allclose(tao.getPythonContext().getObjectiveValue(), f, atol=atol, rtol=0.0)
+    assert np.allclose(tao.getSolution().getArray(), x, atol=atol)
 
     tao.destroy()
 
