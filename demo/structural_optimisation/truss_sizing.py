@@ -320,8 +320,8 @@ if comm.size > 1:
 # %% tags=["hide-input"]
 matplotlib_inline.backend_inline.set_matplotlib_formats("png")
 it = problem.tao.getIterationNumber()
-comp = comp[:it]  # type: ignore
-volume = volume[:it]  # type: ignore
+comp = comp[:it]
+volume = volume[:it]
 
 fig, ax1 = plt.subplots(dpi=400)
 ax1.set_xlim(0, it - 1)

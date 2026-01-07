@@ -69,8 +69,8 @@ def create_truss_x_braced_mesh(
         # 0----1
         max_facet_to_cell_links = 8
         v = c_to_v.array.reshape(-1, 4)
-        cells = np.append(cells, np.stack([v[:, 1], v[:, 2]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 0], v[:, 3]], axis=1), axis=0)  # type: ignore
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 2]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 3]], axis=1), axis=0)
     else:
         #     6----------7
         #    /|         /|
@@ -88,22 +88,22 @@ def create_truss_x_braced_mesh(
         # 12 in plane diagonals
         # 8 'true' diagonals
         v = c_to_v.array.reshape(-1, 8)
-        cells = np.append(cells, np.stack([v[:, 0], v[:, 3]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 1], v[:, 2]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 2], v[:, 7]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 3], v[:, 6]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 0], v[:, 6]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 2], v[:, 4]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 1], v[:, 7]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 3], v[:, 5]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 0], v[:, 5]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 1], v[:, 4]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 4], v[:, 7]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 5], v[:, 6]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 0], v[:, 7]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 3], v[:, 4]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 1], v[:, 6]], axis=1), axis=0)  # type: ignore
-        cells = np.append(cells, np.stack([v[:, 2], v[:, 5]], axis=1), axis=0)  # type: ignore
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 3]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 2]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 2], v[:, 7]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 3], v[:, 6]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 6]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 2], v[:, 4]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 7]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 3], v[:, 5]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 5]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 4]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 4], v[:, 7]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 5], v[:, 6]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 0], v[:, 7]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 3], v[:, 4]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 1], v[:, 6]], axis=1), axis=0)
+        cells = np.append(cells, np.stack([v[:, 2], v[:, 5]], axis=1), axis=0)
 
         # remove duplicate edges (only exist for hexahedron)
         cells = np.unique(cells, axis=0)
