@@ -238,12 +238,12 @@ def tag_box_facets(
             tag = 2 * d + k
             mt[name] = dolfinx.io.gmsh.PhysicalGroup(dim=facet_dim, tag=tag)
 
-            facets = np.append(facets, facets_face)  # type: ignore
-            tags = np.append(tags, np.full_like(facets_face, tag))  # type: ignore
+            facets = np.append(facets, facets_face)
+            tags = np.append(tags, np.full_like(facets_face, tag))
 
     # Sort by facet
     perm = np.argsort(facets)
-    facets = facets[perm]  # type: ignore
-    tags = tags[perm]  # type: ignore
+    facets = facets[perm]
+    tags = tags[perm]
 
     return dolfinx.mesh.meshtags(mesh, facet_dim, facets, tags), mt
