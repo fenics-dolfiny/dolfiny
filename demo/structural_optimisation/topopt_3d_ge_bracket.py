@@ -118,6 +118,8 @@ if comm.rank == 0:
         2, extract_tags_by_color(surfaces, colors["red"]), name="bolt_faces"
     )
 
+    gmsh.option.setNumber("General.NumThreads", comm.size)  # assumes single node execution
+    gmsh.option.setNumber("Mesh.Algorithm3D", 10)  # HXT
     gmsh.option.setNumber("Mesh.MeshSizeMax", 3e-3)  # in meters
     gmsh.option.setNumber("Mesh.MeshSizeFromCurvature", 1)
     gmsh.option.setNumber("Mesh.MinimumElementsPerTwoPi", 8)
