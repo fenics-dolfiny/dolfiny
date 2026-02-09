@@ -37,12 +37,12 @@ The project aims at interfacing to the PETSc [SNES arc length solver](https://pe
 ```{card}
 :header: 🤝 Third-medium contact demo
 
-The *third-medium* contact method, ref. https://doi.org/10.1007/s00466-013-0848-5 and https://doi.org/10.1016/j.cma.2025.117740, gained poplarity for its variationally pleasing and differential contact formulation.
+The *third-medium* contact method, ref. https://doi.org/10.1007/s00466-013-0848-5 and https://doi.org/10.1016/j.cma.2025.117740, gained popularity for its variationally pleasing and differential contact formulation.
 
 Its formulation fits well into the domain description language [`UFL`](https://github.com/fenics/ufl).
 
 The project aims to demonstrate the usage of third medium contact formulations within FEniCS and (possibly) applying it other use cases, such as optimisation problems.
-It given the opportunity to understand a modern research topic and to get involved with modern, coding practices.
+It gives the opportunity to understand a modern research topic and to get involved with modern, coding practices.
 ```
 
 ```{card}

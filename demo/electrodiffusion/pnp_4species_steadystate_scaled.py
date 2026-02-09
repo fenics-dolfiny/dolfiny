@@ -265,7 +265,7 @@ bcs = [
 ]
 
 # Options for PETSc backend
-opts = PETSc.Options(name)
+opts = PETSc.Options(name)  # type: ignore[attr-defined]
 
 opts["snes_type"] = "newtonls"
 opts["snes_linesearch_type"] = "none"

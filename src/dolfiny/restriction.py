@@ -23,7 +23,7 @@ class Restriction:
 
         Note
         ----
-        Currently, restriction of a matrix and vector is sub-optimal, since it assumes
+        Currently, restriction of a matrix and vector is suboptimal, since it assumes
         different parallel layout every time restriction is called.
 
         """

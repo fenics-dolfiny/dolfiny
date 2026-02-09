@@ -171,7 +171,7 @@ class SQP:
             tao.setIterationNumber(it)
             tao.monitor(
                 its=it, f=self._objective, res=grad.norm()
-            )  # TODO: norm for constrainedcase
+            )  # TODO: norm for constrained case
             tao.checkConverged()
 
     def getObjectiveValue(self) -> float:
