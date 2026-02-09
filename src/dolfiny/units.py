@@ -255,6 +255,7 @@ class QuantityFactorizer(MultiFunction):
     transposed = inherit_from_operand
     deviatoric = inherit_from_operand
     sym = inherit_from_operand
+    trace = inherit_from_operand
 
     variable_derivative = division
     coefficient_derivative = inherit_from_operand
@@ -503,7 +504,7 @@ def buckingham_pi_analysis(
 
     print_table(rows, ["Symbol", "Expression", "Value (in base units)"])
     logger.info("")
-    logger.info(f"Dimension matrix ({len(base_dims)} × {len(quantities)}):")
+    logger.info(f"Dimension matrix ({len(base_dims)} x {len(quantities)}):")
     dim_array = np.array(dim_matrix).astype(float)
 
     # Create header with quantity symbols

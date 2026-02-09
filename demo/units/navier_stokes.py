@@ -49,8 +49,8 @@ t_ref = Quantity(mesh, 1 / 60, syu.minute, "t_ref")
 v_ref = Quantity(mesh, 1, syu.meter / syu.second, "v_ref")
 p_ref = Quantity(mesh, args.p_ref, syu.pascal, "p_ref")
 g_ref = Quantity(mesh, 10, syu.meter / syu.second**2, "g_ref")
-quantities = [nu, rho, l_ref, t_ref, v_ref, p_ref, g_ref]
-# quantities = [v_ref, l_ref, rho, nu, g_ref, p_ref, t_ref]  # order -> 1 / Re, Fr, Eu, St
+# quantities = [nu, rho, l_ref, t_ref, v_ref, p_ref, g_ref]
+quantities = [v_ref, l_ref, rho, nu, g_ref, p_ref, t_ref]  # order -> 1 / Re, Fr, Eu, St
 
 # %%
 if MPI.COMM_WORLD.rank == 0:
