@@ -1,6 +1,5 @@
 import fractions
-from collections import namedtuple
-from typing import Any
+from typing import Any, NamedTuple, overload
 
 import dolfinx
 import ufl
@@ -20,7 +19,10 @@ from sympy.physics.units.dimensions import Dimension
 from dolfiny.logging import logger
 from dolfiny.utils import print_table
 
-FactorizedExpr = namedtuple("FactorizedExpr", ("expr", "factor"))
+
+class FactorizedExpr(NamedTuple):
+    expr: Expr | Form
+    factor: np.ndarray | None
 
 
 class Quantity(dolfinx.fem.Constant):
@@ -133,13 +135,13 @@ class UnitTransformer(MultiFunction):
 
     div = grad
     curl = grad
-    curcumradius = spatial_coordinate
+    circumradius = spatial_coordinate
     min_edge_length = spatial_coordinate
     max_edge_length = spatial_coordinate
 
 
 class QuantityFactorizer(MultiFunction):
-    factors: dict[Expr, list[Any]]
+    factors: dict[Expr, np.ndarray]
 
     def __init__(self, quantities: list["Quantity"], mode="factorize"):
         self._quantities = quantities
@@ -315,12 +317,30 @@ def transform(expr: Expr | Form | dict, mapping: dict):
     raise TypeError(f"Unsupported type for unit transformation: {type(expr).__name__}")
 
 
+@overload
+def factorize(
+    expr: dict,
+    quantities: list["Quantity"],
+    mode: str = "factorize",
+    mapping: dict | None = None,
+) -> dict[str, FactorizedExpr]: ...
+
+
+@overload
+def factorize(
+    expr: Expr | Form,
+    quantities: list["Quantity"],
+    mode: str = "factorize",
+    mapping: dict | None = None,
+) -> FactorizedExpr: ...
+
+
 def factorize(
     expr: Expr | Form | dict,
     quantities: list["Quantity"],
     mode: str = "factorize",
     mapping: dict | None = None,
-) -> FactorizedExpr | dict:
+) -> FactorizedExpr | dict[str, FactorizedExpr]:
     """Factorize expressions, forms, or dictionaries to extract dimensional factors.
 
     Parameters
@@ -621,6 +641,7 @@ def get_dimension(
     """
     factor = factorize(expr, quantities, mode="check", mapping=mapping)
     assert isinstance(factor, FactorizedExpr)
+    assert factor.factor is not None, "Factorized expression must have a non-None factor"
 
     unit = expand(factor.factor, [q.dimension for q in quantities]).simplify()
     return unit
@@ -630,7 +651,7 @@ def normalize(
     expr_dict: dict[str, FactorizedExpr],
     reference_key: str,
     quantities: list[Quantity],
-) -> dict[str, FactorizedExpr]:
+) -> dict[str, Expr | Form]:
     """Normalize expressions or forms with respect to a reference expression.
 
     Parameters
@@ -659,9 +680,15 @@ def normalize(
                 f"Expression '{key}' must be already factorized (FactorizedExpr),"
                 f"got {type(value).__name__}."
             )
+        if value.factor is None:
+            raise ValueError(
+                f"Expression '{key}' has a None factor. "
+                "All expressions must have valid factors for normalization."
+            )
 
     # Get reference factor
     ref_factor = expr_dict[reference_key].factor
+    assert ref_factor is not None  # Already validated above
 
     logger.info("")
     logger.info("=" * 50)
@@ -683,6 +710,7 @@ def normalize(
 
     for key, factorized_expr in expr_dict.items():
         original_factor = factorized_expr.factor
+        assert original_factor is not None  # Already validated above
         normalized_factor = original_factor - ref_factor
 
         ratio_sym = expand(normalized_factor, [q.symbol for q in quantities])

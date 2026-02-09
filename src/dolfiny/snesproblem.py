@@ -27,7 +27,7 @@ class SNESProblem:
         nest=False,
         restriction=None,
         prefix=None,
-        localsolver: LocalSolver = None,
+        localsolver: LocalSolver | None = None,
         form_compiler_options: dict | None = None,
         jit_options: dict | None = None,
     ):

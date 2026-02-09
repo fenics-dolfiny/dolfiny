@@ -240,10 +240,8 @@ def tag_box_facets(
 
             facets = np.append(facets, facets_face)
             tags = np.append(tags, np.full_like(facets_face, tag))
-
     # Sort by facet
     perm = np.argsort(facets)
     facets = facets[perm]
     tags = tags[perm]
-
     return dolfinx.mesh.meshtags(mesh, facet_dim, facets, tags), mt

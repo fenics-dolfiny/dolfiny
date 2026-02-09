@@ -52,7 +52,7 @@ docker pull dolfiny/dolfiny
 
 Some of our demos are available as documented and rendered `jupyter notebooks` on our website at [dolfiny.uni.lu](https://dolfiny.uni.lu/).
 
-Beside this, other references are [demos](https://github.com/fenics-dolfiny/dolfiny/tree/main/demo) or [unit tests](https://github.com/fenics-dolfiny/dolfiny/tree/main/test).
+Besides this, other references are [demos](https://github.com/fenics-dolfiny/dolfiny/tree/main/demo) or [unit tests](https://github.com/fenics-dolfiny/dolfiny/tree/main/test).
 
 Presentations about `dolfiny` functionality:
 - [dolfiny: Convenience wrappers for DOLFINx](https://hdl.handle.net/10993/47422)

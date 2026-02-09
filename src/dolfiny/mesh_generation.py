@@ -104,7 +104,6 @@ def create_truss_x_braced_mesh(
         cells = np.append(cells, np.stack([v[:, 3], v[:, 4]], axis=1), axis=0)
         cells = np.append(cells, np.stack([v[:, 1], v[:, 6]], axis=1), axis=0)
         cells = np.append(cells, np.stack([v[:, 2], v[:, 5]], axis=1), axis=0)
-
         # remove duplicate edges (only exist for hexahedron)
         cells = np.unique(cells, axis=0)
 

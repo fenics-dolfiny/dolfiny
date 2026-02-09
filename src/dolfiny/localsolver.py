@@ -1,10 +1,10 @@
 # mypy: disable-error-code="attr-defined"
 
-import collections
 import hashlib
 import itertools
 import logging
 import os
+from typing import Any, NamedTuple
 
 from petsc4py import PETSc
 
@@ -14,6 +14,7 @@ from ffcx.codegeneration.utils import empty_void_pointer
 import cffi
 import numba
 import numpy as np
+import numpy.typing as npt
 
 from dolfiny.utils import pprint
 
@@ -31,24 +32,32 @@ c_signature = numba.types.void(
 )
 formtype = dolfinx.fem.form_cpp_class(PETSc.ScalarType)
 
-KernelData = collections.namedtuple(
-    "KernelData",
-    (
-        "kernel",
-        "array",
-        "w",
-        "c",
-        "coords",
-        "entity_local_index",
-        "permutation",
-        "constants",
-        "coefficients",
-    ),
-)
-ElementData = collections.namedtuple(
-    "ElementData", ("indices", "name", "begin", "end", "stacked_begin", "stacked_end")
-)
-UserKernel = collections.namedtuple("UserKernel", ("name", "code", "required_J"))
+
+class KernelData(NamedTuple):
+    kernel: Any  # cffi function pointer or int address
+    array: npt.NDArray[np.floating[Any]] | npt.NDArray[np.complexfloating[Any, Any]]
+    w: npt.NDArray[np.floating[Any]] | npt.NDArray[np.complexfloating[Any, Any]]
+    c: npt.NDArray[np.floating[Any]] | npt.NDArray[np.complexfloating[Any, Any]]
+    coords: npt.NDArray[np.float64]
+    entity_local_index: npt.NDArray[np.int32]
+    permutation: npt.NDArray[np.uint8]
+    constants: tuple["ElementData | None", ...] | list["ElementData | None"]
+    coefficients: tuple["ElementData | None", ...] | list["ElementData | None"]
+
+
+class ElementData(NamedTuple):
+    indices: tuple[int, int]
+    name: str
+    begin: int
+    end: int
+    stacked_begin: int
+    stacked_end: int
+
+
+class UserKernel(NamedTuple):
+    name: str
+    code: str
+    required_J: set[tuple[int, int]] | list[tuple[int, int]] | None
 
 
 @numba.cfunc(c_signature, nopython=True)

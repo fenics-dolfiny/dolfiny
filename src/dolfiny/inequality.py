@@ -2,9 +2,7 @@ import ufl
 
 
 class Inequality:
-    """Stores an inequality as.
-
-        lhs <= rhs
+    """Stores an inequality in the form: lhs <= rhs.
 
     where lhs is a form and rhs a constant
     """

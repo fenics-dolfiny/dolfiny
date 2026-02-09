@@ -42,7 +42,7 @@ RUN pip install --no-cache-dir -v \
     pdbpp \
     pygraphviz \
     pytest-xdist \
-    pyvista[jupyter]>=0.45.0 \
+    "pyvista[jupyter]>=0.45.0,<0.47.0" \
     ruff \
     scipy \
     sympy \

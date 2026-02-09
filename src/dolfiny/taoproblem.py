@@ -69,8 +69,8 @@ def wrap_objective_callbacks(
 
     Note:
         Boundary conditions are enforced through the Jacobian, consistent with DOLFINx.
-        This implies that boundary conditions are not enforced on object evaluation - a gradient
-        bases decent is necessary to incorporate those correctly.
+        This implies that boundary conditions are not enforced during objective evaluation -
+        gradient-based descent is necessary to enforce them correctly.
 
     Parameters
     ----------
@@ -476,7 +476,7 @@ class TAOProblem:
             # TODO: check _g either callback, or sequence of equations
             assert len(g) > 0
             if isinstance(g[0], ufl.equation.Equation):
-                assert len(g) == 1  # TODO
+                assert len(g) == 1  # type: ignore[unreachable]  # TODO
                 self._g, self._Jg = wrap_constraint_callbacks(
                     self._comm,
                     self._x0,
@@ -501,7 +501,7 @@ class TAOProblem:
         if h is not None:
             # TODO: check _h either callback, or sequence of inequalities
             if isinstance(h[0], dolfiny.inequality.Inequality):
-                self._h, self._Jh = wrap_constraint_callbacks(
+                self._h, self._Jh = wrap_constraint_callbacks(  # type: ignore[unreachable]
                     self._comm,
                     self._x0,
                     self._u,
