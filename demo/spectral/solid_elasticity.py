@@ -373,21 +373,20 @@ plot_tube3d_pyvista(uo, so)
 #
 # %%
 nu = 0.4
-E = Quantity(mesh, 1, syu.mega * syu.pascal, "E")  # Young's modulus
-mu = Quantity(mesh, E.scale / (2 * (1 + nu)), syu.mega * syu.pascal, "μ")  # shear modulus
-λ = Quantity(
-    mesh, E.scale * nu / ((1 + nu) * (1 - 2 * nu)), syu.mega * syu.pascal, "λ"
-)  # Lamé constant
-kappa = Quantity(mesh, λ.scale + 2 / 3 * mu.scale, syu.mega * syu.pascal, "κ")  # Lamé constant
+E = Quantity(mesh, 1, syu.mega * syu.pascal, "E")
+λ = Quantity(mesh, E.scale * nu / ((1 + nu) * (1 - 2 * nu)), syu.mega * syu.pascal, "λ")
+
+μ = Quantity(mesh, E.scale / (2 * (1 + nu)), syu.mega * syu.pascal, "μ")
+κ = Quantity(mesh, λ.scale + 2 / 3 * μ.scale, syu.mega * syu.pascal, "κ")
 
 l_ref = Quantity(mesh, 0.1, syu.meter, "l_ref")
 t_ref = Quantity(mesh, 0.2, syu.mega * syu.pascal, "t_ref")
+u_ref = Quantity(mesh, 1.0, syu.meter, "u_ref")
 
-quantities = [l_ref, t_ref, mu, kappa]
-quantities = [mu, kappa, l_ref, t_ref]
+quantities = [μ, κ, l_ref, t_ref, u_ref]
+# quantities = [μ, κ, l_ref, t_ref]
 if comm.rank == 0:
     dolfiny.units.buckingham_pi_analysis(quantities)
-
 # %% [markdown]
 # ## Weak form
 
@@ -401,12 +400,12 @@ C = ufl.variable(C)
 
 def strain_energy_bulk(i1, i2, i3):
     J = ufl.sqrt(i3)
-    return kappa / 2 * (J - 1) ** 2
+    return κ / 2 * (J - 1) ** 2
 
 
 def strain_energy_shear(i1, i2, i3):
     J = ufl.sqrt(i3)
-    return mu / 2 * (i1 - 3 - 2 * ufl.ln(J))
+    return μ / 2 * (i1 - 3 - 2 * ufl.ln(J))
 
 
 def von_mises_stress(S):
@@ -456,7 +455,7 @@ load_factor = dolfinx.fem.Constant(mesh, scalar(0.0))
 ez = ufl.as_vector([0.0, 0.0, 1.0])
 d = x0 - l_ref * h * ez
 d /= ufl.sqrt(ufl.inner(d, d))
-t = ufl.cross(d, ez) * t_ref * load_factor
+t = ufl.cross(d, ez) * load_factor
 
 mapping = {
     mesh.ufl_domain(): l_ref,
@@ -465,16 +464,16 @@ mapping = {
 }
 
 terms = {
-    "int_bulk": -1 / 2 * ufl.inner(δC, S_bulk) * dx,
-    "int_shear": -1 / 2 * ufl.inner(δC, S_shear) * dx,
-    "external": ufl.inner(δu, t) * ds(surface_upper),
+    "bulk": -1 / 2 * ufl.inner(δC, S_bulk) * dx,
+    "shear": -1 / 2 * ufl.inner(δC, S_shear) * dx,
+    "external": ufl.inner(δu, t_ref * t) * ds(surface_upper),
 }
 factorized = dolfiny.units.factorize(terms, quantities, mode="factorize", mapping=mapping)
 assert isinstance(factorized, dict)
 
 dimsys = syu.si.SI.get_dimension_system()
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(terms["int_bulk"], quantities, mapping),
+    dolfiny.units.get_dimension(terms["bulk"], quantities, mapping),
     syu.energy,
 )
 assert dimsys.equivalent_dims(
@@ -486,7 +485,7 @@ assert dimsys.equivalent_dims(
     syu.pressure,
 )
 
-reference_term = "int_bulk"
+reference_term = "bulk"
 ref_factor = factorized[reference_term].factor
 
 normalized = dolfiny.units.normalize(factorized, reference_term, quantities)

@@ -197,7 +197,7 @@ for δc_k, c_k, z_k, D_k, a_k in zip(δc, c, z, D, a):  # add species
     deb_0 = -A * ufl.sqrt(S) * z_k**2
 
     # 1-st order
-    deb_1 = -A * ufl.sqrt(S) * z_k**2 * (-B * a_k * ufl.sqrt(S))
+    deb_1 = A * S * z_k**2 * B * a_k
 
     # advective velocity [1 / m]
     vk = z_k * F / (R * T) * ufl.grad(φ)
