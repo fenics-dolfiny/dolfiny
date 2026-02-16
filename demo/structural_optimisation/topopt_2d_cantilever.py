@@ -474,5 +474,5 @@ with dolfinx.io.XDMFFile(comm, "topopt_simp/data.xdmf", "w") as file:
 #   Having pure phases in the density field is what one is naturally interested in, there is no
 #   immediate physical interpretation of an intermediate density.
 #   However no one will manufacture a voxelized design, the filtered-density allows for the
-# extracion of smoothed designs (by considering iso-contours of the density field).
+#   extraction of smoothed designs (by considering iso-contours of the density field).
 # ```
