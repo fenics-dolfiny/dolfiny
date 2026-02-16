@@ -46,7 +46,7 @@ RUN pip install --no-cache-dir -v \
     ruff \
     scipy \
     sympy \
-    typos==1.42.3
+    typos
 
 # Setup Dolfiny
 ADD . /src/dolfiny/
