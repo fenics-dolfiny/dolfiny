@@ -29,7 +29,7 @@ comm = MPI.COMM_WORLD
 gmsh_model, tdim = mg.mesh_diffusor_gmshapi(name)
 
 # Get mesh and meshtags
-partitioner = dolfinx.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.shared_facet)
+partitioner = dolfinx.mesh.create_cell_partitioner(dolfinx.mesh.GhostMode.shared_facet, 2)  # type: ignore
 mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
 
