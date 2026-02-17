@@ -1,0 +1,8 @@
+[files]
+extend-exclude = [
+  "book/references.bib"
+]
+
+[default.extend-words]
+Ue = "Ue" # function space name
+nd = "nd" # fixes usage of 2nd in code
