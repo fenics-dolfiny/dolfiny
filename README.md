@@ -17,8 +17,9 @@ to user-provided C++ kernels.
 pip install dolfiny
 ```
 
-Certain functionality (see [demos](demo/) and [unit tests](test/)) relies on 
-the availability of external packages such as
+Certain functionality (see [demos](https://github.com/fenics-dolfiny/dolfiny/tree/main/demo) and
+[unit tests](https://github.com/fenics-dolfiny/dolfiny/tree/main/test/)) relies on the availability
+of external packages such as
 
 - [Matplotlib](https://github.com/matplotlib/matplotlib) (plotting),
 - [PyVista](https://github.com/pyvista/pyvista) (scientific visualisation), or 
@@ -37,7 +38,7 @@ export PIP_INDEX_URL=https://gitlab.com/api/v4/projects/59503118/packages/pypi/s
 ```
 before calling `pip`.
 
-You may also check the [Dockerfile](docker/Dockerfile) for an up-to-date version of the installation process.
+You may also check the [Dockerfile](https://github.com/fenics-dolfiny/dolfiny/blob/main/docker/Dockerfile) for an up-to-date version of the installation process.
 
 # Docker image
 
