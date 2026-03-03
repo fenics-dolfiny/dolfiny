@@ -62,6 +62,7 @@
 
 # %% tags=["hide-input"]
 import argparse
+import platform
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -527,13 +528,13 @@ opts["mat_mumps_cntl_1"] = 0.0
 # FFCx options (formulation-specific)
 if args.formulation == "spectral":
     # ARM64-specific optimizations for spectral formulation
-    jit_options = dict(
-        cffi_extra_compile_args=[
-            "-fdisable-rtl-combine",
-            "-fno-schedule-insns",
-            "-fno-schedule-insns2",
-        ]
-    )
+    flags = [
+        "-fno-schedule-insns",
+        "-fno-schedule-insns2",
+    ]
+    if platform.system() != "Darwin":
+        flags.append("-fdisable-rtl-combine")
+    jit_options = dict(cffi_extra_compile_args=flags)
 else:
     # Standard options for classic formulation
     jit_options = dict(cffi_extra_compile_args=["-g0"])
