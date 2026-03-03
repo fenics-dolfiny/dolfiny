@@ -358,7 +358,7 @@ book build:
       - apt-get -y update
       - apt-get -y install nodejs npm
       - cd book
-      - jupyter book build --html
+      - jupyter book build --html --strict
    after_script:
       - mv book/_build/html public
    artifacts:
