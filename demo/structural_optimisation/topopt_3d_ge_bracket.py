@@ -12,7 +12,7 @@
 # 4. the use of custom optimisation solvers.
 #
 # The
-# [GE jet engine bracket challenge](https://grabcad.com/challenges/ge-jet-engine-bracket-challenge)
+# [GE jet engine bracket challenge](https://hdl.handle.net/2152/89299)
 # was a competition hosted by GrabCAD in 2013. The goal was to design a bracket that connects an
 # engine to the frame of an aircraft, minimising its weight while remaining in the elastic regime
 # under a set of load cases.
@@ -32,7 +32,7 @@
 # :width: 400px
 # :align: center
 # GE jet engine bracket challenge geometry and load cases
-# (source: https://grabcad.com/challenges/ge-jet-engine-bracket-challenge).
+# (source: https://hdl.handle.net/2152/89299).
 # ```
 #
 # We start by importing the necessary modules, reading in the geometry, and generating a mesh with
