@@ -95,7 +95,6 @@ section-order = [
 
 [tool.ty.rules]
 possibly-missing-submodule = "ignore"
-invalid-return-type = "ignore"
 unused-type-ignore-comment = "ignore"
 unresolved-import = "ignore"
 not-iterable = "ignore"
