@@ -93,6 +93,17 @@ section-order = [
 "mpi" = ["mpi4py", "petsc4py"]
 "fenics" = ["basix", "dolfinx", "ffcx", "ufl"]
 
+[tool.ty.rules]
+possibly-missing-submodule = "ignore"
+unused-type-ignore-comment = "ignore"
+unresolved-import = "ignore"
+not-iterable = "ignore"
+unresolved-attribute = "ignore"
+invalid-argument-type = "ignore"
+unsupported-operator = "ignore"
+call-non-callable = "ignore"
+not-subscriptable = "ignore"
+
 [tool.pytest.ini_options]
 addopts = "--color=yes --junitxml=report.xml"
 

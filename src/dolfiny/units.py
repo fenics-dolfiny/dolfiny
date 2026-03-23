@@ -1,4 +1,5 @@
 import fractions
+import math
 from typing import Any, NamedTuple, overload
 
 import dolfinx
@@ -431,11 +432,7 @@ def expand(factor: np.ndarray | list, quantities: list) -> sy.Expr:
         Symbolic expression with quantities raised to corresponding powers
 
     """
-    expr = 1
-    for q, f in zip(quantities, factor):
-        expr *= q ** fractions.Fraction(f)
-
-    return expr
+    return math.prod(q ** fractions.Fraction(f) for q, f in zip(quantities, factor))
 
 
 def dimension_matrix(

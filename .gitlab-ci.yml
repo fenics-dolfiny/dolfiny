@@ -40,6 +40,16 @@ mypy:
       - mypy -p dolfiny
       - mypy test/ demo/ --explicit-package-bases
 
+ty:
+   stage: lint
+   allow_failure: true # mypy is blocking
+   image: dolfinx/dolfinx:nightly
+   script:
+      - pip install . ty
+      - ty check --color always src/dolfiny 
+      - ty check --color always demo/
+      - ty check --color always test/
+
 typos:
    stage: lint
    image: python:3.13-slim
