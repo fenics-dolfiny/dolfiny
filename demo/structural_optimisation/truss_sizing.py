@@ -26,6 +26,7 @@ import pyvista as pv
 
 import dolfiny
 import dolfiny.taoproblem
+from dolfiny.expression import normalize
 
 # %% tags=["hide-input"]
 parser = argparse.ArgumentParser(description="Truss sizing demo")
@@ -168,8 +169,7 @@ plotter.deep_clean()
 #   $$
 # ```
 # %% tags=["hide-output"]
-tangent = ufl.Jacobian(mesh)[:, 0]
-tangent /= ufl.sqrt(ufl.inner(tangent, tangent))
+tangent = normalize(ufl.Jacobian(mesh)[:, 0])
 
 E = 200.0 * 1e9  # [E] = Pa = N/m^2
 ε = ufl.dot(ufl.dot(ufl.grad(u), tangent), tangent)  # strain

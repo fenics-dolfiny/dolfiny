@@ -15,6 +15,7 @@ import postprocess_matplotlib as pp
 import sympy.physics.units as syu
 
 import dolfiny
+from dolfiny.expression import normalize
 from dolfiny.units import Quantity
 
 # Basic settings
@@ -122,14 +123,10 @@ x0 = ufl.SpatialCoordinate(mesh)
 
 # Jacobi matrix of map reference -> undeformed
 J0 = ufl.geometry.Jacobian(mesh)
-# Tangent basis
-gs = J0[:, 0]
-gη = ufl.as_vector([0, 1, 0])  # unit vector e_y (assume curve in x-z plane)
-gξ = ufl.cross(gs, gη)  # unit normal vector (gdim x 1)
 # Unit tangent basis
-gs /= ufl.sqrt(ufl.dot(gs, gs))
-gη /= ufl.sqrt(ufl.dot(gη, gη))
-gξ /= ufl.sqrt(ufl.dot(gξ, gξ))
+gs = normalize(J0[:, 0])
+gη = normalize(ufl.as_vector([0, 1, 0]))  # unit vector e_y (assume curve in x-z plane)
+gξ = normalize(ufl.cross(gs, gη))  # unit normal vector (gdim x 1)
 
 # Contravariant basis
 K0 = ufl.geometry.JacobianInverse(mesh).T

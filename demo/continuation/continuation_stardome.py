@@ -13,6 +13,7 @@ import mesh_stardome_gmshapi as mg
 import numpy as np
 
 import dolfiny
+from dolfiny.expression import normalize
 
 # Basic settings
 name = "continuation_stardome"  # see: https://doi.org/10.1016/0168-874X(85)90028-9
@@ -79,10 +80,8 @@ bcs = [
     dolfinx.fem.dirichletbc(u_, exploit_dofy_Uf, Uf),  # fix y-displacement at exploit
 ]
 
-# Tangent basis (un-deformed configuration)
-t0 = ufl.geometry.Jacobian(mesh)[:, 0]
-# Unit tangent basis
-t0 /= ufl.sqrt(ufl.dot(t0, t0))
+# Unit tangent basis (un-deformed configuration)
+t0 = normalize(ufl.geometry.Jacobian(mesh)[:, 0])
 # Projector to tangent space
 P = ufl.outer(t0, t0)
 

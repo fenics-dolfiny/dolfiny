@@ -13,6 +13,7 @@ import mesh_spatialtruss_gmshapi as mg
 import numpy as np
 
 import dolfiny
+from dolfiny.expression import normalize
 
 # Basic settings
 name = "continuation_spatialtruss"
@@ -80,10 +81,8 @@ bcs = [
     dolfinx.fem.dirichletbc(u_, verytop_dofy_Uf, Uf),  # fix y displacement at verytop
 ]
 
-# Tangent basis (un-deformed configuration)
-t0 = ufl.geometry.Jacobian(mesh)[:, 0]
-# Unit tangent basis
-t0 /= ufl.sqrt(ufl.dot(t0, t0))
+# Unit tangent basis (un-deformed configuration)
+t0 = normalize(ufl.geometry.Jacobian(mesh)[:, 0])
 # Projector to tangent space
 P = ufl.outer(t0, t0)
 

@@ -77,6 +77,7 @@ import pyvista
 import sympy.physics.units as syu
 
 import dolfiny
+from dolfiny.expression import normalize
 from dolfiny.units import Quantity
 
 parser = argparse.ArgumentParser(
@@ -454,8 +455,7 @@ else:
 x0 = ufl.SpatialCoordinate(mesh)
 load_factor = dolfinx.fem.Constant(mesh, scalar(0.0))
 ez = ufl.as_vector([0.0, 0.0, 1.0])
-d = x0 - l_ref * h * ez
-d /= ufl.sqrt(ufl.inner(d, d))
+d = normalize(x0 - l_ref * h * ez)
 t = ufl.cross(d, ez) * load_factor
 
 mapping = {
