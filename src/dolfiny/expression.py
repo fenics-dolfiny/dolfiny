@@ -206,3 +206,8 @@ class ConstantEvaluator(MultiFunction):
 def evaluate_constants(expr):
     """Transform Constant nodes into numeric UFL nodes."""
     return map_integrand_dags(ConstantEvaluator(), expr)
+
+
+def normalize(tensor: ufl.core.expr.Expr) -> ufl.core.expr.Expr:
+    """Normalize an UFL expression."""
+    return tensor / ufl.sqrt(ufl.inner(tensor, tensor))  # type: ignore

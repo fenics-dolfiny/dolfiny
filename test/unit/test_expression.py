@@ -2,6 +2,7 @@ import dolfinx
 import ufl
 
 import numpy as np
+import pytest
 
 import dolfiny
 
@@ -110,3 +111,20 @@ def test_extract_linear_combination(V1, V2, vV1, vV2):
             dolfiny.expression.extract_linear_combination(expr, linc)
 
             assert len(linc) > 0
+
+
+@pytest.mark.parametrize("rank", [0, 1, 2, 3])
+def test_expression_normalize(rank: int) -> None:
+    tensor = np.ones((2,) * rank)
+    unit = tensor / np.linalg.norm(tensor)
+
+    assert len(tensor.shape) == rank
+    assert tensor.size == 2**rank
+    assert np.isclose(np.linalg.norm(unit), 1.0)
+
+    tensor_ufl = ufl.as_tensor(tensor) if rank > 0 else ufl.variable(float(tensor))
+    unit_ufl = dolfiny.expression.normalize(tensor_ufl)
+
+    unit_expr = ufl.as_tensor(unit) if rank > 0 else float(unit)
+    error = ufl.inner(unit_expr - unit_ufl, unit_expr - unit_ufl)(None)
+    assert np.isclose(error, 0.0)
