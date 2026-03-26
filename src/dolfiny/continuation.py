@@ -1,7 +1,10 @@
+import logging
+
 import dolfinx
 
 from dolfiny.snesproblem import SNESProblem
-from dolfiny.utils import pprint
+
+logger = logging.getLogger(__name__)
 
 
 class Crisfield:
@@ -158,8 +161,8 @@ class Crisfield:
 
             if arg < 0.0:
                 # something is seriously wrong: tangent does not intersect ball (ds)
-                pprint(f"a1 = {a1:1.3e}, a2 = {a2:1.3e}, a3 = {a3:1.3e}")
-                pprint(f"sqrt_arg = {arg:1.3e}")
+                logger.info(f"a1 = {a1:1.3e}, a2 = {a2:1.3e}, a3 = {a3:1.3e}")
+                logger.info(f"sqrt_arg = {arg:1.3e}")
                 raise RuntimeError(
                     "Continuation: Failed solving the arc-length equation! Reduce ds."
                 )
@@ -167,7 +170,7 @@ class Crisfield:
             sqr = arg ** (0.5)
             δλ1 = (-a2 - sqr) / a1
             δλ2 = (-a2 + sqr) / a1
-            # pprint(f"δλ_1 = {δλ1:1.3e}, δλ_2 = {δλ2:1.3e}")
+            # logger.info(f"δλ_1 = {δλ1:1.3e}, δλ_2 = {δλ2:1.3e}")
 
             sign = lambda x: bool(x > 0) - bool(x < 0)  # noqa: E731
             sign = sign(δx_dFdλ.dot(dx) + dλ * dFdλ_inner)
@@ -176,7 +179,7 @@ class Crisfield:
         else:
             δλ = -a3 / (2 * a2) if abs(a2) > 0.0 else 0.0
 
-        # dolfiny.utils.pprint(f"δλ = {δλ:1.3e}")
+        # logger.info(f"δλ = {δλ:1.3e}")
 
         # update Δλ
         continuation.Δλ.value += δλ
@@ -210,7 +213,7 @@ class Crisfield:
         )
         name = "λ"
         message = f"# arc           |x|={x:9.3e} |dx|={dx:9.3e} |r|={r:9.3e} ({name:s})"
-        pprint(message)
+        logger.info(message)
 
         # monitor (custom)
         if continuation.monitor is not None:

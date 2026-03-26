@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 
 from mpi4py import MPI
@@ -20,7 +21,9 @@ import numpy as np
 
 import dolfiny
 import dolfiny.inequality
-from dolfiny.utils import ANSI, attributes_to_dict, pprint, prefixify
+from dolfiny.utils import ANSI, attributes_to_dict, prefixify
+
+logger = logging.getLogger(__name__)
 
 
 def sync_functions(u: Sequence[dolfinx.fem.Function]):
@@ -579,14 +582,14 @@ class TAOProblem:
         ksp_info = TAOProblem._converged_reasons_ksp[ksp.reason]
         message += f"# TAO {it:3d}, KSP {ksp_it:3d}      |r|={ksp_norm:9.3e} ({ksp_info:s})"
         message += ANSI.reset
-        pprint(message)
+        logger.info(message)
 
     def _monitor(self, tao: PETSc.TAO):  # type: ignore
         color = ANSI.blue if tao.getType() == PETSc.TAO.Type.ALMM else ""  # type: ignore
         it = tao.getIterationNumber()
         reason_s = TAOProblem._converged_reasons_tao[tao.reason]
         status_color = ANSI.red if tao.reason > 0 else ""
-        pprint(f"{color}# TAO {it:3d} ({status_color}{reason_s}{color}){ANSI.reset}")
+        logger.info(f"{color}# TAO {it:3d} ({status_color}{reason_s}{color}){ANSI.reset}")
 
         # TODO: ls (limited by https://gitlab.com/petsc/petsc/-/merge_requests/8456)
         # TODO: snes (once PDIPM available)
@@ -609,7 +612,7 @@ class TAOProblem:
                     message += f" |J|={self._J[1].norm():9.3e}"
 
             message += f" ({u.name}){ANSI.reset}"
-            pprint(message)
+            logger.info(message)
 
         message = f"{color}# all            |x|={self._x0.norm():9.3e}"
         if self._J is not None:
@@ -638,4 +641,4 @@ class TAOProblem:
 
         message += f" f={tao.getFunctionValue():9.3e}"
         message += ANSI.reset
-        pprint(message)
+        logger.info(message)

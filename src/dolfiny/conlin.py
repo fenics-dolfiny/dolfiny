@@ -1,9 +1,10 @@
-from logging import Logger
+import logging
 
 from petsc4py import PETSc
 
-import dolfiny.logging
 from dolfiny.la import negative_part, positive_part
+
+logger = logging.getLogger(__name__)
 
 
 class CONLIN:
@@ -42,14 +43,12 @@ class CONLIN:
     _q: PETSc.Vec  # type: ignore
     _P: PETSc.Mat  # type: ignore
     _Q: PETSc.Mat  # type: ignore
-    _logger: Logger
 
     # options
     _grad_eps: float
 
     def __init__(self):
-        self._logger = dolfiny.logging.logger.getChild(__name__)
-        self._logger.debug(f"{__name__}.__init__")
+        logger.debug("__init__")
 
         # Initialize all LA objects to None
         self._λ = None
@@ -60,14 +59,14 @@ class CONLIN:
         self._Q = None
 
     def create(self, tao: PETSc.TAO) -> None:  # type: ignore
-        self._logger.debug(f"{__name__}.create")
+        logger.debug("create")
 
         # Default subsolver
         self._subsolver = PETSc.TAO().create()  # type: ignore
         self._subsolver.setType(PETSc.TAO.Type.BQNLS)  # type: ignore
 
     def setFromOptions(self, tao):
-        self._logger.debug(f"{__name__}.setFromOptions")
+        logger.debug("setFromOptions")
 
         prefix = tao.getOptionsPrefix()
         if prefix is None:
@@ -108,7 +107,7 @@ class CONLIN:
         x.pointwiseMin(self._ub, x)
 
     def setUp(self, tao: PETSc.TAO) -> None:  # type: ignore
-        self._logger.debug(f"{__name__}.setUp")
+        logger.debug("setUp")
 
         self._objective = 0.0
         self._gradient = tao.getGradient()[0]
@@ -127,7 +126,7 @@ class CONLIN:
             self._J_λ.assemble()
 
         def dual_objective_and_gradient(tao, λ, G) -> float:
-            self._logger.debug(f"{__name__}.dual_objective_and_gradient")
+            logger.debug("dual_objective_and_gradient")
 
             # x(λ)
             self.x(λ, self._x)
@@ -184,7 +183,7 @@ class CONLIN:
 
     def solve(self, tao):
         """Follows TaoSolve_Python_default."""
-        self._logger.debug(f"{__name__}.solve")
+        logger.debug("solve")
 
         # TAO 0-th iteration is a convergence check.
         self._x = tao.getSolution()
@@ -217,7 +216,7 @@ class CONLIN:
             if tao.reason:
                 break
 
-            self._logger.debug(f"{__name__}.solve iteration {it}")
+            logger.debug("solve iteration {it}")
 
             # Compute f(x), ∇f(x), h(x) and J_h(x)
             self._f = tao.computeObjectiveGradient(self._x, self._gradient)
@@ -314,7 +313,7 @@ class CONLIN:
         return self._subsolver
 
     def destroy(self, tao: PETSc.TAO):  # type: ignore
-        self._logger.debug(f"{__name__}.destroy")
+        logger.debug("destroy")
 
         to_destroy = (
             self._λ,

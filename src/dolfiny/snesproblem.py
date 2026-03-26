@@ -1,6 +1,8 @@
 # mypy: disable-error-code="attr-defined"
 
 
+import logging
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -11,7 +13,9 @@ import ufl
 import numpy as np
 
 from dolfiny.localsolver import LocalSolver
-from dolfiny.utils import ANSI, attributes_to_dict, pprint, prefixify
+from dolfiny.utils import ANSI, attributes_to_dict, prefixify
+
+logger = logging.getLogger(__name__)
 
 
 class SNESProblem:
@@ -365,14 +369,14 @@ class SNESProblem:
         message += f"# SNES iteration {snes_it:2d}, KSP iteration {ksp_it:3d}       |r|={ksp_norm:9.3e} {ksp_info:s}"  # noqa: E501
         message += ANSI.reset
 
-        pprint(message) if self.verbose["ksp"] else None
+        logger.info(message) if self.verbose["ksp"] else None
 
     def _monitor_snes(self, snes, snes_it, snes_norm):
         snes_info = self._info_snes(snes)
 
         message = f"# SNES iteration {snes_it:2d} {snes_info:s}"
 
-        pprint(message) if self.verbose["snes"] else None
+        logger.info(message) if self.verbose["snes"] else None
 
         if self.nest:
             self.compute_norms_nest(snes)
@@ -386,19 +390,19 @@ class SNESProblem:
             name = self.u[i].name
 
             message = f"# sub {gi:2d} [{prefixify(s):s}] |x|={x:9.3e} |dx|={dx:9.3e} |r|={r:9.3e} ({name:s})"  # noqa: E501
-            pprint(message) if self.verbose["snes"] else None
+            logger.info(message) if self.verbose["snes"] else None
 
         _, x, dx, r = (np.linalg.norm(v) for v in [w[snes_it] for w in states])
 
         message = f"# all           |x|={x:9.3e} |dx|={dx:9.3e} |r|={r:9.3e}"
-        pprint(message) if self.verbose["snes"] else None
+        logger.info(message) if self.verbose["snes"] else None
 
     def status(self, verbose=False, error_on_failure=False):
         if self.snes.getKSP().reason < 0:
             if verbose:
                 ksp_info = self._info_ksp(self.snes.getKSP())
                 message = f"# SNES -> KSP {ksp_info:s}"
-                pprint(message)
+                logger.info(message)
 
             if error_on_failure:
                 raise RuntimeError("Linear solver failed!")
@@ -407,7 +411,7 @@ class SNESProblem:
             if verbose:
                 snes_info = self._info_snes(self.snes)
                 message = f"# SNES {snes_info:s}"
-                pprint(message)
+                logger.info(message)
 
             if error_on_failure:
                 raise RuntimeError("Nonlinear solver failed!")

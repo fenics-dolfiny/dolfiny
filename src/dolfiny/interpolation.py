@@ -15,7 +15,7 @@ def interpolate(expr, target_func):
     of some underlying PETSc vectors. In such case this approach is chosen.
 
     """
-    logger = logging.getLogger("dolfiny")
+    logger = logging.getLogger(__name__)
 
     linear_comb = []
     try:

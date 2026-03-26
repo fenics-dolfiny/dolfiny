@@ -1,8 +1,9 @@
+import logging
 from typing import Any
 
 from mpi4py import MPI
 
-from dolfiny.logging import logger
+logger = logging.getLogger(__name__)
 
 
 def pprint(str="", end="", flush=True, comm=MPI.COMM_WORLD):

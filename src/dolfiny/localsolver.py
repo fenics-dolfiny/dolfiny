@@ -16,7 +16,7 @@ import numba
 import numpy as np
 import numpy.typing as npt
 
-from dolfiny.utils import pprint
+logger = logging.getLogger(__name__)
 
 # ruff: noqa: E501
 
@@ -802,15 +802,15 @@ class LocalSolver:
 
     def view(self):
         """Show information about kernels, sizes of blocks and positions of Coefficient DOFs."""
-        pprint(79 * "#")
-        pprint(79 * "*")
+        logger.info(79 * "#")
+        logger.info(79 * "*")
         for i in range(len(self.F_ufl)):
             rows = self.F_ufc[i].function_spaces[0].element.space_dimension
-            pprint(f"F{i} ({rows}):")
+            logger.info(f"F{i} ({rows}):")
             coeffs = [coeff for coeff in self.coefficients if coeff.indices == (i, -1)]
             for coeff in coeffs:
-                pprint(f"\t{coeff.name} \t [{coeff.begin}, {coeff.end}]")
-            pprint()
+                logger.info(f"\t{coeff.name} \t [{coeff.begin}, {coeff.end}]")
+            logger.info("")
 
         for i in range(len(self.F_ufl)):
             for j in range(len(self.F_ufl)):
@@ -819,11 +819,11 @@ class LocalSolver:
                     continue
                 rows = self.J_ufc[i][j].function_spaces[0].element.space_dimension
                 cols = self.J_ufc[i][j].function_spaces[1].element.space_dimension
-                pprint(f"J{i}{j} ({rows}, {cols}):")
+                logger.info(f"J{i}{j} ({rows}, {cols}):")
                 coeffs = [coeff for coeff in self.coefficients if coeff.indices == (i, j)]
                 for coeff in coeffs:
-                    pprint(f"\t{coeff.name} \t [{coeff.begin}, {coeff.end}]")
-                pprint()
+                    logger.info(f"\t{coeff.name} \t [{coeff.begin}, {coeff.end}]")
+                logger.info("")
 
-        pprint(79 * "*")
-        pprint(79 * "#")
+        logger.info(79 * "*")
+        logger.info(79 * "#")
