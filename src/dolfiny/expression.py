@@ -158,7 +158,15 @@ def extract_linear_combination(e, linear_comb=[], scalar_weight=1.0):
     form where ``c_i`` could contain Constant must have first these nodes numerically evaluated.
 
     """
-    from ufl.classes import ComponentTensor, Division, Index, Indexed, Product, ScalarValue, Sum
+    from ufl.classes import (
+        ComponentTensor,
+        Division,
+        Index,
+        Indexed,
+        Product,
+        ScalarValue,
+        Sum,
+    )
 
     if isinstance(e, dolfinx.fem.Function):
         linear_comb.append((e, scalar_weight))
@@ -208,6 +216,27 @@ def evaluate_constants(expr):
     return map_integrand_dags(ConstantEvaluator(), expr)
 
 
-def normalize(tensor: ufl.core.expr.Expr) -> ufl.core.expr.Expr:
+def norm(expr: ufl.core.expr.Expr, ord: int = 2) -> ufl.core.expr.Expr:
+    """Norm of a (tensor-valued) expression.
+
+    Parameters
+    ----------
+    expr:
+        Expression to compute norm of.
+    ord:
+        Order of the norm to use (follows numpy.linalg.norm).
+
+    Returns
+    -------
+        Expression of the norm.
+
+    """
+    if ord != 2:
+        raise NotImplementedError
+
+    return ufl.sqrt(ufl.inner(expr, expr))  # type: ignore
+
+
+def normalize(tensor: ufl.core.expr.Expr, ord: int = 2) -> ufl.core.expr.Expr:
     """Normalize an UFL expression."""
-    return tensor / ufl.sqrt(ufl.inner(tensor, tensor))  # type: ignore
+    return tensor / norm(tensor, ord)  # type: ignore
