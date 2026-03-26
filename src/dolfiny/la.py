@@ -1,6 +1,10 @@
+import logging
+
 from petsc4py import PETSc
 
 from scipy.sparse import csr_matrix
+
+logger = logging.getLogger(__name__)
 
 
 def petsc_to_scipy(A):
@@ -39,10 +43,8 @@ def is_symmetric(A, rtol=1e-06, atol=1e-08, normtype=PETSc.NormType.INFINITY):
         norm_asymA = asymA.norm(normtype)
         asymA.destroy()
 
-        import dolfiny
-
-        dolfiny.utils.pprint(f"absolute asymmetry measure = {norm_asymA:.3e}")
-        dolfiny.utils.pprint(f"relative asymmetry measure = {norm_asymA / A.norm(normtype):.3e}")
+        logger.info(f"absolute asymmetry measure = {norm_asymA:.3e}")
+        logger.info(f"relative asymmetry measure = {norm_asymA / A.norm(normtype):.3e}")
 
         return norm_asymA < atol or norm_asymA / A.norm(normtype) < rtol
 

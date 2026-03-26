@@ -1,4 +1,5 @@
 import fractions
+import logging
 import math
 from typing import Any, NamedTuple, overload
 
@@ -17,8 +18,9 @@ import sympy as sy
 from sympy.physics.units import UnitSystem
 from sympy.physics.units.dimensions import Dimension
 
-from dolfiny.logging import logger
 from dolfiny.utils import print_table
+
+logger = logging.getLogger(__name__)
 
 
 class FactorizedExpr(NamedTuple):

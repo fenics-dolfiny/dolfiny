@@ -1,8 +1,8 @@
-from logging import Logger
+import logging
 
 from petsc4py import PETSc
 
-import dolfiny.logging
+logger = logging.getLogger(__name__)
 
 
 class SQP:
@@ -51,26 +51,24 @@ class SQP:
     """
 
     _objective: float
-    _logger: Logger
 
     def __init__(self) -> None:
-        self._logger = dolfiny.logging.logger.getChild(__name__)
-        self._logger.debug(f"{__name__}.__init__")
+        logger.debug("__init__")
 
         self._constraint = None
         self._constraint_jacobian = None
 
     def setUp(self, tao: PETSc.TAO) -> None:  # type: ignore
-        self._logger.debug(f"{__name__}.setUp")
+        logger.debug("setUp")
 
     def create(self, tao: PETSc.TAO) -> None:  # type: ignore
-        self._logger.debug(f"{__name__}.create")
+        logger.debug("create")
 
         self._subsolver = PETSc.KSP().create()  # type: ignore
         self._subsolver.setOptionsPrefix("sqp_subsolver_")
 
     def setFromOptions(self, tao: PETSc.TAO) -> None:  # type: ignore
-        self._logger.debug(f"{__name__}.setFromOptions")
+        logger.debug("setFromOptions")
 
         prefix = tao.getOptionsPrefix()
         if prefix is None:
@@ -81,7 +79,7 @@ class SQP:
 
     def solve(self, tao: PETSc.TAO) -> None:  # type: ignore
         """Follows TaoSolve_Python_default."""
-        self._logger.debug(f"{__name__}.solve")
+        logger.debug("solve")
 
         # TAO 0-th iteration is a convergence check (only).
         x = tao.getSolution()
@@ -105,7 +103,7 @@ class SQP:
             if tao.reason:
                 break
 
-            self._logger.debug(f"{__name__}.solve iteration {it}")
+            logger.debug(f"solve iteration {it}")
 
             tao.computeHessian(x, H)
 
@@ -182,6 +180,6 @@ class SQP:
         return self._subsolver
 
     def destroy(self, tao: PETSc.TAO) -> None:  # type: ignore
-        self._logger.debug(f"{__name__}.destroy")
+        logger.debug("destroy")
 
         self._subsolver.destroy()

@@ -8,6 +8,7 @@ stages:
 
 variables:
    CONTAINER_COMMIT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+   DOLFINY_LOG_PREFIX: "1"
 
 workflow:
    auto_cancel:

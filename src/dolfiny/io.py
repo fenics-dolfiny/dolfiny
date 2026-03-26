@@ -3,6 +3,8 @@ import logging
 import dolfinx
 import dolfinx.io.gmsh
 
+logger = logging.getLogger(__name__)
+
 
 class XDMFFile(dolfinx.io.XDMFFile):
     KEYS_OF_MESHTAGS = "KeysOfMeshTags"
@@ -18,8 +20,6 @@ class XDMFFile(dolfinx.io.XDMFFile):
             The dict of MeshTags
 
         """
-        logger = logging.getLogger("dolfiny")
-
         logger.debug("Writing mesh")
         self.write_mesh(mesh)
 
@@ -45,8 +45,6 @@ class XDMFFile(dolfinx.io.XDMFFile):
             A dolfinx MeshData object.
 
         """
-        logger = logging.getLogger("dolfiny")
-
         logger.debug("Writing mesh")
         mesh = mesh_data.mesh
         self.write_mesh(mesh)
