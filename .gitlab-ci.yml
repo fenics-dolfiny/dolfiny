@@ -19,6 +19,10 @@ workflow:
         when: never
       - if: $CI_COMMIT_BRANCH
 
+.matrix_arch_runner: &matrix_arch_runner
+   ARCH: [amd64] # FIXME: add arm64
+   RUNNER_TAG: [zed] # FIXME: add saas-linux-medium-arm64
+
 # jobs
 default:
    interruptible: true
@@ -60,9 +64,16 @@ typos:
 
 image build:
    stage: image
+   needs: []
    image: docker:git
+   parallel:
+      matrix:
+         - ARCH: amd64
+           RUNNER_TAG: zed
+         - ARCH: arm64
+           RUNNER_TAG: saas-linux-medium-arm64
    tags:
-      - $TAG
+      - $RUNNER_TAG
    services:
       - name: docker:dind
         command: ["--mtu=1450"]
@@ -78,13 +89,15 @@ image build:
                --push
                --tag $CONTAINER_COMMIT_IMAGE-$ARCH
                --file docker/Dockerfile .
-
-   parallel:
-      matrix:
-         - ARCH: amd64
-           TAG: zed
-         - ARCH: arm64
-           TAG: saas-linux-medium-arm64
+   rules:
+      - if: '$ARCH == "arm64" && $CI_COMMIT_TAG'
+      - if: '$ARCH == "arm64" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "schedule"'
+      - if: '$ARCH == "arm64" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      - if: '$ARCH == "arm64"'
+        when: never
+      - if: '$ARCH == "amd64"'
+        when: on_success
+      - when: never  # Fallback
 
 image release:
    stage: release
@@ -132,14 +145,14 @@ wheel release:
 
 .install_template:
    image: $CONTAINER_COMMIT_IMAGE-$ARCH
+   needs: ["image build: [amd64, zed]"]
    tags:
-      - zed
-      - saas-linux-large-$ARCH
+      - $RUNNER_TAG
    script:
       - echo "Apply optional runtime hot-fixes here."
    parallel:
       matrix:
-         - ARCH: [amd64] # FIXME: arm64
+         - *matrix_arch_runner
 
 .test_template:
    stage: test
@@ -210,130 +223,167 @@ test/convergence:
       PARALLEL: True
    script:
       - cd demo/$DIRECTORY
+      - mpirun -n 1 python $SCRIPT
       - |
-         # Convert SCRIPTS to array to handle complete command lines with arguments
-         # instead of splitting on each word (which breaks "script.py --arg value")
-         eval "SCRIPT_ARRAY=($SCRIPTS)"
-         for script in "${SCRIPT_ARRAY[@]}"; do
-            mpirun -n 1 python $script
-            if $PARALLEL; then
-               mpirun -n $(nproc) python $script
-            fi
-         done
+         if $PARALLEL; then
+            mpirun -n $(nproc) python $SCRIPT
+         fi
 
 bingham:
    extends: .demo_template
    variables:
       DIRECTORY: bingham
-      SCRIPTS: >
-         bingham_block.py
-         bingham_lm_block.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - bingham_block.py
+              - bingham_lm_block.py
 
 beam:
    extends: .demo_template
    variables:
       DIRECTORY: beam
-      SCRIPTS: >
-         beam_curved_finitestrain_bstar.py
-         beam_curved_finitestrain_bzero.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - beam_curved_finitestrain_bstar.py
+              - beam_curved_finitestrain_bzero.py
 
 vsolid:
    extends: .demo_template
    variables:
       DIRECTORY: vsolid
-      SCRIPTS: >
-         duffing.py
-         solid_disp_tda.py
-         solid_dispstress_tda.py
-         solid_velostress_tda.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - duffing.py
+              - solid_disp_tda.py
+              - solid_dispstress_tda.py
+              - solid_velostress_tda.py
 
 plasticity:
    extends: .demo_template
    variables:
       DIRECTORY: plasticity
-      SCRIPTS: solid_plasticity_monolithic.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - solid_plasticity_monolithic.py
 
 plasticity_rankine:
    extends: .demo_template
    variables:
       DIRECTORY: plasticity_rankine
-      SCRIPTS: rankine.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT:
+              - rankine.py
 
 spectral:
    extends: .demo_template
    variables:
       DIRECTORY: spectral
-      SCRIPTS: |
-         "solid_elasticity.py --formulation classic"
-         "solid_elasticity.py --formulation spectral"
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - "solid_elasticity.py --formulation classic"
+              - "solid_elasticity.py --formulation spectral"
 
 continuation:
    extends: .demo_template
    variables:
       DIRECTORY: continuation
-      PARALLEL: False
-      SCRIPTS: >
-         continuation_planartruss.py
-         continuation_planartruss_disp.py
-         continuation_spatialtruss.py
-         continuation_stardome.py
-         continuation_schwedler.py
+      PARALLEL: "false"
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - continuation_planartruss.py
+              - continuation_planartruss_disp.py
+              - continuation_spatialtruss.py
+              - continuation_stardome.py
+              - continuation_schwedler.py
 
 tdnns:
    extends: .demo_template
    variables:
       DIRECTORY: tdnns
-      SCRIPTS: >
-         solid_tdnns_2d_cantilever.py
-         solid_tdnns_3d_cantilever.py
-         solid_tdnns_3d_spanner.py
-         solid_displ_3d_spanner.py
-         solid_mixed_3d_spanner.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - solid_tdnns_2d_cantilever.py
+              - solid_tdnns_3d_cantilever.py
+              - solid_tdnns_3d_spanner.py
+              - solid_displ_3d_spanner.py
+              - solid_mixed_3d_spanner.py
 
 units:
    extends: .demo_template
    variables:
       DIRECTORY: units
-      SCRIPTS: >
-         navier_stokes.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - navier_stokes.py
 
 beltrami:
    extends: .demo_template
    variables:
       DIRECTORY: beltrami
-      SCRIPTS: solid_stressonly.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - solid_stressonly.py
 
 obstacle:
    extends: .demo_template
    variables:
       DIRECTORY: obstacle
-      SCRIPTS: >
-         membrane.py
-         montreal.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - membrane.py
+              - montreal.py
 
 structural_optimisation:
    extends: .demo_template
    variables:
       DIRECTORY: structural_optimisation
-      SCRIPTS: |
-         "truss_sizing.py --algorithm conlin"
-         "truss_sizing.py --algorithm mma"
-         "topopt_2d_cantilever.py --algorithm conlin"
-         "topopt_2d_cantilever.py --algorithm mma"
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - "truss_sizing.py --algorithm conlin"
+              - "truss_sizing.py --algorithm mma"
+              - "topopt_2d_cantilever.py --algorithm conlin"
+              - "topopt_2d_cantilever.py --algorithm mma"
 
 electrodiffusion:
    extends: .demo_template
    variables:
       DIRECTORY: electrodiffusion
-      SCRIPTS: >
-         pnp_4species_steadystate.py
-         pnp_4species_transient.py
-         pnp_4species_steadystate_scaled.py
-         diffusor_4species_steadystate.py
+   parallel:
+      matrix:
+         - <<: *matrix_arch_runner
+           SCRIPT: 
+              - pnp_4species_steadystate.py
+              - pnp_4species_transient.py
+              - pnp_4species_steadystate_scaled.py
+              - diffusor_4species_steadystate.py
 
 bookstrap:
    stage: demo
-   image: $CONTAINER_COMMIT_IMAGE-amd64
+   extends: .install_template
    tags:
       - zed
    rules:
@@ -352,7 +402,8 @@ bookstrap:
          - book/**/*.png
    parallel:
       matrix:
-         - REGEX:
+         - <<: *matrix_arch_runner
+           REGEX:
             - obstacle/membrane.py 
             - obstacle/montreal.py 
             - spectral/solid_elasticity.py
