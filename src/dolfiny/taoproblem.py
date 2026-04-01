@@ -494,7 +494,10 @@ class TAOProblem:
                 self._g = g  # type: ignore
                 self._Jg = Jg  # type: ignore
 
+            assert self._g is not None
             self._tao.setEqualityConstraints(*self._g)
+
+            assert self._Jg is not None
             self._tao.setJacobianEquality(*self._Jg)
 
         else:
@@ -518,7 +521,10 @@ class TAOProblem:
                 self._h = h  # type: ignore
                 self._Jh = Jh  # type: ignore
 
+            assert self._h is not None
             self._tao.setInequalityConstraints(*self._h)
+
+            assert self._Jh is not None
             self._tao.setJacobianInequality(*self._Jh)
         else:
             self._h = None
