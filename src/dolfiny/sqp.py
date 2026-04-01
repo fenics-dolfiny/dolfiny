@@ -88,10 +88,10 @@ class SQP:
         self._objective = tao.computeObjectiveGradient(x, grad)
 
         c, g_tuple = tao.getEqualityConstraints()
-        g, g_args, g_kwargs = g_tuple if g_tuple else (None, None, None)
+        g, g_args, g_kwargs = g_tuple if g_tuple else (None, None, {})
 
         J, _, Jg_tuple = tao.getJacobianEquality()
-        Jg, Jg_args, Jg_kwargs = Jg_tuple if Jg_tuple else (None, None, None)
+        Jg, Jg_args, Jg_kwargs = Jg_tuple if Jg_tuple else (None, None, {})
 
         tao.setIterationNumber(0)
         tao.monitor(its=0, f=self._objective, res=grad.norm())  # TODO: norm for constrained case
