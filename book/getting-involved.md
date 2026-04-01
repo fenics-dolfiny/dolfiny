@@ -56,8 +56,9 @@ Suggest it to us!
 ## 📢 Opportunities 
 
 ```{card}
-:header: PhD Position in Computational Mechanics at the University of Luxembourg
-:link: https://recruitment.uni.lu/en/details.html?id=QMUFK026203F3VBQB7V7VV4S8&nPostingID=104786&nPostingTargetID=150119&mask=karriereseiten&lg=UK
-Potential areas of your future research could include – but are not limited to – optimisation of light-weight structures under stochastic and/or impact loads, topology optimisation with advanced response and/or manufacturing constraints, parametric shape reconstruction from implicit shape descriptions.
-The research will be conducted in the context of an EU-wide project and in close collaboration with industrial partners based in Luxembourg...
+:header: Unsolicited application
+:link: https://www.uni.lu/fstm-en/research-groups/mechanics-and-structural-analysis/
+Are you looking for a new academic position related to the here covered applications or alike?
+Then you might be interested in joining our *Mechanics and Structural Analysis* group at the [University of Luxembourg](https://www.uni.lu/en/).
+For more details on current availability, we are happy to receive your unsolicited application - reach out to the authors directly.
 ```
