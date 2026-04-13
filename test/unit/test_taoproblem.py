@@ -13,6 +13,13 @@ import dolfiny
 import dolfiny.inequality
 import dolfiny.taoproblem
 
+direct_linear_solver_options = {
+    "ksp_type": "preonly",
+    "pc_type": "lu",
+    "pc_factor_mat_solver_type": "mumps",
+    "ksp_error_if_not_converged": True,
+}
+
 
 def _L2_norm(u: dolfinx.fem.Function) -> float:
     form = dolfinx.fem.form(ufl.inner(u, u) * ufl.dx)
@@ -83,7 +90,7 @@ def test_poisson_discrete(n, order, atol, element):
     def H(tao: PETSc.TAO, x: PETSc.Vec, H: PETSc.Mat, P: PETSc.Mat) -> None:  # type: ignore
         pass
 
-    opts = PETSc.Options("poisson_discrete")
+    opts = PETSc.Options("poisson_discrete_tao_")
     match order:
         case 0:
             opts["tao_type"] = "nm"
@@ -102,7 +109,7 @@ def test_poisson_discrete(n, order, atol, element):
 
     u = dolfinx.fem.Function(W)
     opt_problem = dolfiny.taoproblem.TAOProblem(
-        F, [u], bcs=[bc], J=(J, u.x.petsc_vec.copy()), H=(H, A), prefix="poisson_discrete"
+        F, [u], bcs=[bc], J=(J, u.x.petsc_vec.copy()), H=(H, A), prefix="poisson_discrete_tao_"
     )
     opt_problem.solve()
 
@@ -112,8 +119,8 @@ def test_poisson_discrete(n, order, atol, element):
         L,
         u=u_direct,
         bcs=[bc],
-        petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
-        petsc_options_prefix="poisson_discrete",
+        petsc_options=direct_linear_solver_options,
+        petsc_options_prefix="poisson_discrete_ksp_",
     )
     problem.solve()
 
@@ -155,7 +162,7 @@ def test_poisson(autodiff: bool, order: int):
         lb = 0.0
         ub = 1.0
 
-    opts = PETSc.Options("poisson")  # type: ignore
+    opts = PETSc.Options("poisson_tao_")  # type: ignore
     opts["info"] = ""
     opts["tao_type"] = "bqnls" if order == 1 else "nls"
     opts["tao_recycle"] = ""
@@ -163,7 +170,7 @@ def test_poisson(autodiff: bool, order: int):
     opts["tao_max_it"] = 1000
 
     opt_problem = dolfiny.taoproblem.TAOProblem(
-        F, [u], bcs=[bc], lb=lb, ub=ub, J=J, H=H, prefix="poisson"
+        F, [u], bcs=[bc], lb=lb, ub=ub, J=J, H=H, prefix="poisson_tao_"
     )
 
     if order == 1:
@@ -185,8 +192,8 @@ def test_poisson(autodiff: bool, order: int):
         a,
         L,
         bcs=[bc],
-        petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
-        petsc_options_prefix="poisson",
+        petsc_options=direct_linear_solver_options,
+        petsc_options_prefix="poisson_ksp_",
     )
     sol_weak_form = problem.solve()
 
@@ -238,7 +245,7 @@ def test_poisson_mixed():
         # - ufl.inner(σ, n) * f * ufl.dx # TODO
     )
 
-    opts = PETSc.Options("poisson_mixed")
+    opts = PETSc.Options("poisson_mixed_tao_")
     opts["tao_type"] = "nls"
     opts["tao_ls_type"] = "unit"
     opts["tao_nls_ksp_type"] = "preonly"
@@ -246,13 +253,13 @@ def test_poisson_mixed():
     opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
     opts["tao_monitor"] = ""
 
-    opt_problem = dolfiny.taoproblem.TAOProblem(F, [σ, u], bcs=bcs, prefix="poisson_mixed")
+    opt_problem = dolfiny.taoproblem.TAOProblem(F, [σ, u], bcs=bcs, prefix="poisson_mixed_tao_")
     opt_problem.solve()
 
     σ_opt = σ.copy()
     u_opt = u.copy()
 
-    opts = PETSc.Options("poisson_mixed_direct")
+    opts = PETSc.Options("poisson_mixed_direct_snes_")
     opts["snes_type"] = "newtonls"
     opts["snes_linesearch_type"] = "basic"
     opts["snes_max_it"] = 1
@@ -267,7 +274,9 @@ def test_poisson_mixed():
     J = ufl.derivative(F, [σ, u], δm)
     J = ufl.extract_blocks(J)
 
-    problem = dolfiny.snesproblem.SNESProblem(J, [σ, u], bcs=bcs, prefix="poisson_mixed_direct")
+    problem = dolfiny.snesproblem.SNESProblem(
+        J, [σ, u], bcs=bcs, prefix="poisson_mixed_direct_snes_"
+    )
     σ_direct, u_direct = problem.solve()
 
     assert np.allclose(_L2_norm(σ_opt - σ_direct), 0)
@@ -316,8 +325,8 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
         a,
         L,
         bcs=[bc],
-        petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
-        petsc_options_prefix="poisson_constrained",
+        petsc_options=direct_linear_solver_options,
+        petsc_options_prefix="poisson_constrained_ksp_",
     )
     sol_weak_form = problem.solve()
     assert isinstance(sol_weak_form, dolfinx.fem.Function)
@@ -331,7 +340,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     Jg = None if not eq_constrained or autodiff else [[2 * u * v * ufl.dx]]
     Jh = None if eq_constrained or autodiff else [[2 * u * v * ufl.dx]]
 
-    opts = PETSc.Options("poisson_constrained")  # type: ignore
+    opts = PETSc.Options("poisson_constrained_tao_")  # type: ignore
 
     opts["tao_type"] = "almm"
     opts["tao_gatol"] = 1e-6
@@ -344,7 +353,7 @@ def test_poisson_constrained(V1: FunctionSpace, eq_constrained: bool, autodiff: 
     opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
 
     opt_problem = dolfiny.taoproblem.TAOProblem(
-        F, [u], bcs=[bc], J=J, H=H, g=g, Jg=Jg, h=h, Jh=Jh, prefix="poisson_constrained"
+        F, [u], bcs=[bc], J=J, H=H, g=g, Jg=Jg, h=h, Jh=Jh, prefix="poisson_constrained_tao_"
     )
     opt_problem.solve()
 
@@ -393,7 +402,8 @@ def test_optimal_control_reduced():
         L,
         bcs=[bc],
         u=u,
-        petsc_options_prefix="optimal_control_reduced",
+        petsc_options=direct_linear_solver_options,
+        petsc_options_prefix="optimal_control_reduced_state_ksp_",
     )
     p = dolfinx.fem.Function(V_state, name="p")
     adjoint_problem = dolfinx.fem.petsc.LinearProblem(
@@ -401,7 +411,8 @@ def test_optimal_control_reduced():
         L_adj,
         bcs=[bc],
         u=p,
-        petsc_options_prefix="optimal_control_reduced",
+        petsc_options=direct_linear_solver_options,
+        petsc_options_prefix="optimal_control_reduced_adjoint_ksp_",
     )
 
     @dolfiny.taoproblem.sync_functions(f)
@@ -409,7 +420,7 @@ def test_optimal_control_reduced():
         state_problem.solve()
 
         local_J = dolfinx.fem.assemble_scalar(F)
-        return MPI.COMM_WORLD.allreduce(local_J, op=MPI.SUM)
+        return mesh.comm.allreduce(local_J, op=MPI.SUM)
 
     jacobian = dolfinx.fem.Function(V_control)
 
@@ -424,13 +435,13 @@ def test_optimal_control_reduced():
 
         dolfinx.fem.petsc.assign(jacobian, J)
 
-    opts = PETSc.Options("optimal_control_reduced")
+    opts = PETSc.Options("optimal_control_reduced_tao_")
     opts["tao_type"] = "lmvm"  # pdipm
     opts["tao_gatol"] = 0
     opts["tao_gttol"] = 1e-6
 
     opt_problem = dolfiny.taoproblem.TAOProblem(
-        F_reduced, [f], J=(J_reduced, f.x.petsc_vec.copy()), prefix="optimal_control_reduced"
+        F_reduced, [f], J=(J_reduced, f.x.petsc_vec.copy()), prefix="optimal_control_reduced_tao_"
     )
     opt_problem.solve()
 
@@ -490,13 +501,13 @@ def test_optimal_control_full_space():  # almm_type
         ]
     ]
 
-    opts = PETSc.Options("optimal_control_full_space")
+    opts = PETSc.Options("optimal_control_full_space_tao_")
     opts["tao_type"] = "almm"  # pdipm
     # opts["tao_almm_type"] = "classic" if almm_type == PETSc.TAO.ALMMType.CLASSIC else "phr"
     opts["tao_gatol"] = 1e-5
 
     opt_problem = dolfiny.taoproblem.TAOProblem(
-        F, [u, f], bcs=[bc], g=g, Jg=Jg, prefix="optimal_control_full_space"
+        F, [u, f], bcs=[bc], g=g, Jg=Jg, prefix="optimal_control_full_space_tao_"
     )
     # mass = dolfinx.fem.form([[ufl.TrialFunction(V_state) * ufl.TestFunction(V_state) * ufl.dx,
     # None], [None, ufl.TrialFunction(V_control) * ufl.TestFunction(V_control) * ufl.dx]])
@@ -548,7 +559,7 @@ def test_poisson_pde_as_constraint():  # almm_type
     # TODO:
     # F = ufl.ZeroBaseForm((u,))
     F = 0.5 * dolfinx.fem.Constant(mesh, 0.0) * (u) ** 2 * ufl.dx
-    opts = PETSc.Options("poisson_pde_constraint")
+    opts = PETSc.Options("poisson_pde_constraint_tao_")
     opts["tao_type"] = "almm"  # pdipm
     # opts["tao_almm_type"] = "classic" if almm_type == PETSc.TAO.ALMMType.CLASSIC else "phr"
     opts["tao_gatol"] = 1e-6
@@ -560,7 +571,7 @@ def test_poisson_pde_as_constraint():  # almm_type
     opts["tao_almm_subsolver_pc_factor_mat_solver_type"] = "mumps"
 
     opt_problem = dolfiny.taoproblem.TAOProblem(
-        F, [u], bcs=[bc], g=g, Jg=Jg, prefix="poisson_pde_constraint"
+        F, [u], bcs=[bc], g=g, Jg=Jg, prefix="poisson_pde_constraint_tao_"
     )
     opt_problem.solve()
 
@@ -568,7 +579,8 @@ def test_poisson_pde_as_constraint():  # almm_type
         ufl.inner(ufl.grad(ufl.TrialFunction(V)), ufl.grad(ufl.TestFunction(V))) * ufl.dx,
         L,
         bcs=[bc],
-        petsc_options_prefix="poisson_pde_as_constraint",
+        petsc_options=direct_linear_solver_options,
+        petsc_options_prefix="poisson_pde_constraint_ksp_",
     )
     u_lp = linear_problem.solve()
 
