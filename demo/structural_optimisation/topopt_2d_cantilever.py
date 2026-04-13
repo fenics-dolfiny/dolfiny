@@ -367,7 +367,7 @@ def DJ(tao, _, G):
 # For the optimisation we rely on our custom implementations of the Method of Moving Asymptotes
 # (MMA) https://doi.org/10.1002/nme.1620240207 or Convex Linearisation (CONLIN) https://doi.org/10.1007/BF01637664.
 #
-# %% tags=["hide-input"]
+# %%
 opts = PETSc.Options()  # type: ignore
 opts["tao_type"] = "python"
 opts["tao_monitor"] = ""
@@ -384,21 +384,41 @@ problem = dolfiny.taoproblem.TAOProblem(
     J, [ρ], J=(DJ, ρ.x.petsc_vec.copy()), h=[g], lb=ρ_min, ub=np.float64(1)
 )
 
-# %% tags=["hide-input"]
+# %% tags=["hide-input", "hide-output"]
 if comm.size == 1:
-    plotter = pv.Plotter(off_screen=False, window_size=(1024, int(512 * 1.4)))
+    plotter = pv.Plotter(
+        off_screen=False,
+        window_size=(res := 2048, int(res * 0.7)),
+        theme=dolfiny.pyvista.theme,
+    )
     plotter.open_gif("topopt_simp.gif", fps=5)
     pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
     pv_grid.cell_data[ρ.name] = ρ.x.array
-    plotter.add_mesh(pv_grid, scalars=ρ.name, clim=[ρ_min, 1], cmap="coolwarm")
+    plotter.add_mesh(
+        pv_grid,
+        scalars=ρ.name,
+        clim=[ρ_min, 1],
+        n_colors=10,
+        scalar_bar_args={"position_y": 0.85},
+    )
     text = plotter.add_text("")
     plotter.view_xy()
     plotter.camera.zoom(1.5)
 
-    plotter_f = pv.Plotter(off_screen=True, window_size=(1024, int(512 * 1.4)))
+    plotter_f = pv.Plotter(
+        off_screen=True,
+        window_size=(res, int(res * 0.7)),
+        theme=dolfiny.pyvista.theme,
+    )
     plotter_f.open_gif("topopt_simp_filtered.gif", fps=5)
     pv_grid.point_data[ρ_f.name] = ρ_f.x.array
-    plotter_f.add_mesh(pv_grid, scalars=ρ_f.name, clim=[ρ_min, 1], cmap="coolwarm")
+    plotter_f.add_mesh(
+        pv_grid,
+        scalars=ρ_f.name,
+        clim=[ρ_min, 1],
+        n_colors=10,
+        scalar_bar_args={"position_y": 0.85},
+    )
     text_f = plotter_f.add_text("")
     plotter_f.view_xy()
     plotter_f.camera.zoom(1.5)
@@ -426,11 +446,9 @@ def monitor(tao):
             file.write_function(f, it)
 
 
-# %% tags=["hide-input", "hide-output"]
 problem.tao.setMonitor(monitor)
 problem.solve()
 
-# %% tags=["hide-input"]
 if comm.size == 1:
     plotter.close()
     plotter_f.close()
