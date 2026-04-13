@@ -72,13 +72,6 @@ args, _unknown = parser.parse_known_args()
 # This is what the `create_truss_x_braced_mesh` functionality simplifies.
 # Given a hexehedral mesh, it generates the edge skeleton together with all possible bracings.
 #
-# ```{note}
-#   Dolfinx currently does not support the generation of parallel branching meshes.
-#   More precisely, the dual graph computation is not capable of detecting cross process boundary
-#   edges, compare [dolfinx#3733](https://github.com/FEniCS/dolfinx/issues/3733).
-#   Therefore this demo is only capable of sequential execution.
-# ```
-#
 # %% tags=["hide-input"]
 comm = MPI.COMM_WORLD
 
