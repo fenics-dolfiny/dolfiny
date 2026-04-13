@@ -386,19 +386,39 @@ problem = dolfiny.taoproblem.TAOProblem(
 
 # %% tags=["hide-input", "hide-output"]
 if comm.size == 1:
-    plotter = pv.Plotter(off_screen=False, window_size=(1024, int(512 * 1.4)))
+    plotter = pv.Plotter(
+        off_screen=False,
+        window_size=(res := 2048, int(res * 0.7)),
+        theme=dolfiny.pyvista.theme,
+    )
     plotter.open_gif("topopt_simp.gif", fps=5)
     pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
     pv_grid.cell_data[ρ.name] = ρ.x.array
-    plotter.add_mesh(pv_grid, scalars=ρ.name, clim=[ρ_min, 1], cmap="coolwarm")
+    plotter.add_mesh(
+        pv_grid,
+        scalars=ρ.name,
+        clim=[ρ_min, 1],
+        n_colors=10,
+        scalar_bar_args={"position_y": 0.85},
+    )
     text = plotter.add_text("")
     plotter.view_xy()
     plotter.camera.zoom(1.5)
 
-    plotter_f = pv.Plotter(off_screen=True, window_size=(1024, int(512 * 1.4)))
+    plotter_f = pv.Plotter(
+        off_screen=True,
+        window_size=(res, int(res * 0.7)),
+        theme=dolfiny.pyvista.theme,
+    )
     plotter_f.open_gif("topopt_simp_filtered.gif", fps=5)
     pv_grid.point_data[ρ_f.name] = ρ_f.x.array
-    plotter_f.add_mesh(pv_grid, scalars=ρ_f.name, clim=[ρ_min, 1], cmap="coolwarm")
+    plotter_f.add_mesh(
+        pv_grid,
+        scalars=ρ_f.name,
+        clim=[ρ_min, 1],
+        n_colors=10,
+        scalar_bar_args={"position_y": 0.85},
+    )
     text_f = plotter_f.add_text("")
     plotter_f.view_xy()
     plotter_f.camera.zoom(1.5)
