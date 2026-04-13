@@ -441,21 +441,23 @@ book build:
 book release:
    stage: release
    script:
-      - echo "Book accessible at ${CI_PAGES_URL}"
+      - echo "Book accessible at ${PAGES_URL}"
    pages:
       path_prefix: $PAGES_PREFIX
       expire_in: $PAGES_EXPIRE
    environment:
       name: "Book ${PAGES_PREFIX}"
-      url: $CI_PAGES_URL
+      url: $PAGES_URL
       auto_stop_in: 1 week
    rules:
       - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
         variables:
            PAGES_PREFIX: ""
+           PAGES_URL: $CI_PAGES_URL
            PAGES_EXPIRE: never
       - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
             ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
         variables:
            PAGES_PREFIX: "mr-${CI_MERGE_REQUEST_IID}"
+           PAGES_URL: $CI_PAGES_URL/mr-${CI_MERGE_REQUEST_IID}
            PAGES_EXPIRE: 48 hours
