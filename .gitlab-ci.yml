@@ -328,6 +328,7 @@ units:
    extends: .demo_template
    variables:
       DIRECTORY: units
+      PARALLEL: False
    parallel:
       matrix:
          - <<: *matrix_arch_runner
@@ -410,6 +411,9 @@ bookstrap:
             - structural_optimisation/truss_sizing.py
             - structural_optimisation/topopt_2d_cantilever.py
             - structural_optimisation/topopt_3d_ge_bracket.py
+            - units/navier_stokes.py
+   variables:
+      DOLFINY_LOG_PREFIX: "0"
 
 book build:
    stage: book

@@ -12,6 +12,7 @@ demo_files = [  # relative from demo/
     "structural_optimisation/truss_sizing.py",
     "structural_optimisation/topopt_2d_cantilever.py",
     "structural_optimisation/topopt_3d_ge_bracket.py",
+    "units/navier_stokes.py",
 ]
 
 parser = argparse.ArgumentParser("bookstrap")
