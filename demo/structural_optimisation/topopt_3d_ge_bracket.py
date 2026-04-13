@@ -1,15 +1,20 @@
 # %% [markdown]
 # # Topology optimisation of a 3D jet engine bracket
 #
-# This demo solves the classic industrial optimisation problem of a General Electric (GE) jet engine
-# bracket under multiple load cases, using the **S**olid **I**sotropic **M**aterial with
-# **P**enalisation (SIMP), regularised with a Helmholtz filter.
+# This demo solves the classic General Electric (GE) jet-engine bracket problem under
+# multiple load cases, using the **S**olid **I**sotropic **M**aterial with
+# **P**enalisation (SIMP) model regularised by a Helmholtz filter. It demonstrates how STEP-based
+# meshing, multiple state solves, multi-step adjoint computations, and custom optimisation solvers
+# combine in a realistic three-dimensional topology-optimisation workflow.
 #
-# In particular this demo emphasises
-# 1. working with a `STEP` geometry,
-# 2. multiple load cases,
-# 3. multi-step adjoint computations, and
-# 4. the use of custom optimisation solvers.
+# In particular, this demo emphasizes:
+# - importing and meshing a STEP geometry with `gmsh`, extracting physical groups from face colours,
+# - multiple independent load cases and multi-objective compliance minimisation,
+# - imperial-to-SI unit conversion via `dolfiny.units.Quantity`,
+# - Helmholtz filter with boundary penalization to prevent density accumulation at free surfaces,
+# - near-null space construction for the GAMG preconditioner in large-scale 3D elasticity.
+#
+# ---
 #
 # The
 # [GE jet engine bracket challenge](https://hdl.handle.net/2152/89299)
@@ -64,7 +69,7 @@
 # Additionally, STEP files usually have dimensions in mm, so we ask `gmsh` to interpret the geometry
 # in metres by setting `Geometry.OCCTargetUnit = M`.
 
-# %% tags=["hide-output"]
+# %% tags=["hide-input", "hide-output"]
 from mpi4py import MPI
 from petsc4py import PETSc
 from petsc4py.PETSc import ScalarType  # type: ignore
@@ -141,7 +146,9 @@ bolt_faces_tags = mesh_data.physical_groups["bolt_faces"].tag
 volume_tag = mesh_data.physical_groups["volume"].tag
 bolts_tag = mesh_data.physical_groups["bolts"].tag
 
-# %%
+# %% tags=["hide-input"]
+# | label: fig-bracket-mesh
+# | caption: Tetrahedral mesh of the GE bracket geometry.
 if comm.size == 1:
     grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
     plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
@@ -158,10 +165,13 @@ if comm.size == 1:
 # ## State problem (linear elasticity)
 #
 # The next step is to define the elasticity problem. We consider a linear isotropic material model,
-# together with the classic SIMP penalisation https://doi.org/10.1007/BF01650949, which interpolates
-# the Young's modulus $E$ as $$ E(\hat{\rho}) = \hat{\rho}^p E_0 $$ where $E_0$ is Young's modulus
-# of the solid material (associated with the phase $\rho=1$), and $p > 1$ is the *penalty* factor.
-# In this demo we set $p=3$.
+# together with the classic SIMP penalisation (see https://doi.org/10.1007/BF01650949), which
+# interpolates the Young's modulus $E$ as
+#
+# $$ E(\hat{\rho}) = \hat{\rho}^p E_0 $$
+#
+# where $E_0$ is Young's modulus of the solid material (associated with the phase $\rho=1$), and
+# $p > 1$ is the *penalty* factor. In this demo we set $p=3$.
 #
 # ```{note}
 #   The SIMP penalty factor is an important parameter in the problem formulation.
@@ -180,16 +190,16 @@ if comm.size == 1:
 # energy is minimised. The total potential energy is defined as
 #
 # $$ \min_{u_i} \Pi(u_i, \hat \rho) = \min_{u_i} \int_\Omega \frac{1}{2} \sigma(u_i, \hat \rho) :
-#   \epsilon(u_i) \, d\Omega
-#   - \sum_i \int_{\Gamma_i} f_i \cdot u_i \, d\Gamma $$
+#   \epsilon(u_i) \,\text{d}x
+#   - \sum_i \int_{\Gamma_i} f_i \cdot u_i \,\text{d}s $$
 #
-# where $\sigma(u_i, \hat \rho) = \lambda(\hat \rho) \text{ tr}(\epsilon(u_i)) + 2 \mu(\hat \rho)
+# where $\sigma(u_i, \hat \rho) = \lambda(\hat \rho) \text{tr}(\epsilon(u_i)) + 2 \mu(\hat \rho)
 # \epsilon(u_i)$ is the stress tensor, $\epsilon$ is the small strain tensor, $f_i$ are the applied
 # forces on the boundary parts $\Gamma_i$, and $u_i$ is the displacement field for the $i$-th load
 # condition. The first term is the elastic energy stored in the deformed body, and the second term
 # is the work done by the external forces, which at equilibrium coincides with the compliance.
 
-# %%
+# %% tags=["hide-input"]
 tdim = mesh.topology.dim
 V_u = dolfinx.fem.functionspace(mesh, ("Lagrange", 1, (tdim,)))
 V_ρ = dolfinx.fem.functionspace(mesh, ("Discontinuous Lagrange", 0))
@@ -289,7 +299,7 @@ V_ρ_f_bolt_dofs = dolfinx.fem.locate_dofs_topological(
 # ```
 
 
-# %%
+# %% tags=["hide-input"]
 pin_area = comm.allreduce(
     dolfinx.fem.assemble_scalar(
         dolfinx.fem.form(1.0 * ds((pin_left_tag, pin_right_tag), domain=mesh))
@@ -419,7 +429,10 @@ for lc in load_conditions.values():
 # We can solve one of the load cases to visualise the displacement field. Below is the displacement
 # field for the torsional load case, converted to mm and scaled by a factor of 0.2.
 
-# %%
+# %% tags=["hide-input"]
+# | label: fig-bracket-displacement
+# | caption: |
+# |   Displacement field (in mm, scaled by 0.2) for each of the four load cases.
 # Solve all load cases
 for name in load_conditions.keys():
     load_conditions[name]["linear_problem"].solve()  # type: ignore
@@ -466,9 +479,9 @@ if comm.size == 1:
 # the filtered density $\hat{\rho}$:
 #
 # $$ \int_\Omega r^2 \nabla \hat{\rho} \cdot \nabla \tau
-#   + \hat{\rho} \tau \ \text{d}x
-#   + \int_\Gamma r \hat{\rho} \tau \ \text{d}s = \int_\Omega \rho \tau \ \text{d}x \qquad \forall
-#   \tau \in V_{\hat{\rho}}. $$
+#   + \hat{\rho} \tau \ \,\text{d}x
+#   + \int_\Gamma r \hat{\rho} \tau \ \,\text{d}s = \int_\Omega \rho \tau \ \,\text{d}x
+#   \qquad \forall \tau \in V_{\hat{\rho}}. $$
 #
 # Here $r$ is a parameter that controls the filter radius, we choose $r$ to be dependent on the
 # maximum cell diameter. In addition to the volumetric term, we also include a boundary term, which
@@ -488,7 +501,7 @@ if comm.size == 1:
 # is important from a practical point of view, as the bolts need to be in contact with solid
 # material.
 
-# %%
+# %% tags=["hide-input"]
 num_cells = mesh.topology.index_map(tdim).size_local
 h = mesh.h(tdim, np.arange(0, num_cells))
 hmax = comm.allreduce(h.max(), MPI.MAX)
@@ -544,7 +557,7 @@ def apply_filter(rhs, f) -> None:
 #
 # The objective, to be minimised, is the *total compliance for all load cases*:
 #
-# $$ \min_{\hat \rho} \sum_i \int_{\Gamma_i} f_i \cdot u_i \ \text{d}\Gamma, $$
+# $$ \min_{\hat \rho} \sum_i \int_{\Gamma_i} f_i \cdot u_i \ \,\text{d}\Gamma, $$
 #
 # which is the sum of the compliance for each load case. This choice (i.e., to sum the individual
 # compliances) is one of many possible options for how to account for multiple load cases. Other
@@ -557,7 +570,7 @@ def apply_filter(rhs, f) -> None:
 #   Multiple objectives can be combined into a single objective with a process called
 #   scalarisation, see e.g.
 #   [Convex Optimization, ch. 4.7.4](https://stanford.edu/~boyd/cvxbook/bv_cvxbook.pdf).
-# ````
+# ```
 #
 # We constrain the density to lower and upper bounds:
 #
@@ -565,7 +578,7 @@ def apply_filter(rhs, f) -> None:
 #
 # and constrain the volume of the design to a volume fraction $V_f \in (0, 1)$:
 #
-# $$ \frac{1}{\text{Vol} (\Omega)} \int_\Omega \rho \ \text{d}x \leq V_f. $$
+# $$ \frac{1}{\text{Vol} (\Omega)} \int_\Omega \rho \ \,\text{d}x \leq V_f. $$
 #
 # The optimisation problem is stated in reduced form in $\rho$. So $\hat{\rho}$ and $u$ only appear
 # as intermediates. Gradients are then computed through the adjoint formulation. Since the total
@@ -577,7 +590,7 @@ def apply_filter(rhs, f) -> None:
 # shapes as light as possible under stress limit constraints. This would require a different
 # optimisation setup and is out of the scope of this demo.
 
-# %% tags=["hide-output"]
+# %% tags=["hide-input", "hide-output"]
 mesh_volume = comm.allreduce(
     dolfinx.fem.assemble_scalar(dolfinx.fem.form(dolfinx.fem.Constant(mesh, 1.0) * dx(volume_tag)))
 )
@@ -669,7 +682,11 @@ with dolfinx.io.XDMFFile(comm, "ge_bracket/result.xdmf", "w") as file:
 # post-processing. Below is the filtered density field, clipped at 0.5 to visualise the solid
 # structure.
 
-# %%
+# %% tags=["hide-input"]
+# | label: fig-bracket-density
+# | caption: |
+# |   Filtered density field $\hat{\rho}$ clipped at 0.5, showing the optimised
+# |   solid structure from two viewpoints.
 if comm.size == 1:
     grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(ρ_f.function_space.mesh))
 
@@ -697,4 +714,4 @@ if comm.size == 1:
     plotter.close()
     plotter.deep_clean()
 
-# %%
+# %% tags=["hide-input"]

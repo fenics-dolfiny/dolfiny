@@ -1,36 +1,39 @@
 # %% [markdown]
 # # Hyperelasticity in spectral formulation
 
-# This demo showcases how to define a solid hyperelastic material
-# using eigenvalues of the Cauchy strain tensor.
+# This demo solves a three-dimensional hyperelastic torsion problem by expressing the
+# constitutive law in terms of the eigenvalues of the Cauchy strain tensor. It demonstrates how to
+# obtain those principal stretches symbolically and how to differentiate a strain-energy density
+# written directly in terms of them.
 
-# In particular this demo emphasizes
-# 1. symbolic computation of eigenvalues of a tensor field,
-# 2. automatic differentiation of a strain energy function defined in terms of eigenvalues of the
-# strain tensor.
-
+# In particular, this demo emphasizes:
+# - symbolic principal-stretch extraction from the Cauchy strain tensor via
+#   `dolfiny.invariants.eigenstate`,
+# - automatic differentiation of a strain energy written in spectral (eigenvalue) form with UFL,
+# - dimensional analysis and non-dimensionalization via `dolfiny.units`.
+#
 # ---
 
 # The task is to find a displacement field $u \in [H^1_0(\Omega)]^3$ which solves the variational
 # problem (principle of virtual displacements)
 
 # $$
-# - \frac 12 \int_\Omega \delta C \colon \left(S_\text{bulk} + S_\text{shear}\right) \, \mathrm dx
-# + \int_\Gamma \delta u \cdot t \, \mathrm ds = 0
+# - \frac 12 \int_\Omega \delta C \colon \left(S_\text{bulk} + S_\text{shear}\right) \,\text{d}x
+# + \int_\Gamma \delta u \cdot t \,\text{d}s = 0
 # $$
 
 # for all $\delta u \in [H^1_0(\Omega)]^3$. Stress tensor (second Piola-Kirchhoff) is computed from
 # bulk and shear strain energies which are defined for a compressible Neo-Hookean material
-# [https://doi.org/10.1177/1081286514544258] as
+# (see https://doi.org/10.1177/1081286514544258) as
 
 # $$
 # \begin{align}
-#     W_\text{bulk} &= \int_\Omega \frac{\kappa}{2} (J - 1)^2 \, \mathrm dx, \\
-#     W_\text{shear} &= \int_\Omega \frac{\mu}{2} (I_1 - 3 - 2 \log J) \, \mathrm dx,
+#     W_\text{bulk} &= \int_\Omega \frac{\kappa}{2} (J - 1)^2 \,\text{d}x, \\
+#     W_\text{shear} &= \int_\Omega \frac{\mu}{2} (I_1 - 3 - 2 \log J) \,\text{d}x,
 # \end{align}
 # $$
 # with Cauchy strain tensor $C = F^T F$, deformation gradient $F = I + \nabla u$ and its derived
-# invariants $I_1 = \text{Tr}(C)$ and $J = \sqrt{\det C} = \det F$ and material parameters
+# invariants $I_1 = \text{tr}(C)$ and $J = \sqrt{\det C} = \det F$ and material parameters
 # $\kappa$ and $\mu$.
 
 # For the hyperelastic material the strain energy $W = W_\text{bulk} + W_\text{shear}$ is a
@@ -47,18 +50,16 @@
 # stretches, the inner product contraction in the above variational problem simplifies to
 
 # $$
-# - \frac 12 \int_\Omega \sum_i \delta c_i s_i \, \mathrm dx
-# + \int_\Gamma \delta u \cdot t \, \mathrm ds = 0.
+# - \frac 12 \int_\Omega \sum_i \delta c_i s_i \,\text{d}x
+# + \int_\Gamma \delta u \cdot t \,\text{d}s = 0.
 # $$
 
 # The key point in the above is to express the strain energy functional purely in terms of
 # principal stretches $c_i$, which is achieved using
-# $$
-# I_1 = c_0 + c_1 + c_2, \quad J = \sqrt{c_0 c_1 c_2}.
-# $$
+# $$ I_1 = c_0 + c_1 + c_2, \quad J = \sqrt{c_0 c_1 c_2}. $$
 # Principal stretches $c_i$ are available as symbolic closed-form expression of the primary unknown
 # displacement $u$ thanks to helper function `dolfiny.invariants.eigenstate`,
-# see [https://doi.org/10.48550/arXiv.2111.02117] for more detail.
+# see https://doi.org/10.48550/arXiv.2111.02117 for more detail.
 
 # %% tags=["hide-input"]
 import argparse
@@ -276,10 +277,9 @@ def plot_tube3d_pyvista(u, s, comm=MPI.COMM_WORLD):
 
 
 # %% [markdown]
-# This demo is parametrised by the choice of formulation: "classic" or "spectral".
-# The "classic" formulation uses strain energy defined in terms of main invariants of
-# the Cauchy strain tensor, while the "spectral" formulation uses strain energy defined
-# in terms of the eigenvalues.
+# This demo is parametrised by the choice of formulation: "classic" or "spectral". The
+# classic formulation uses the main invariants of the Cauchy strain tensor, while the spectral
+# formulation writes the strain energy directly in terms of the principal stretches.
 
 # %% tags=["hide-input"]
 print(f"Arguments: {args}")
@@ -293,7 +293,7 @@ print(f"Arguments: {args}")
 #
 # Bottom of the tube is marked as "surface_lower" and top is marked as
 # "surface_upper".
-# %% tags=["hide-output"]
+# %% tags=["hide-input", "hide-output"]
 name = f"solid_elasticity_{args.formulation}"
 comm = MPI.COMM_WORLD
 
@@ -320,7 +320,7 @@ surface_upper = mesh_data.physical_groups["surface_upper"].tag
 # Function space discretisation is based on vector-valued isoparametric continuous Lagrange element
 # with three components - since we model the displacement in three dimensions.
 
-# %%
+# %% tags=["hide-input"]
 dx = ufl.Measure(
     "dx", domain=mesh, subdomain_data=mesh_data.cell_tags, metadata={"quadrature_degree": 4}
 )
@@ -330,8 +330,6 @@ ds = ufl.Measure(
 
 Ue = basix.ufl.element("P", mesh.basix_cell(), 2, shape=(mesh.geometry.dim,))
 Uf = dolfinx.fem.functionspace(mesh, Ue)
-
-print(f"Degrees-of-freedom per element: {Uf.element.space_dimension}")
 
 # Define functions
 u = dolfinx.fem.Function(Uf, name="u")
@@ -347,7 +345,10 @@ m = [u]
 vorder = mesh.geometry.cmap.degree
 uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), name="u")
 so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")  # for output
-# %%
+
+# %% tags=["hide-input"]
+# | label: fig-tube-undeformed
+# | caption: Undeformed tube mesh.
 plot_tube3d_pyvista(uo, so)
 
 # %% [markdown]
@@ -373,7 +374,7 @@ plot_tube3d_pyvista(uo, so)
 # 1. bulk-to-shear ratio $\kappa / \mu = 4.67$ and
 # 2. loading factor $t_\text{ref} / \mu = 0.56$.
 #
-# %%
+# %% tags=["hide-input"]
 nu = 0.4
 E = Quantity(mesh, 1, syu.mega * syu.pascal, "E")
 λ = Quantity(mesh, E.scale * nu / ((1 + nu) * (1 - 2 * nu)), syu.mega * syu.pascal, "λ")
@@ -392,7 +393,7 @@ if comm.rank == 0:
 # %% [markdown]
 # ## Weak form
 
-# %%
+# %% tags=["hide-input"]
 F = ufl.Identity(3) + ufl.grad(u)
 
 # Strain measure: Cauchy strain tensor
@@ -451,7 +452,7 @@ else:
 # $$ t = \alpha t_\text{ref} \frac{d}{||d||} \times e_z.$$
 # A load factor $\alpha$ is increased from 0 to 1 during the loading procedure.
 
-# %%
+# %% tags=["hide-input"]
 x0 = ufl.SpatialCoordinate(mesh)
 load_factor = dolfinx.fem.Constant(mesh, scalar(0.0))
 ez = ufl.as_vector([0.0, 0.0, 1.0])
@@ -503,7 +504,7 @@ forms = ufl.extract_blocks(form)  # type: ignore
 # The nonlinear SNES solver is configured to use Newton line search with
 # no (basic) line search.
 
-# %%
+# %% tags=["hide-input"]
 opts = PETSc.Options(name)  # type: ignore[attr-defined]
 opts["snes_type"] = "newtonls"
 opts["snes_linesearch_type"] = "basic"
@@ -550,7 +551,6 @@ problem.bcs = [
     dolfinx.fem.dirichletbc(u_, b_dofs_Uf),  # u lower face
 ]
 
-# %% tags=["hide-output"]
 # Apply external force via load stepping
 for lf in np.linspace(0.0, 1.0, 10 + 1)[1:]:
     # Set load factor
@@ -576,5 +576,7 @@ with dolfiny.io.XDMFFile(comm, f"{name}.xdmf", "w") as ofile:
     ofile.write_function(uo)
     ofile.write_function(so)
 
-# %%
+# %% tags=["hide-input"]
+# | label: fig-tube-deformed
+# | caption: Deformed tube coloured by von Mises stress $\sigma_\text{vm}$ at full torsional load.
 plot_tube3d_pyvista(uo, so)

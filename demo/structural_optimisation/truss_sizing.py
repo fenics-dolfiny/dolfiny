@@ -1,15 +1,20 @@
 # %% [markdown]
 # # Truss sizing optimisation
 #
-# This demo showcases how a sizing optimisation of a truss structure can be addressed.
-# For this example we will optimise an *inverse truss bridge* design.
+# This demo studies a sizing optimisation problem for an inverse truss bridge and shows how
+# the dolfiny interface to PETSc/TAO can be used to minimise compliance under a volume
+# constraint. It demonstrates a linear elastic truss model written in UFL, the generation of
+# braced truss meshes, and the optimisation workflow for the bar cross-sectional areas.
 #
-# In particular this demo emphasizes
-# 1. implementation of a linear elastic truss model with `ufl`,
-# 2. creation of (braced) truss meshes, and
-# 3. the interface to PETSc/TAO for optimisation solvers.
+# In particular, this demo emphasizes:
+# - truss meshes as an instance of $d_t < d_g$ (interval cells embedded in $\mathbb{R}^3$),
+# - vertex integrals (`dP` measure) for concentrated point loads in variational form,
+# - sizing optimisation with TAO's MMA and CONLIN algorithms via `dolfiny.taoproblem`,
+# - volume-equality constraint expressed in reduced form.
 #
-# %%
+# ---
+#
+# %% tags=["hide-input"]
 import argparse
 
 from mpi4py import MPI
@@ -28,7 +33,6 @@ import dolfiny
 import dolfiny.taoproblem
 from dolfiny.expression import normalize
 
-# %% tags=["hide-input"]
 parser = argparse.ArgumentParser(description="Truss sizing demo")
 parser.add_argument(
     "-a",
@@ -40,7 +44,7 @@ parser.add_argument(
 args, _unknown = parser.parse_known_args()
 
 # %% [markdown]
-# ## Generation of Truss Meshes
+# ## Generation of truss meshes
 #
 # Truss structures make up an interesting example of the concept of *geometric-* and
 # *topological dimension*, let those be denoted as $d_g$ and $d_t$, which is also used throughout
@@ -75,7 +79,7 @@ args, _unknown = parser.parse_known_args()
 #   Therefore this demo is only capable of sequential execution.
 # ```
 #
-# %%
+# %% tags=["hide-input"]
 comm = MPI.COMM_WORLD
 
 dim = np.array([100, 20, 10], dtype=np.float64)
@@ -95,7 +99,7 @@ mesh = dolfiny.mesh_generation.create_truss_x_braced_mesh(
 # We create one functionspace $V_u = P_1(\mathcal{T})$ for the displacement field $u \in V_u$ and
 # one for the cross sectional area $s$ of the trusses, which we model as constant over each element,
 # so $V_s = DG_0(\mathcal{T})$.
-# %%
+# %% tags=["hide-input"]
 V_u = dolfinx.fem.functionspace(mesh, ("CG", 1, (3,)))
 u = dolfinx.fem.Function(V_u, name="displacement")
 
@@ -103,11 +107,11 @@ V_s = dolfinx.fem.functionspace(mesh, ("DG", 0))
 s = dolfinx.fem.Function(V_s, name="cross-sectional-area")
 
 # %% [markdown]
-# ## Boundary Conditions and Load Surface
+# ## Boundary conditions and load surface
 # For the realisation of an inverse truss bridge, we will fix the trusses on the left and right top
 # edges and apply a vertical load, i.e. in $y$-direction, on the bridge deck, which we assume to
 # span the whole upper surface/side of the truss mesh, excluding the fixed edges.
-# %%
+# %% tags=["hide-input"]
 mesh.topology.create_connectivity(0, 1)
 vertices_fixed = dolfinx.mesh.locate_entities(
     mesh,
@@ -126,6 +130,9 @@ vertices_load_local = vertices_load[vertices_load < mesh.topology.index_map(0).s
 
 
 # %% tags=["hide-input"]
+# | label: fig-truss-mesh
+# | caption: Truss mesh with fixed supports (red spheres) and load-application
+# |   vertices (green arrows).
 pv.set_jupyter_backend("static")
 pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
 plotter = pv.Plotter(window_size=[3840, 2160])
@@ -150,9 +157,9 @@ plotter.close()
 plotter.deep_clean()
 
 # %% [markdown]
-# ## Truss Model and Forward Problem
+# ## Truss model and forward problem
 #
-# We rely on a linear elastic truss model, same as the one presented in {cite:p}`bleyer2024comet`.
+# We rely on a linear elastic truss model, following {cite:p}`bleyer2024comet`.
 # We choose a *Young's modulus* of $E = 200\, \text{GPa}$ and apply a total load of
 # $300\, \text{kN}$, equally distributed across the loaded nodes.
 #
@@ -164,11 +171,11 @@ plotter.deep_clean()
 #   A *vertex integral* over a collection of vertices of the underlying mesh
 #   $\Omega_v = \{ v_0, \dots, v_n \}$ as
 #   $$
-#       \int_{\Omega_v} f(x) \, \text{d} P
+#       \int_{\Omega_v} f(x) \,\text{d}P
 #       = \sum_{i=1}^n f(v_i).
 #   $$
 # ```
-# %% tags=["hide-output"]
+# %% tags=["hide-input", "hide-output"]
 tangent = normalize(ufl.Jacobian(mesh)[:, 0])
 
 E = 200.0 * 1e9  # [E] = Pa = N/m^2
@@ -202,16 +209,16 @@ state_solver = dolfinx.fem.petsc.LinearProblem(
 )
 
 # %% [markdown]
-# ## Optimisation of Cross-sectional Areas
+# ## Optimisation of cross-sectional areas
 #
-# The truss sizing optimisation problem from {cite:p}`Christensen2009` we are interested in is given
+# The truss sizing optimisation problem from {cite:p}`Christensen2009` that we study is given
 # (in reduced form) by
 #
 # $$
 #   \min_{s \in V_s} C(u(s))
 #   \quad \text{subject to} \quad
 #   s_\text{min} \leq s(x) \leq s_\text{max}, \
-#   \int_\Omega s \, \text{d}x = \frac{1}{20} \int_\Omega s_\text{max} \, \text{d} x
+#   \int_\Omega s \,\text{d}x = \frac{1}{20} \int_\Omega s_\text{max} \,\text{d}x
 # $$
 #
 # where $u$ is the unique displacement field associated with a given sizing $s$.
@@ -221,7 +228,7 @@ state_solver = dolfinx.fem.petsc.LinearProblem(
 # $s_\text{min} = 10^{-3} s_\text{max}$.
 
 
-# %% tags=["hide-output"]
+# %% tags=["hide-input", "hide-output"]
 compliance_form = dolfinx.fem.form(compliance)
 
 
@@ -318,6 +325,10 @@ if comm.size > 1:
 # compliance for the initial guess of $s_\text{init} = 10^{-2} \, \text{m}^2$. Volume is
 # shown relative to the upper bound $V_\text{max}$.
 # %% tags=["hide-input"]
+# | label: fig-truss-convergence
+# | caption: |
+# |   Convergence of compliance (relative to initial, orange) and volume constraint
+# |   residual (blue) over MMA iterations.
 matplotlib_inline.backend_inline.set_matplotlib_formats("png")
 it = problem.tao.getIterationNumber()
 comp = comp[:it]
@@ -347,6 +358,8 @@ plt.show()
 # %% [markdown]
 # The deformed final design (displacement scaled by $5\times10^3$)
 # %% tags=["hide-input"]
+# | label: fig-truss-deformed
+# | caption: Deformed final truss design, displacement scaled by $5\times10^3$.
 pixels = dolfiny.pyvista.pixels
 plotter = pv.Plotter(window_size=[pixels, pixels // 2])
 
@@ -368,6 +381,10 @@ plotter.deep_clean()
 # result (opacity of tubes according to ratio of maximal allowed cross sectional area).
 # Radii are scaled by factor of $5$, for visualisation purposes.
 # %% tags=["hide-input"]
+# | label: fig-truss-tubes
+# | caption: |
+# |   Optimised truss structure rendered as tubes; opacity encodes the ratio of
+# |   cross-sectional area to the maximum allowed area. Radii scaled by 5.
 plotter = pv.Plotter(window_size=[pixels, pixels // 2])
 
 radius = np.sqrt(s.x.array / np.pi)
