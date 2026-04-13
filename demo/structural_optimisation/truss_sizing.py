@@ -48,7 +48,7 @@ args, _unknown = parser.parse_known_args()
 #
 # Truss structures make up an interesting example of the concept of *geometric-* and
 # *topological dimension*, let those be denoted as $d_g$ and $d_t$, which is also used throughout
-# DOLFINx {cite:p}`2023dolfinx`.
+# `DOLFINx` {cite:p}`2023dolfinx`.
 #
 # The geometric dimension is the dimension of the space in which the mesh $\mathcal{T}$ is embedded,
 # $d_g \in \{ 1, 2, 3 \}$ and $\mathcal{T} \subset \mathbb{R}^{d_g}$, and the topological dimension
@@ -105,6 +105,9 @@ s = dolfinx.fem.Function(V_s, name="cross-sectional-area")
 # edges and apply a vertical load, i.e. in $y$-direction, on the bridge deck, which we assume to
 # span the whole upper surface/side of the truss mesh, excluding the fixed edges.
 # %% tags=["hide-input"]
+# | label: fig-truss-mesh
+# | caption: Truss mesh with fixed supports (red spheres) and load-application
+# |   vertices (green arrows).
 mesh.topology.create_connectivity(0, 1)
 vertices_fixed = dolfinx.mesh.locate_entities(
     mesh,
@@ -121,11 +124,6 @@ vertices_load = dolfinx.mesh.locate_entities(
 meshtags = dolfinx.mesh.meshtags(mesh, 0, vertices_load, 1)
 vertices_load_local = vertices_load[vertices_load < mesh.topology.index_map(0).size_local]
 
-
-# %% tags=["hide-input"]
-# | label: fig-truss-mesh
-# | caption: Truss mesh with fixed supports (red spheres) and load-application
-# |   vertices (green arrows).
 pv.set_jupyter_backend("static")
 pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
 plotter = pv.Plotter(window_size=[3840, 2160])
