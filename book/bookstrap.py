@@ -3,6 +3,7 @@ import os
 import pathlib
 import re
 import subprocess
+import time
 
 demo_files = [  # relative from demo/
     "obstacle/membrane.py",
@@ -20,8 +21,17 @@ parser.add_argument(
     default=".*",
     help="Regex for filtering demos. E.g. pass '.*membrane.*' to only execute membrane demo.",
 )
+parser.add_argument(
+    "-j",
+    "--jobs",
+    default=1,
+    type=int,
+    help="Number of parallel jobs to run when executing notebooks.",
+)
+
 args = parser.parse_args()
 filter = args.filter
+njobs = args.jobs
 
 if os.getcwd() != os.path.dirname(os.path.abspath(__file__)):
     raise RuntimeError("setup.py expects to be executed from the book/ directory.")
@@ -65,6 +75,19 @@ for demo in demo_files:
         check=True,
     )
 
+
+def poll_jobs(running_jobs, num):
+    """Wait until the number of running jobs is less than or equal to num."""
+    polling_interval = 0.5
+
+    while len(running_jobs) > num:
+        time.sleep(polling_interval)
+        # Check for completed jobs and remove them from the list
+        running_jobs = [p for p in running_jobs if p.poll() is None]
+
+
+running_jobs = []
+
 # Step 3: Execute notebooks
 for demo in demo_files:
     notebook = pathlib.Path(demo).with_suffix(".ipynb")
@@ -77,8 +100,9 @@ for demo in demo_files:
         print(f"🚧 Executing notebook (Not found): {notebook}", flush=True)
         continue
 
-    print(f"🚧 Executing notebook: {notebook}", flush=True)
-    subprocess.run(
+    poll_jobs(running_jobs, njobs - 1)
+
+    p = subprocess.Popen(
         [
             "jupyter",
             "nbconvert",
@@ -89,9 +113,12 @@ for demo in demo_files:
             "--clear-output",
             "--log-level=WARN",
             str(notebook),
-        ],
-        check=True,
+        ]
     )
+    running_jobs.append(p)
+    print(f"🚧 Executing notebook: {notebook} (PID: {p.pid})", flush=True)
+
+poll_jobs(running_jobs, 0)  # Wait for all remaining jobs to finish
 
 print("📖 ready!")
 print(" > jupyter book start")
