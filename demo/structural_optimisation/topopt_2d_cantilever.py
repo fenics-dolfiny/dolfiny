@@ -5,9 +5,13 @@
 # **s**olid **i**sotropic **m**aterial with **p**enalisation (SIMP), regularised with a Helmholtz
 # filter.
 #
-# In particular this demo emphasizes
-# 1. the use of custom optimisation solvers and
-# 2. multi-step adjoint computations.
+# In particular, this demo emphasizes:
+# - SIMP material interpolation and its role in driving the design toward 0/1 density distributions,
+# - Helmholtz-filter regularization to control minimum feature size and avoid checkerboard patterns,
+# - adjoint-based gradient computation for the reduced compliance objective,
+# - custom MMA and CONLIN optimizers exposed through the TAO Python interface.
+#
+# ---
 #
 # %% tags=["hide-input"]
 import argparse
@@ -26,7 +30,7 @@ import pyvista as pv
 import dolfiny
 
 output = False
-parser = argparse.ArgumentParser(description="Truss sizing demo")
+parser = argparse.ArgumentParser(description="Topology optimisation of a 2D cantilever beam")
 parser.add_argument(
     "-a",
     "--algorithm",
@@ -43,7 +47,7 @@ args, _unknown = parser.parse_known_args()
 # $\Omega = (0, 2)^{d-1} \times (0,1) \subset \mathbb{R}^d$ and is
 # discretized by $(2n, n)$ quadrilateral or $(2n, n, n)$ hexahedral elements respectively, yielding
 # a tesseltation $\mathcal{T}$.
-# %%
+# %% tags=["hide-input"]
 tdim = 2
 n = 50
 comm = MPI.COMM_WORLD
@@ -71,7 +75,7 @@ mesh = (
 #   a filtered/regularised $\hat{\rho}$.
 #   Therefore the space $V_{\hat{\rho}}$ has higher regularity than $V_\rho$.
 # ```
-# %%
+# %% tags=["hide-input"]
 V_u = dolfinx.fem.functionspace(mesh, ("Lagrange", 1, (tdim,)))
 V_ρ = dolfinx.fem.functionspace(mesh, ("Discontinuous Lagrange", 0))
 V_ρ_f = dolfinx.fem.functionspace(mesh, ("Lagrange", 1))
@@ -102,7 +106,7 @@ u = dolfinx.fem.Function(V_u, name="u")
 #
 # As boundary conditions we fix the $x=0$ plane of the design and apply a constant force $f$
 # (Neumann boundary condition) on the center of the facet at $x=2$.
-# %%
+# %% tags=["hide-input"]
 ρ_min = np.float64(1e-9)
 penalty = 3
 
@@ -200,8 +204,8 @@ elas_prob = dolfinx.fem.petsc.LinearProblem(
 # filtered-density $\hat{\rho}$
 #
 # $$
-#   \int_\Omega r^2 \nabla \hat{\rho} \cdot \nabla \tau + \hat{\rho} \tau \ \text{d}x
-#   = \int_\Omega \rho \tau \ \text{d}x
+#   \int_\Omega r^2 \nabla \hat{\rho} \cdot \nabla \tau + \hat{\rho} \tau \ \,\text{d}x
+#   = \int_\Omega \rho \tau \ \,\text{d}x
 #   \qquad \forall \tau \in V_{\hat{\rho}}.
 # $$
 #
@@ -219,7 +223,7 @@ elas_prob = dolfinx.fem.petsc.LinearProblem(
 # Thus we only have one linear solver and operator matrix stored for both forward and adjoint
 # problem.
 #
-# %%
+# %% tags=["hide-input"]
 r = 0.45 * ufl.CellDiameter(mesh)  # factor 1-3
 u_f, v_f = ufl.TrialFunction(V_ρ_f), ufl.TestFunction(V_ρ_f)
 a_filter = dolfinx.fem.form(
@@ -269,7 +273,7 @@ def apply_filter(rhs, f) -> None:
 # The objective, to be minimised, is *compliance*
 #
 # $$
-#   \int_\Omega f \cdot u \ \text{d}x.
+#   \int_\Omega f \cdot u \ \,\text{d}x.
 # $$
 #
 # We constrain the density to lower and upper bounds
@@ -281,14 +285,14 @@ def apply_filter(rhs, f) -> None:
 # and the volume of the design to a volume fraction $V_f \in (0, 1)$
 #
 # $$
-#   \frac{1}{\text{Vol} (\Omega)} \int_\Omega \rho \ \text{d}x \leq V_f.
+#   \frac{1}{\text{Vol} (\Omega)} \int_\Omega \rho \ \,\text{d}x \leq V_f.
 # $$
 #
-# The the optimisation problem is stated in reduced form in $\rho$.
+# The optimisation problem is stated in reduced form in $\rho$.
 # So, $\hat{\rho}$ and $u$ only appear as intermediates.
 # Gradients are then computed through the adjoint formulation.
 #
-# %%
+# %% tags=["hide-input"]
 
 J_form = dolfinx.fem.form(compliance(u))
 DJ_form = dolfinx.fem.form(-ufl.derivative(elastic_energy(u), ρ_f))
@@ -363,7 +367,7 @@ def DJ(tao, _, G):
 # For the optimisation we rely on our custom implementations of the Method of Moving Asymptotes
 # (MMA) https://doi.org/10.1002/nme.1620240207 or Convex Linearisation (CONLIN) https://doi.org/10.1007/BF01637664.
 #
-# %%
+# %% tags=["hide-input"]
 opts = PETSc.Options()  # type: ignore
 opts["tao_type"] = "python"
 opts["tao_monitor"] = ""
@@ -422,7 +426,7 @@ def monitor(tao):
             file.write_function(f, it)
 
 
-# %% tags=["hide-output"]
+# %% tags=["hide-input", "hide-output"]
 problem.tao.setMonitor(monitor)
 problem.solve()
 

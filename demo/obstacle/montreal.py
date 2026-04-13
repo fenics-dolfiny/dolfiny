@@ -12,13 +12,21 @@
 # The shapes, of the soap bubbles, minimise surface area, and thus are a great example of the
 # previously discussed obstacle problems.
 #
+# In particular, this demo emphasizes:
+# - meshing a non-trivial piecewise-linear boundary domain with the `gmsh` OCC kernel,
+# - simultaneous lower and upper bound constraints derived from the support-truss heights,
+# - $H^1$-seminorm regularization to handle non-smooth obstacle functions,
+# - non-matching interpolation of point-sampled boundary elevation data.
+##
 # ```{figure} https://upload.wikimedia.org/wikipedia/commons/4/4b/Pavillon_de_l%27Allemagne_%282%29.jpg
 # :label: img-pavillon
 # :align: center
 # German Pavillon at Expo '67 in Montreal. René Lavigne,
 # [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via Wikimedia Commons.
 # ```
-# %%
+#
+# ---
+# %% tags=["hide-input"]
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -37,7 +45,7 @@ import dolfiny
 
 comm = MPI.COMM_WORLD
 # %% [markdown]
-# ## Geometry of the Pavillon
+# ## Geometry of the pavillon
 # The geometrical data, used in the following, is taken from the great visualizations in
 # {cite:p}`Lopez2015`.
 # We model the pavillon based on the floorplan described by a list points connected with lines in
@@ -58,6 +66,9 @@ comm = MPI.COMM_WORLD
 # underlying obstacle problem.
 #
 # %% tags=["hide-input"]
+# | label: fig-montreal-floorplan
+# | caption: Floor plan of the Montreal German Pavillon roof (in metres), with positive supports
+# |          (green) and negative supports (yellow).
 geometry = np.array(
     [
         [0, 0, 13],
@@ -110,7 +121,7 @@ supports = np.array(
 
 support_heights = np.array([14, 38, 27, 3, 3, 10, 16, 22, 23, 15], dtype=np.float64)
 
-support_positive = np.array([1, 1, 1, 0, 0, 1, 1, 1, 1, 1], dtype=np.bool)
+support_positive = np.array([1, 1, 1, 0, 0, 1, 1, 1, 1, 1], dtype=bool)
 
 # plt.rcParams["font.family"] = "courier"
 plt.rcParams["figure.dpi"] = 400
@@ -120,8 +131,7 @@ plt.fill(geometry[:, 0], geometry[:, 1], color="lightgray")
 plt.plot(
     geometry[:, 0],
     geometry[:, 1],
-    "o",
-    marker="s",
+    "s",
     markersize=5,
     color="black",
     label="Geometry",
@@ -129,14 +139,12 @@ plt.plot(
 plt.plot(
     *zip(*supports[:, :-1][np.where(support_positive)]),
     "o",
-    marker="o",
     color="green",
     label="Support (positive)",
 )
 plt.plot(
     *zip(*supports[:, :-1][np.where(~support_positive)]),
     "o",
-    marker="o",
     color="yellow",
     label="Support (negative)",
 )
@@ -148,6 +156,9 @@ plt.grid()
 plt.show()
 
 # %% tags=["hide-input"]
+# | label: fig-montreal-3d
+# | caption: Three-dimensional view of the roof boundary with support trusses rendered as
+# |          boxes at their respective heights.
 plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
 
 geometry_proj = geometry.copy()
@@ -205,9 +216,9 @@ plotter.deep_clean()
 #   This case is dealt with during mesh generation separately from the other cavities, which 'just'
 #   introduce holes.
 # ```
-#
-# We end up with the following computational mesh.
 # %% tags=["hide-input"]
+# | label: fig-montreal-mesh
+# | caption: Computational mesh of the roof surface with cylindrical support holes.
 support_radius = 2.0
 p_s = support_radius * geometry[-1, :-1] / np.linalg.norm(geometry[-1, :-1])
 p_e = support_radius * geometry[1, :-1] / np.linalg.norm(geometry[1, :-1])
@@ -275,6 +286,8 @@ plotter.add_axes()
 plotter.view_xy()
 plotter.camera.zoom(1.2)
 plotter.show()
+plotter.close()
+plotter.deep_clean()
 
 # %% [markdown]
 # ## Obstacle problem and bounds
@@ -283,7 +296,7 @@ plotter.show()
 # heights of the support trusses.
 # If the support truss is a positive one, the cavity will be acting as a lower bound of value
 # $h_i + z_i$, for height/length of the truss $h_i$ and base $z$-coordinate $x_i$.
-# Else, in the case of a negative one, it results in a lower bound with same value construction.
+# Else, in the case of a negative one, it results in an upper bound of the same form $h_i + z_i$.
 #
 # The computation of the Dirichlet boundary data is not as straightforward.
 # We only have point data (on the boundary) available and need to extend this to the whole boundary.
@@ -291,7 +304,7 @@ plotter.show()
 # defining the boundary as a stand alone mesh and non matchingly interpolating into the deflection
 # function space.
 #
-# %%
+# %% tags=["hide-input"]
 V = dolfinx.fem.functionspace(mesh, ("P", 1))
 
 φ = dolfinx.fem.Function(V, name="lb")
@@ -359,14 +372,14 @@ bc = dolfinx.fem.dirichletbc(
 
 
 # %% [markdown]
-# As before we rely on the surace area functional.
+# As before we rely on the surface area functional.
 # In this setting the obstacles are non-smooth (as functions over the whole domain), thus we require
 # additionally some form of regularisation {cite:p}`Caffarelli1998`.
 # We will use a $H^1$-seminorm here.
 # Our complete functional reads
 #
 # $$
-#   F(g) = \int_{\Omega} \sqrt{|\nabla g|^2 + 1} \, \text{d} x
+#   F(g) = \int_{\Omega} \sqrt{|\nabla g|^2 + 1} \,\text{d}x
 #        + \alpha ||\nabla g||_{L^2(\Omega)}^2.
 # $$
 #
@@ -375,7 +388,10 @@ bc = dolfinx.fem.dirichletbc(
 #   (unregularized) linearized surface area minimizer.
 # ```
 #
-# %% tags=["hide-output"]
+# In the following, we solve the minimization problem using the `TAO` wrappers in
+# `dolfiny.taoproblem`. The method of choice is the bound-constrained Newton method `bnls`.
+#
+# %% tags=["hide-input", "hide-output"]
 def S(f):
     return ufl.sqrt(1 + ufl.inner(ufl.grad(f), ufl.grad(f))) * ufl.dx
 
@@ -404,7 +420,6 @@ g = dolfinx.fem.Function(V, name="g")
 tao = dolfiny.taoproblem.TAOProblem(S(g) + R(g), [g], [bc], lb=[φ], ub=[ψ])
 tao.solve()
 
-# %% tags=["hide-input"]
 for problem in [tao_linear, tao]:
     if problem.tao.getConvergedReason() <= 0:
         raise RuntimeError("Optimisation did not converge.")
@@ -419,6 +434,15 @@ if comm.allreduce(dolfinx.fem.assemble_scalar(dolfinx.fem.form(S(g)))) >= comm.a
     dolfinx.fem.assemble_scalar(dolfinx.fem.form(S(g_linear)))
 ):
     raise RuntimeError("Nonlinear solution is less accurate than linear.")
+
+# %% [markdown]
+# ## The surface
+#
+# We end up with the following surface, that resembles the real world structure quite well.
+#
+# %% tags=["hide-input"]
+# | label: fig-montreal-surface
+# | caption: Optimised roof surface $g$, resembling the real-world structure.
 
 
 def plot(f):
@@ -438,12 +462,6 @@ def plot(f):
     plotter.deep_clean()
 
 
-# %% [markdown]
-# ## The surface
-#
-# We end up with the following surface, that resembles the real world structure quite well.
-#
-# %%
 plot(g)
 
 # %% tags=["hide-input"]

@@ -1,10 +1,17 @@
 # %% [markdown]
 # # The obstacle problem
 #
-# This demo showcases how to solve obstacle problems using the Dolfiny interface to PETSc/TAO.
-# Both linear and non-linear formulations are considered.
+# This demo introduces linear and nonlinear obstacle problems for minimal surfaces and shows how to
+# solve them with the dolfiny interface to PETSc/TAO (see https://doi.org/10.1007/BF02498216).
 #
-# ## The Surface Area Functional
+# In particular, this demo emphasizes:
+# - the surface area functional and its second-order linearization,
+# - TAO's bound-constrained Newton linesearch (`bnls`) for pointwise inequality constraints,
+# - side-by-side comparison of the linear and nonlinear minimal-surface obstacle problems.
+#
+# ---
+#
+# ## The surface area functional
 #
 # Let us consider a surface $\mathcal{F} \subset \mathbb{R}^3$ which is parametrized by a regular
 # paramatetrization $\Psi$ over $B \subset \mathbb{R}^2$, i.e. $\mathcal{F} = \Psi(B)$.
@@ -19,19 +26,19 @@
 # $$
 # \begin{align*}
 #     S(g)
-#     &= \int_\mathcal{F} 1 \, \text{d} x \\
-#     &= \int_{\Psi(B)} 1 \, \text{d} x \\
-#     &= \int_{B} | \det ( D\Psi(x) ) | \, \text{d} x \\
+#     &= \int_\mathcal{F} 1 \,\text{d}x \\
+#     &= \int_{\Psi(B)} 1 \,\text{d}x \\
+#     &= \int_{B} | \det ( D\Psi(x) ) | \,\text{d}x \\
 #     &= \int_{B} \left|
 #         \frac{\partial \Psi}{\partial x} \times \frac{\partial \Psi}{\partial y}
-#        \right| \, \text{d} x \\
+#        \right| \,\text{d}x \\
 #     &= \int_{B} \left|
 #         \begin{bmatrix} 1, 0, \frac{\partial g}{\partial x} \end{bmatrix} \times
 #         \begin{bmatrix} 0, 1, \frac{\partial g}{\partial y} \end{bmatrix}
-#        \right| \, \text{d} x \\
+#        \right| \,\text{d}x \\
 #     &= \int_{B} \sqrt{ \left( \frac{\partial g}{\partial x}\right)^2 +
-#         \left(\frac{\partial g}{\partial y}\right)^2 + 1 } \, \text{d} x \\
-#     &= \int_{B} \sqrt{|\nabla g|^2 + 1} \, \text{d} x.
+#         \left(\frac{\partial g}{\partial y}\right)^2 + 1 } \,\text{d}x \\
+#     &= \int_{B} \sqrt{|\nabla g|^2 + 1} \,\text{d}x.
 # \end{align*}
 # $$
 #
@@ -52,10 +59,10 @@
 # Therefore the *linearized surface area* is given by
 #
 # $$
-#     S_\text{linear}(g) = \int_{B} 1 + \frac{1}{2} |\nabla g|^2 \, \text{d} x.
+#     S_\text{linear}(g) = \int_{B} 1 + \frac{1}{2} |\nabla g|^2 \,\text{d}x.
 # $$
 #
-# ## The Obstacle Problem
+# ## The obstacle problem
 #
 # The *obstacle problem* is the task of finding a surface of minimal area spanning over some
 # *obstacle* $\phi: B \to \mathbb{R}$
@@ -69,7 +76,7 @@
 # minimizing Dirichlet energy of $g$ under the same constraint
 #
 # $$
-#     \min_g \int_B |\nabla g|^2 \, \text{d}x
+#     \min_g \int_B |\nabla g|^2 \,\text{d}x
 #     \quad \text{ subject to }
 #     g \geq \phi \quad \text{(pointwise)}.
 # $$
@@ -81,8 +88,12 @@
 # $$
 # \phi(x, y) = \sin \left(3\pi \sqrt{x^2 + y^2} \right) \left( 1-x^2 \right) \left( 1-y^2 \right).
 # $$
+#
+# In the following, we solve the minimization problem using the `TAO` wrappers in
+# `dolfiny.taoproblem`. The method of choice is the bound-constrained Newton method `bnls`.
+#
 
-# %% tags=["hide-output"]
+# %% tags=["hide-input", "hide-output"]
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -132,7 +143,9 @@ dolfiny.utils.pprint(f"S_linear(g) = {linear_problem.tao.getFunctionValue():.4f}
 dolfiny.utils.pprint(f"S(g)        = {problem.tao.getFunctionValue():.4f}")
 
 
-# %%
+# %% tags=["hide-input"]
+# | label: fig-membrane-obstacle
+# | caption: Obstacle $\phi$ shown as a deflected surface.
 pyvista.set_jupyter_backend("static")
 pv_grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(msh, 2))
 
@@ -158,16 +171,19 @@ def plot_deflected(f):
     plotter.deep_clean()
 
 
-# %%
 plot_deflected(lb)
 
-# %%
+# %% tags=["hide-input"]
+# | label: fig-membrane-linear
+# | caption: Linear minimiser $g_\text{linear}$.
 plot_deflected(g_linear)
 
-# %%
+# %% tags=["hide-input"]
+# | label: fig-membrane-nonlinear
+# | caption: Nonlinear minimiser $g$.
 plot_deflected(g)
 
-# %%
+# %% tags=["hide-input"]
 with dolfinx.io.VTXWriter(V.mesh.comm, "direct.bp", lb, "bp4") as file:
     file.write(0.0)
 with dolfinx.io.VTXWriter(V.mesh.comm, "g.bp", g, "bp4") as file:
@@ -177,4 +193,4 @@ with dolfinx.io.VTXWriter(V.mesh.comm, "g_linear.bp", g_linear, "bp4") as file:
 
 # TODO: add CI relevant checking here - converged?, error norms?...
 
-# %%
+# %% tags=["hide-input"]
