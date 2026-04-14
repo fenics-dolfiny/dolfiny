@@ -89,7 +89,7 @@ u = dolfinx.fem.Function(V_u, name="u")
 #
 # The next step is to define the elasticity problem.
 # We consider a linear isotropic material model, together with classic SIMP penalisation
-# https://doi.org/10.1016/0045-7825(88)90086-2, which defines the Young's modulus E as
+# {cite:p}`Bendsoe1988`, which defines the Young's modulus E as
 # $$
 #   E(\hat{\rho}) = (\rho_\text{min} + (1-\rho_\text{min}) \hat{\rho}^p) E_0
 # $$
@@ -198,7 +198,7 @@ elas_prob = dolfinx.fem.petsc.LinearProblem(
 # ## Filtering
 #
 # We use a Helmholtz filter on the density field, first introduced by
-# https://doi.org/10.1002/nme.3072 in the context of topology optimisation.
+# {cite:t}`Lazarov2010` in the context of topology optimisation.
 #
 # In short, this boils down to solving for a given density $\rho$ a Helmholtz equation, yielding the
 # filtered-density $\hat{\rho}$
@@ -365,7 +365,7 @@ def DJ(tao, _, G):
 # ## Custom optimisation routines
 #
 # For the optimisation we rely on our custom implementations of the Method of Moving Asymptotes
-# (MMA) https://doi.org/10.1002/nme.1620240207 or Convex Linearisation (CONLIN) https://doi.org/10.1007/BF01637664.
+# (MMA) {cite:p}`Svanberg1987` or Convex Linearisation (CONLIN) {cite:p}`Fleury1989`.
 #
 # %%
 opts = PETSc.Options()  # type: ignore

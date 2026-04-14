@@ -62,6 +62,14 @@ typos:
       - pip install typos
       - typos
 
+
+bibtex-tidy:
+   stage: lint
+   image: node:current-alpine
+   script:
+      - npm install -g bibtex-tidy
+      - bibtex-tidy book/references.bib --v2 | diff -u book/references.bib -
+
 image build:
    stage: image
    needs: []

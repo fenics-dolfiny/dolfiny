@@ -24,7 +24,7 @@
 
 # for all $\delta u \in [H^1_0(\Omega)]^3$. Stress tensor (second Piola-Kirchhoff) is computed from
 # bulk and shear strain energies which are defined for a compressible Neo-Hookean material
-# (see https://doi.org/10.1177/1081286514544258) as
+# {cite:p}`Pence2014` as
 
 # $$
 # \begin{align}
@@ -59,7 +59,7 @@
 # $$ I_1 = c_0 + c_1 + c_2, \quad J = \sqrt{c_0 c_1 c_2}. $$
 # Principal stretches $c_i$ are available as symbolic closed-form expression of the primary unknown
 # displacement $u$ thanks to helper function `dolfiny.invariants.eigenstate`,
-# see https://doi.org/10.48550/arXiv.2111.02117 for more detail.
+# see {cite:t}`Habera2021` for more detail.
 
 # %% tags=["hide-input"]
 import argparse
