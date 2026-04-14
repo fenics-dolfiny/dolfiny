@@ -1,8 +1,8 @@
 # %% [markdown]
 # # The obstacle problem
 #
-# This demo introduces linear and nonlinear obstacle problems for minimal surfaces and shows how to
-# solve them with the dolfiny interface to PETSc/TAO (see https://doi.org/10.1007/BF02498216).
+# This demo introduces linear and nonlinear obstacle problems for minimal surfaces
+# {cite:p}`Caffarelli1998` and shows how to solve them with the dolfiny interface to PETSc/TAO.
 #
 # In particular, this demo emphasizes:
 # - the surface area functional and its second-order linearization,

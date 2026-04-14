@@ -16,11 +16,9 @@
 #
 # ---
 #
-# The
-# [GE jet engine bracket challenge](https://hdl.handle.net/2152/89299)
-# was a competition hosted by GrabCAD in 2013. The goal was to design a bracket that connects an
-# engine to the frame of an aircraft, minimising its weight while remaining in the elastic regime
-# under a set of load cases.
+# The GE jet engine bracket challenge {cite:p}`Wilson2005` was a competition hosted by GrabCAD in
+# 2013. The goal was to design a bracket that connects an engine to the frame of an aircraft,
+# minimising its weight while remaining in the elastic regime under a set of load cases.
 #
 # Geometry in the `STEP` file format is provided on the GrabCAD challenge page. We've rotated the
 # geometry to align the faces with coordinate axes and fragmented the geometry into multiple volumes
@@ -36,8 +34,7 @@
 # :label: fig:ge_bracket
 # :width: 400px
 # :align: center
-# GE jet engine bracket challenge geometry and load cases
-# (source: https://hdl.handle.net/2152/89299).
+# GE jet engine bracket challenge geometry and load cases (source: {cite:t}`Wilson2005`).
 # ```
 #
 # We start by importing the necessary modules, reading in the geometry, and generating a mesh with
@@ -165,8 +162,8 @@ if comm.size == 1:
 # ## State problem (linear elasticity)
 #
 # The next step is to define the elasticity problem. We consider a linear isotropic material model,
-# together with the classic SIMP penalisation (see https://doi.org/10.1007/BF01650949), which
-# interpolates the Young's modulus $E$ as
+# together with the classic SIMP penalisation {cite:p}`Bendsoe1988`, which interpolates the Young's
+# modulus $E$ as
 #
 # $$ E(\hat{\rho}) = \hat{\rho}^p E_0 $$
 #
@@ -473,7 +470,7 @@ if comm.size == 1:
 # ## Filtering
 #
 # We use a Helmholtz filter on the density field, first introduced by
-# https://doi.org/10.1002/nme.3072 in the context of topology optimisation.
+# {cite:t}`Lazarov2010` in the context of topology optimisation.
 #
 # In short, for a given density $\rho$, we solve a (positive definite) Helmholtz equation, yielding
 # the filtered density $\hat{\rho}$:
@@ -486,8 +483,8 @@ if comm.size == 1:
 # Here $r$ is a parameter that controls the filter radius, we choose $r$ to be dependent on the
 # maximum cell diameter. In addition to the volumetric term, we also include a boundary term, which
 # acts like a penalisation towards zero Neumann conditions, i.e., it prevents the density from
-# sticking to the boundary, see https://doi.org/10.1007/s00158-020-02556-w. The boundary $\Gamma$ is
-# here defined as all boundary facets except those with Dirichlet and Neumann conditions applied.
+# sticking to the boundary, see {cite:t}`Wallin2020`. The boundary $\Gamma$ is here defined as all
+# boundary facets except those with Dirichlet and Neumann conditions applied.
 #
 # Since the Helmholtz equation is self-adjoint and we need to evaluate its adjoint for the gradient
 # computation later on, we set up the solver to allow for handling of generic right-hand sides. Thus
