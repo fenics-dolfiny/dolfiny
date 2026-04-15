@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 
 ffi = cffi.FFI()
 c_signature = numba.types.void(
-    numba.types.CPointer(numba.typeof(PETSc.ScalarType())),
-    numba.types.CPointer(numba.typeof(PETSc.ScalarType())),
-    numba.types.CPointer(numba.typeof(PETSc.ScalarType())),
+    numba.types.CPointer(numba.typeof(PETSc.ScalarType())),  # type: ignore
+    numba.types.CPointer(numba.typeof(PETSc.ScalarType())),  # type: ignore
+    numba.types.CPointer(numba.typeof(PETSc.ScalarType())),  # type: ignore
     numba.types.CPointer(numba.types.double),
     numba.types.CPointer(numba.types.int32),
     numba.types.CPointer(numba.types.uint8),

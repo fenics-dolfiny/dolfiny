@@ -69,7 +69,7 @@ class Restriction:
         # Fetching IS only for owned dofs
         # Ghost dofs would get the same global index which would result in
         # duplicate global indices in global IS
-        local_isrow = PETSc.IS(self.comm).createGeneral(self.bglobal_dofs_mat_stacked)
+        local_isrow = PETSc.IS(self.comm).createGeneral(self.bglobal_dofs_mat_stacked)  # type: ignore
         global_isrow = A.getLGMap()[0].applyIS(local_isrow)
 
         subA = A.createSubMatrix(isrow=global_isrow, iscol=global_isrow)

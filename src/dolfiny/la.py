@@ -49,7 +49,7 @@ def is_symmetric(A, rtol=1e-06, atol=1e-08, normtype=PETSc.NormType.INFINITY):
         return norm_asymA < atol or norm_asymA / A.norm(normtype) < rtol
 
 
-def positive_part(A: PETSc.Mat) -> None:  # type: ignore
+def positive_part(A: PETSc.Mat) -> None:
     """Assign positive part to matrix.
 
     Note:
@@ -60,20 +60,20 @@ def positive_part(A: PETSc.Mat) -> None:  # type: ignore
 
     """
     A_type = A.getType()
-    if A_type in (PETSc.Mat.Type.SEQDENSE, PETSc.Mat.Type.MPIDENSE):  # type: ignore
+    if A_type in (PETSc.Mat.Type.SEQDENSE, PETSc.Mat.Type.MPIDENSE):
         A_array = A.getDenseArray()
         A_array[A_array < 0] = 0
-    elif A_type == PETSc.Mat.Type.SEQAIJ:  # type: ignore
+    elif A_type == PETSc.Mat.Type.SEQAIJ:
         for row in range(A.getLocalSize()[0]):
             cols, vals = A.getRow(row)
             vals[vals < 0] = 0
-            A.setValues([row], cols, vals)
+            A.setValues([row], cols, vals)  # type: ignore
             A.assemble()  # TODO: bad?
     else:
         raise NotImplementedError()
 
 
-def negative_part(A: PETSc.Mat) -> None:  # type: ignore
+def negative_part(A: PETSc.Mat) -> None:
     """Negative part of matrix.
 
     Note:

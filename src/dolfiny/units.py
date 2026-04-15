@@ -61,7 +61,7 @@ class Quantity(dolfinx.fem.Constant):
         self._factor, self._dimension, self._dimensional_dependencies = get_factor(
             self._scale, self._unit, self._unit_system
         )
-        super().__init__(mesh, scalar(self._factor), **kwargs)
+        super().__init__(mesh, scalar(self._factor), **kwargs)  # type: ignore
 
     @property
     def dimension(self):
