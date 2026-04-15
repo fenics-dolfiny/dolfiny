@@ -14,7 +14,7 @@ theme.lighting_params.specular_power = 10
 theme.split_sharp_edges = True
 
 theme.font.family = "courier"
-theme.font.fmt = "%1.2f"
+theme.font.fmt = "%1.2g"
 theme.font.label_size = pixels // 50
 theme.font.size = pixels // 50
 theme.font.title_size = pixels // 50

@@ -7,14 +7,17 @@
                 "gitlab.gitlab-workflow",
                 "ms-python.mypy-type-checker",
                 "ms-toolsai.jupyter",
-                "tamasfe.even-better-toml"
+                "tamasfe.even-better-toml",
+                "Xrimson.bibtex-tidy"
             ],
             "settings": {
-                "editor.defaultFormatter": "charliermarsh.ruff",
-                "editor.formatOnSave": true,
-                "editor.codeActionsOnSave": {
-                    "source.organizeImports": "explicit",
-                    "source.fixAll": "explicit"
+                "[python]": {
+                    "editor.defaultFormatter": "charliermarsh.ruff",
+                    "editor.formatOnSave": true,
+                    "editor.codeActionsOnSave": {
+                        "source.fixAll.ruff": "explicit",
+                        "source.organizeImports.ruff": "explicit"
+                    }
                 },
                 "remote.autoForwardPorts": false,
                 "ruff.nativeServer": true,

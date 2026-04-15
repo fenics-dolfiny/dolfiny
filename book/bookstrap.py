@@ -8,6 +8,8 @@ import time
 demo_files = [  # relative from demo/
     "obstacle/membrane.py",
     "obstacle/montreal.py",
+    "plasticity/J2_monolithic.py",
+    "plasticity/rankine.py",
     "spectral/solid_elasticity.py",
     "structural_optimisation/truss_sizing.py",
     "structural_optimisation/topopt_2d_cantilever.py",
