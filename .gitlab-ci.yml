@@ -282,16 +282,7 @@ plasticity:
       matrix:
          - <<: *matrix_arch_runner
            SCRIPT: 
-              - solid_plasticity_monolithic.py
-
-plasticity_rankine:
-   extends: .demo_template
-   variables:
-      DIRECTORY: plasticity_rankine
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT:
+              - J2_monolithic.py
               - rankine.py
 
 spectral:
@@ -421,6 +412,8 @@ bookstrap:
             - structural_optimisation/truss_sizing.py
             - structural_optimisation/topopt_2d_cantilever.py
             - structural_optimisation/topopt_3d_ge_bracket.py
+            - plasticity/J2_monolithic.py
+            - plasticity/rankine.py
             - units/navier_stokes.py
    variables:
       DOLFINY_LOG_PREFIX: "0"

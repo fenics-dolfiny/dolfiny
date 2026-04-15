@@ -43,6 +43,10 @@ project:
       - file: structural_optimisation/topopt_2d_cantilever.ipynb
       - file: structural_optimisation/topopt_3d_ge_bracket.ipynb
     - file: spectral/solid_elasticity.ipynb
+    - title: Plasticity
+      children:
+      - file: plasticity/J2_monolithic.ipynb
+      - file: plasticity/rankine.ipynb
     - file: units/navier_stokes.ipynb
     - file: getting-involved.md
 site:
