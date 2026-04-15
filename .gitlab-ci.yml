@@ -43,6 +43,7 @@ mypy:
    script:
       - pip install .[typing]
       - mypy -p dolfiny
+      - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
       - mypy test/ demo/ --explicit-package-bases
 
 ty:
@@ -52,6 +53,7 @@ ty:
    script:
       - pip install . ty
       - ty check --color always src/dolfiny 
+      - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
       - ty check --color always demo/
       - ty check --color always test/
 

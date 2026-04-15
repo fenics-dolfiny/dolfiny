@@ -35,18 +35,18 @@ class MMA:
     _f: float  # objective value
 
     # primal variables
-    _x: PETSc.Vec  # type: ignore
+    _x: PETSc.Vec
 
     # dual variables
-    _λ: PETSc.Vec  # type: ignore
-    _J_λ: PETSc.Vec  # type: ignore
+    _λ: PETSc.Vec | None
+    _J_λ: PETSc.Vec | None
 
     # aux. variables
     _r: float
-    _p: PETSc.Vec  # type: ignore
-    _q: PETSc.Vec  # type: ignore
-    _P: PETSc.Mat  # type: ignore
-    _Q: PETSc.Mat  # type: ignore
+    _p: PETSc.Vec | None
+    _q: PETSc.Vec | None
+    _P: PETSc.Mat | None
+    _Q: PETSc.Mat | None
 
     # parameters
     _albefa: float
@@ -95,12 +95,12 @@ class MMA:
 
         self._zero = None
 
-    def create(self, tao: PETSc.TAO) -> None:  # type: ignore
+    def create(self, tao: PETSc.TAO) -> None:
         logger.debug("create")
 
         # Default subsolver
-        self._subsolver = PETSc.TAO().create()  # type: ignore
-        self._subsolver.setType(PETSc.TAO.Type.BQNLS)  # type: ignore
+        self._subsolver = PETSc.TAO().create()
+        self._subsolver.setType(PETSc.TAO.Type.BQNLS)
 
     def setFromOptions(self, tao):
         logger.debug("setFromOptions")
@@ -170,7 +170,7 @@ class MMA:
         x.pointwiseMax(self._alpha, x)
         x.pointwiseMin(self._beta, x)
 
-    def setUp(self, tao: PETSc.TAO) -> None:  # type: ignore
+    def setUp(self, tao: PETSc.TAO) -> None:
         logger.debug("setUp")
 
         self._objective = 0.0
@@ -190,6 +190,8 @@ class MMA:
 
         def dual_objective_and_gradient(tao, λ, G) -> float:
             logger.debug("dual_objective_and_gradient")
+            assert self._P is not None and self._Q is not None
+            assert self._p is not None and self._q is not None
 
             # x(λ)
             self.x(λ, self._x)
@@ -235,7 +237,7 @@ class MMA:
             lb = self._λ.copy()
             lb.set(0.0)
             ub = self._λ.copy()
-            ub.set(PETSc.INFINITY)  # type: ignore
+            ub.set(PETSc.INFINITY)
             self._subsolver.setVariableBounds((lb, ub))
 
             self._subsolver.setUp()
@@ -576,7 +578,7 @@ class MMA:
             tao.checkConverged()
 
     @property
-    def subsolver(self) -> PETSc.TAO:  # type: ignore
+    def subsolver(self) -> PETSc.TAO:
         return self._subsolver
 
     @property
@@ -615,7 +617,7 @@ class MMA:
     def theta(self) -> float:
         return self._theta
 
-    def destroy(self, tao: PETSc.TAO):  # type: ignore
+    def destroy(self, tao: PETSc.TAO):
         logger.debug("destroy")
 
         to_destroy = (

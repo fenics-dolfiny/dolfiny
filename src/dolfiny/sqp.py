@@ -58,26 +58,26 @@ class SQP:
         self._constraint = None
         self._constraint_jacobian = None
 
-    def setUp(self, tao: PETSc.TAO) -> None:  # type: ignore
+    def setUp(self, tao: PETSc.TAO) -> None:
         logger.debug("setUp")
 
-    def create(self, tao: PETSc.TAO) -> None:  # type: ignore
+    def create(self, tao: PETSc.TAO) -> None:
         logger.debug("create")
 
-        self._subsolver = PETSc.KSP().create()  # type: ignore
+        self._subsolver = PETSc.KSP().create()
         self._subsolver.setOptionsPrefix("sqp_subsolver_")
 
-    def setFromOptions(self, tao: PETSc.TAO) -> None:  # type: ignore
+    def setFromOptions(self, tao: PETSc.TAO) -> None:
         logger.debug("setFromOptions")
 
         prefix = tao.getOptionsPrefix()
         if prefix is None:
-            prefix = ""
+            prefix = ""  # type: ignore
 
         self._subsolver.setOptionsPrefix(f"{prefix}sqp_subsolver_")
         self._subsolver.setFromOptions()
 
-    def solve(self, tao: PETSc.TAO) -> None:  # type: ignore
+    def solve(self, tao: PETSc.TAO) -> None:
         """Follows TaoSolve_Python_default."""
         logger.debug("solve")
 
@@ -94,7 +94,9 @@ class SQP:
         Jg, Jg_args, Jg_kwargs = Jg_tuple if Jg_tuple else (None, None, {})
 
         tao.setIterationNumber(0)
-        tao.monitor(its=0, f=self._objective, res=grad.norm())  # TODO: norm for constrained case
+        grad_norm = grad.norm()
+        assert isinstance(grad_norm, float)
+        tao.monitor(its=0, f=self._objective, res=grad_norm)  # TODO: norm for constrained case
         tao.checkConverged()
 
         lb, ub = tao.getVariableBounds()
@@ -107,13 +109,13 @@ class SQP:
 
             tao.computeHessian(x, H)
 
-            if not g:
+            if not g:  # type: ignore
                 # In the unconstrained case we have:
                 #      0 = ∇f̂(x) = ∇f(x̂) + Hf(x̂) (x - x̂)
                 # ⟺   Hf(x̂) x = Hf(x̂) x̂ - ∇f(x̂)
                 #
                 # ⇒ A = Hf(x̂), b = Hf(x̂) x̂ - ∇f(x̂)
-                self._subsolver.setOperators(H)
+                self._subsolver.setOperators(H)  # type: ignore
                 b = x.copy()
                 H.mult(x, b)
                 b -= grad
@@ -136,26 +138,26 @@ class SQP:
                 #
                 # ⇒ A = ⎡ Hf(x̂) ∇h(x̂)ᵀ ⎤, b = ⎡ Hf(x̂) x̂ - ∇f(x̂) ⎤
                 #       ⎣ ∇h(x̂)    0   ⎦      ⎣ ∇h(x̂) x̂ - h(x̂)  ⎦
-                assert Jg
+                assert Jg  # type: ignore
 
-                g(tao, x, c, *g_args, **g_kwargs)
-                Jg(tao, x, J, None, *Jg_args, **Jg_kwargs)
+                g(tao, x, c, *g_args, **g_kwargs)  # type: ignore
+                Jg(tao, x, J, None, *Jg_args, **Jg_kwargs)  # type: ignore
 
                 A = PETSc.Mat().createNest([[H, PETSc.Mat().createTranspose(J)], [J, None]])  # type: ignore
                 self._subsolver.setOperators(A)
 
                 b_x = x.copy()
                 H.mult(x, b_x)
-                b_x -= grad
+                b_x -= grad  # type: ignore
 
                 b_λ = c.copy()
                 J.mult(x, b_λ)
-                b_λ -= c
+                b_λ -= c  # type: ignore
 
-                b = PETSc.Vec().createNest([b_x, b_λ])  # type: ignore
+                b = PETSc.Vec().createNest([b_x, b_λ])
                 λ = c.copy()
                 λ.set(0.0)
-                block_x = PETSc.Vec().createNest([x, λ])  # type: ignore
+                block_x = PETSc.Vec().createNest([x, λ])
                 self._subsolver.solve(b, block_x)
 
             if lb:
@@ -168,7 +170,9 @@ class SQP:
 
             tao.setIterationNumber(it)
             tao.monitor(
-                its=it, f=self._objective, res=grad.norm()
+                its=it,
+                f=self._objective,
+                res=grad.norm(),  # type: ignore
             )  # TODO: norm for constrained case
             tao.checkConverged()
 
@@ -176,10 +180,10 @@ class SQP:
         return self._objective
 
     @property
-    def subsolver(self) -> PETSc.KSP:  # type: ignore
+    def subsolver(self) -> PETSc.KSP:
         return self._subsolver
 
-    def destroy(self, tao: PETSc.TAO) -> None:  # type: ignore
+    def destroy(self, tao: PETSc.TAO) -> None:
         logger.debug("destroy")
 
         self._subsolver.destroy()

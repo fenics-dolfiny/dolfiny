@@ -1,5 +1,7 @@
 import logging
 
+from petsc4py import PETSc
+
 import dolfinx
 
 from dolfiny.snesproblem import SNESProblem
@@ -31,7 +33,7 @@ class Crisfield:
         self.ds = 0.1  # continuation step size, default
         self.psi = 1.0  # continuation shape, default
 
-        self.problem.snes.setUpdate(Crisfield.update, kargs=dict(continuation=self))
+        self.problem.snes.setUpdate(Crisfield.update, kargs=dict(continuation=self))  # type: ignore
 
     def initialise(self, ds=None, λ=None, psi=None):
         if ds is not None:
@@ -108,7 +110,7 @@ class Crisfield:
         self.dλ.value = self.Δλ.value
 
     @staticmethod
-    def update(snes, snes_iteration, continuation):
+    def update(snes: PETSc.SNES, snes_iteration: int, continuation: "Crisfield") -> None:
         """Crisfield's continuation update based on solving the quadratic arc-length equation.
 
             (Δx_k).T * (Δx_k) + (Δλ_k * dFdλ).T * (Δλ_k * dFdλ) = ds**2
@@ -173,7 +175,7 @@ class Crisfield:
             # logger.info(f"δλ_1 = {δλ1:1.3e}, δλ_2 = {δλ2:1.3e}")
 
             sign = lambda x: bool(x > 0) - bool(x < 0)  # noqa: E731
-            sign = sign(δx_dFdλ.dot(dx) + dλ * dFdλ_inner)
+            sign = sign(δx_dFdλ.dot(dx) + dλ * dFdλ_inner)  # type: ignore
 
             δλ = δλ1 if δλ1 * sign > δλ2 * sign else δλ2
         else:

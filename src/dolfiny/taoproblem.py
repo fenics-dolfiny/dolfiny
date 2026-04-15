@@ -42,9 +42,9 @@ def sync_functions(u: Sequence[dolfinx.fem.Function]):
     """
 
     def _decorator(_to_wrap):
-        def _wrapped_callback(tao: PETSc.TAO, x: PETSc.Vec, *args) -> float | None:  # type: ignore
+        def _wrapped_callback(tao: PETSc.TAO, x: PETSc.Vec, *args) -> float | None:
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
-            dolfinx.fem.petsc.assign(x, u)
+            dolfinx.fem.petsc.assign(x, u)  # type: ignore
 
             return _to_wrap(tao, x, *args)  # type: ignore
 
@@ -62,7 +62,7 @@ def wrap_objective_callbacks(
     bcs: Sequence[dolfinx.fem.DirichletBC] = [],
     form_compiler_options: dict[str, str] | None = None,
     jit_options: dict[str, str] | None = None,
-) -> tuple[  # type: ignore
+) -> tuple[
     PETSc.Vec,
     TAOObjectiveFunction,
     tuple[TAOJacobianFunction, PETSc.Vec],
@@ -121,7 +121,7 @@ def wrap_objective_callbacks(
     J_form: Sequence[dolfinx.fem.Form] = compile(J)
     H_form: Sequence[Sequence[dolfinx.fem.Form]] = compile(H)
 
-    x0 = dolfinx.fem.petsc.create_vector([f.function_space for f in u], kind=PETSc.Vec.Type.MPI)  # type: ignore
+    x0 = dolfinx.fem.petsc.create_vector([f.function_space for f in u], kind=PETSc.Vec.Type.MPI)
 
     jacobian = x0.copy()
     jacobian.setAttr("_blocks", x0.getAttr("_blocks"))
@@ -129,13 +129,13 @@ def wrap_objective_callbacks(
     hessian = dolfinx.fem.petsc.create_matrix(H_form)
 
     @sync_functions(u)
-    def _callback_F(tao: PETSc.TAO, x: PETSc.Vec) -> float:  # type: ignore
+    def _callback_F(tao: PETSc.TAO, x: PETSc.Vec) -> float:
         F_value = dolfinx.fem.assemble_scalar(F_form)
         assert isinstance(F_value, float)
         return comm.allreduce(F_value, op=MPI.SUM)  # type: ignore
 
     @sync_functions(u)
-    def _callback_J(tao: PETSc.TAO, x: PETSc.Vec, J_vec: PETSc.Vec) -> None:  # type: ignore
+    def _callback_J(tao: PETSc.TAO, x: PETSc.Vec, J_vec: PETSc.Vec) -> None:
         x.setAttr("_blocks", x0.getAttr("_blocks"))
         J_vec.setAttr("_blocks", x0.getAttr("_blocks"))
         J_vec.zeroEntries()
@@ -147,7 +147,7 @@ def wrap_objective_callbacks(
             J_vec,
             a=H_form,
             bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(H_form, 1), bcs),  # type: ignore
-            x0=x,
+            x0=x,  # type: ignore
             alpha=-1.0,
         )
 
@@ -161,7 +161,7 @@ def wrap_objective_callbacks(
         )
 
     @sync_functions(u)
-    def _callback_H(tao: PETSc.TAO, x: PETSc.Vec, H_mat: PETSc.Mat, P_mat: PETSc.Mat) -> None:  # type: ignore
+    def _callback_H(tao: PETSc.TAO, x: PETSc.Vec, H_mat: PETSc.Mat, P_mat: PETSc.Mat) -> None:
         x.setAttr("_blocks", x0.getAttr("_blocks"))
         H_mat.zeroEntries()
 
@@ -178,14 +178,14 @@ def wrap_objective_callbacks(
 
 def wrap_constraint_callbacks(
     comm: MPI.Comm,
-    x0: PETSc.Vec,  # type: ignore
+    x0: PETSc.Vec,
     u: Sequence[dolfinx.fem.Function],
     g: Sequence[dolfiny.inequality.Inequality] | Sequence[ufl.equation.Equation],
     Jg: Sequence[Sequence[ufl.Form | None]] | None,
     bcs: Sequence[dolfinx.fem.DirichletBC] = [],
     form_compiler_options: dict[str, str] | None = None,
     jit_options: dict[str, str] | None = None,
-) -> tuple[  # type: ignore
+) -> tuple[
     tuple[TAOConstraintsFunction, PETSc.Vec], tuple[TAOConstraintsJacobianFunction, PETSc.Mat]
 ]:
     """Create constraint and jacobian callback from form.
@@ -254,14 +254,14 @@ def wrap_constraint_callbacks(
         Jg_mat.setUp()
 
         # Note: does not copy Jg_mat, the actual transpose is never built.
-        Jg_mat_T = PETSc.Mat()  # type: ignore
+        Jg_mat_T = PETSc.Mat()
         Jg_mat_T.createTranspose(Jg_mat)
         Jg_mat = Jg_mat_T  # TODO: document
     elif arity == 1:
         # TODO: fix blocking mess
         g_vec = dolfinx.fem.petsc.create_vector(
             dolfinx.fem.extract_function_spaces(g_lhs),
-            kind=PETSc.Vec.Type.MPI,  # type: ignore
+            kind=PETSc.Vec.Type.MPI,
         )
         Jg_mat = dolfinx.fem.petsc.create_matrix(Jg_forms)
     else:
@@ -352,16 +352,16 @@ def wrap_constraint_callbacks(
 
 
 class TAOProblem:
-    _converged_reasons_tao = attributes_to_dict(PETSc.TAO.ConvergedReason, invert=True)  # type: ignore
-    _converged_reasons_ksp = attributes_to_dict(PETSc.KSP.ConvergedReason, invert=True)  # type: ignore
+    _converged_reasons_tao = attributes_to_dict(PETSc.TAO.ConvergedReason, invert=True)
+    _converged_reasons_ksp = attributes_to_dict(PETSc.KSP.ConvergedReason, invert=True)
 
-    _x0: PETSc.Vec  # type: ignore
-    _J: tuple[TAOJacobianFunction, PETSc.Vec] | None  # type: ignore
-    _H: tuple[TAOHessianFunction, PETSc.Mat] | None  # type: ignore
-    _g: tuple[TAOConstraintsFunction, PETSc.Vec] | None  # type: ignore
-    _Jg: tuple[TAOConstraintsJacobianFunction, PETSc.Mat] | None  # type: ignore
-    _h: tuple[TAOConstraintsFunction, PETSc.Vec] | None  # type: ignore
-    _Jh: tuple[TAOConstraintsJacobianFunction, PETSc.Mat] | None  # type: ignore
+    _x0: PETSc.Vec
+    _J: tuple[TAOJacobianFunction, PETSc.Vec]
+    _H: tuple[TAOHessianFunction, PETSc.Mat] | None
+    _g: tuple[TAOConstraintsFunction, PETSc.Vec] | None
+    _Jg: tuple[TAOConstraintsJacobianFunction, PETSc.Mat] | None
+    _h: tuple[TAOConstraintsFunction, PETSc.Vec] | None
+    _Jh: tuple[TAOConstraintsJacobianFunction, PETSc.Mat] | None
 
     def __init__(
         self,
@@ -370,13 +370,13 @@ class TAOProblem:
         bcs: Sequence[dolfinx.fem.DirichletBC] = [],
         lb: np.floating | Sequence[dolfinx.fem.Function] = PETSc.NINFINITY,  # type: ignore
         ub: np.floating | Sequence[dolfinx.fem.Function] = PETSc.INFINITY,  # type: ignore
-        J: Sequence[ufl.Form] | tuple[TAOJacobianFunction, PETSc.Vec] | None = None,  # type: ignore
-        H: Sequence[Sequence[ufl.Form]] | tuple[TAOHessianFunction, PETSc.Mat] | None = None,  # type: ignore
-        g: Sequence[dolfiny.inequality.Inequality]  # type: ignore
+        J: Sequence[ufl.Form] | tuple[TAOJacobianFunction, PETSc.Vec] | None = None,
+        H: Sequence[Sequence[ufl.Form]] | tuple[TAOHessianFunction, PETSc.Mat] | None = None,
+        g: Sequence[dolfiny.inequality.Inequality]
         | tuple[TAOConstraintsFunction, PETSc.Vec]
         | None = None,
         Jg: Sequence[Sequence[ufl.Form]] | None = None,
-        h: Sequence[ufl.equation.Equation] | tuple[TAOConstraintsFunction, PETSc.Vec] | None = None,  # type: ignore
+        h: Sequence[ufl.equation.Equation] | tuple[TAOConstraintsFunction, PETSc.Vec] | None = None,
         Jh: Sequence[Sequence[ufl.Form]] | None = None,
         prefix=None,
         form_compiler_options: dict | None = None,
@@ -451,7 +451,7 @@ class TAOProblem:
             self._J = J  # type: ignore
             self._H = H  # type: ignore
 
-        self._tao = PETSc.TAO().create(self._comm)  # type: ignore
+        self._tao = PETSc.TAO().create(self._comm)
         self._tao.setOptionsPrefix(prefix)
         self._tao.setFromOptions()
         self._tao.setSolution(self._x0)
@@ -470,7 +470,7 @@ class TAOProblem:
         self._tao.setVariableBounds(tuple(_create_bounds_vec(b) for b in (lb, ub)))
 
         if self._J is not None:
-            self._tao.setGradient(*self._J)
+            self._tao.setGradient(*self._J)  # type: ignore
 
         if self._H is not None:
             self._tao.setHessian(*self._H)
@@ -533,8 +533,8 @@ class TAOProblem:
         self._tao.setUp()
         self._tao.setMonitor(self._monitor)
 
-        if self._tao.getType() == PETSc.TAO.Type.ALMM:  # type: ignore
-            if (PETSc.Sys().getVersion()[1] >= 23) and (PETSc.Sys().getVersion()[2] >= 3):  # type: ignore
+        if self._tao.getType() == PETSc.TAO.Type.ALMM:
+            if (PETSc.Sys().getVersion()[1] >= 23) and (PETSc.Sys().getVersion()[2] >= 3):
                 subsolver = self._tao.getALMMSubsolver()
                 subsolver.setMonitor(self._monitor)
 
@@ -551,10 +551,10 @@ class TAOProblem:
         solution = self._tao.getSolution()
         # TODO: code duplication with link_state -> resolve
         solution.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
-        dolfinx.fem.petsc.assign(solution, self._u)
+        dolfinx.fem.petsc.assign(solution, self._u)  # type: ignore
 
     @property
-    def tao(self) -> PETSc.TAO:  # type: ignore
+    def tao(self) -> PETSc.TAO:
         """Return the underlying `PETSc.TAO` object."""
         return self._tao
 
@@ -590,17 +590,17 @@ class TAOProblem:
         message += ANSI.reset
         logger.info(message)
 
-    def _monitor(self, tao: PETSc.TAO):  # type: ignore
-        color = ANSI.blue if tao.getType() == PETSc.TAO.Type.ALMM else ""  # type: ignore
+    def _monitor(self, tao: PETSc.TAO):
+        color = ANSI.blue if tao.getType() == PETSc.TAO.Type.ALMM else ""
         it = tao.getIterationNumber()
         reason_s = TAOProblem._converged_reasons_tao[tao.reason]
-        status_color = ANSI.red if tao.reason > 0 else ""
+        status_color = ANSI.red if tao.reason > 0 else ""  # type: ignore
         logger.info(f"{color}# TAO {it:3d} ({status_color}{reason_s}{color}){ANSI.reset}")
 
         # TODO: ls (limited by https://gitlab.com/petsc/petsc/-/merge_requests/8456)
         # TODO: snes (once PDIPM available)
 
-        blocks = self._x0.getAttr("_blocks")
+        blocks: tuple[list[int], list[int]] = self._x0.getAttr("_blocks")  # type: ignore
         for i, u in enumerate(self._u):
             # TODO: this breaks
             # message = f"# sub {i:1d} |x|={u.x.petsc_vec.norm():9.3e}"
@@ -615,7 +615,7 @@ class TAOProblem:
                         norm = np.sqrt(self._comm.allreduce(np.inner(arr, arr)))
                     message += f" |J|={norm:9.3e}"
                 else:
-                    message += f" |J|={self._J[1].norm():9.3e}"
+                    message += f" |J|={self._J[1].norm():9.3e}"  # type: ignore
 
             message += f" ({u.name}){ANSI.reset}"
             logger.info(message)
@@ -631,7 +631,7 @@ class TAOProblem:
             message += f" |h|={self._h[1].norm():9.3e}"
 
         if self._Jh is not None:
-            if self._Jh[1].getType() == PETSc.Mat.Type.TRANSPOSE:  # type: ignore
+            if self._Jh[1].getType() == PETSc.Mat.Type.TRANSPOSE:
                 message += f" |Jh|={self._Jh[1].getTransposeMat().norm():9.3e}"
             else:
                 message += f" |Jh|={self._Jh[1].norm():9.3e}"
@@ -640,7 +640,7 @@ class TAOProblem:
             message += f" |g|={self._g[1].norm():9.3e}"
 
         if self._Jg is not None:
-            if self._Jg[1].getType() == PETSc.Mat.Type.TRANSPOSE:  # type: ignore
+            if self._Jg[1].getType() == PETSc.Mat.Type.TRANSPOSE:
                 message += f" |Jg|={self._Jg[1].getTransposeMat().norm():9.3e}"
             else:
                 message += f" |Jg|={self._Jg[1].norm():9.3e}"
