@@ -82,6 +82,8 @@ import sympy.physics.units as syu
 import dolfiny
 from dolfiny.units import Quantity
 
+output = False
+
 comm = MPI.COMM_WORLD
 
 if comm.rank == 0:
@@ -316,19 +318,16 @@ load_conditions = {
     "vertical_up": {
         "force": [F1 * g / pin_area * ufl.as_vector((0, 0, 1))],
         "measure": [ds((pin_left_tag, pin_right_tag))],
-        "u": dolfinx.fem.Function(V_u),
     },
     "horizontal_out": {
         "force": [F2 * g / pin_area * ufl.as_vector((0, -1, 0))],
         "measure": [ds((pin_left_tag, pin_right_tag))],
-        "u": dolfinx.fem.Function(V_u),
     },
     "42deg_vertical_out": {
         "force": [
             F3 * g / pin_area * ufl.as_vector((0, -np.sin(np.deg2rad(42)), np.cos(np.deg2rad(42))))
         ],
         "measure": [ds((pin_left_tag, pin_right_tag))],
-        "u": dolfinx.fem.Function(V_u),
     },
     "torsion": {
         "force": [
@@ -336,9 +335,10 @@ load_conditions = {
             F4 / torsion_lever_arm * g / pin_area / 2 * ufl.as_vector((0, 1, 0)),
         ],
         "measure": [ds(pin_left_tag), ds(pin_right_tag)],
-        "u": dolfinx.fem.Function(V_u),
     },
 }
+for fname in load_conditions.keys():
+    load_conditions[fname]["u"] = dolfinx.fem.Function(V_u, name=fname)  # type: ignore
 
 
 def build_nullspace(V):
@@ -394,7 +394,7 @@ for lc in load_conditions.values():
         a,
         L,
         bcs=[bc_u],
-        u=u_lc,  # type: ignore
+        u=u_lc,
         petsc_options=(
             {
                 # Combination of https://github.com/FEniCS/performance-test and https://doi.org/10.1007/s00158-020-02618-z
@@ -443,8 +443,8 @@ if comm.size == 1:
         u_lc = load_conditions[name]["u"]
         grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u_lc.function_space.mesh))  # type: ignore
 
-        assert isinstance(u_lc, dolfinx.fem.Function)
-        grid.point_data["u"] = u_lc.x.array.reshape((-1, 3)) * 1000  # displacement in mm
+        assert isinstance(u_lc, dolfinx.fem.Function)  # type: ignore
+        grid.point_data["u"] = u_lc.x.array.reshape((-1, 3)) * 1000  # type: ignore # displacement in mm
         grid_warped = grid.warp_by_vector("u", factor=0.2)
 
         plotter.add_mesh(
@@ -666,12 +666,28 @@ opts["tao_mma_subsolver_tao_monitor"] = ""
 problem = dolfiny.taoproblem.TAOProblem(
     J, [ρ], J=(DJ, ρ.x.petsc_vec.copy()), h=[g], lb=ρ_min, ub=np.float64(1)
 )
-problem.solve()
 
-with dolfinx.io.XDMFFile(comm, "ge_bracket/result.xdmf", "w") as file:
-    file.write_mesh(mesh)
-    for f in (ρ, ρ_f, load_conditions["vertical_up"]["u"]):
-        file.write_function(f)
+
+def monitor(tao: PETSc.TAO, output: bool) -> None:  # type: ignore
+    if not output:
+        return
+
+    it = tao.getIterationNumber()
+    with dolfinx.io.XDMFFile(comm, "ge_bracket/result.xdmf", "a") as file:
+        for f in (ρ, ρ_f):
+            file.write_function(f, it)
+
+        for lc in load_conditions.values():
+            file.write_function(lc["u"], it)
+
+
+if output:
+    with dolfinx.io.XDMFFile(comm, "ge_bracket/result.xdmf", "w") as file:
+        file.write_mesh(mesh)
+
+
+problem.tao.setMonitor(monitor, args=[output])
+problem.solve()
 
 # %% [markdown]
 # ## Post-processing

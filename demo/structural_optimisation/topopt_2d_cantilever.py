@@ -424,7 +424,7 @@ if comm.size == 1:
     plotter_f.camera.zoom(1.5)
 
 
-def monitor(tao):
+def monitor(tao: PETSc.TAO, output: bool) -> None:  # type: ignore
     it = tao.getIterationNumber()
     if comm.size == 1:
         text.SetText(0, f"Iteration {it}")
@@ -440,23 +440,21 @@ def monitor(tao):
     if not output:
         return
 
-    with dolfinx.io.XDMFFile(comm, f"topopt_simp/data_{it}.xdmf", "w") as file:
-        file.write_mesh(mesh)
+    with dolfinx.io.XDMFFile(comm, "topopt_simp/data.xdmf", "a") as file:
         for f in (ρ, ρ_f, u):
             file.write_function(f, it)
 
 
-problem.tao.setMonitor(monitor)
+if output:
+    with dolfinx.io.XDMFFile(comm, "topopt_simp/data.xdmf", "w") as file:
+        file.write_mesh(mesh)
+
+problem.tao.setMonitor(monitor, args=[output])
 problem.solve()
 
 if comm.size == 1:
     plotter.close()
     plotter_f.close()
-
-with dolfinx.io.XDMFFile(comm, "topopt_simp/data.xdmf", "w") as file:
-    file.write_mesh(mesh)
-    for f in (ρ, ρ_f, u):
-        file.write_function(f)
 
 # %% [markdown]
 # ## Results
