@@ -55,11 +55,20 @@
 # ## Monolithic weak formulation
 #
 # Instead of predictor-corrector return mapping, the full system is solved directly in weak form.
-# Complementarity is encoded by the Macaulay bracket
+# The rate-independent Karush-Kuhn-Tucker complementarity conditions
+# $\dot{\lambda} \ge 0$, $f \le 0$, $\dot{\lambda} f = 0$ are regularised by the
+# explicit penalty relation
 # $$
-#   \Delta\lambda = [f]_+ = \max(f, 0),
+#   \Delta\lambda = \frac{\Delta t}{\eta} \max(f, 0),
 # $$
-# and the time-discrete weak form requires, for all test functions
+# which is equivalent to a time-discrete Perzyna viscoplastic flow rule with rate-sensitivity
+# exponent $N = 1$. Here $\eta$ is an artificial viscosity with units of Pa s, and $\Delta t$ is the
+# time step size. This formulation has also a penalty interpretation of the underlying
+# variational inequality (see §2.7 of {cite:t}`Simo1998`). The rate-independent limit is recovered
+# as $\Delta t / \eta \to \infty$ (stiff penalty), at the cost of a small admissible overstress
+# $f > 0$ during plastic flow. With stresses expressed in GPa throughout this demo, the prefactor
+# $\Delta t/\eta$ is absorbed by the non-dimensionalisation and set to unity.
+# The resulting time-discrete weak form requires, for all test functions
 # $(\delta u, \delta P, \delta h, \delta B)$,
 # \begin{align}
 #   \int_\Omega \delta E : S \,\text{d}x &= 0, \\
@@ -76,12 +85,12 @@
 # step.
 #
 # ```{note}
-# The monolithic formulation with explicit formula for the plastic multiplier
-# increment $\Delta \lambda$ is possible since we use the simple $J_2$ plasticity model,
-# where the return mapping has a closed-form solution. More complex models
-# with, e.g., non-associative flow or non-smooth yield surfaces require a nonlinear
-# solution strategy with a Newton iteration at the Gauss point level to solve
-# for $\Delta \lambda$ and the internal variables, see our [Rankine plasticity demo](rankine.ipynb).
+# The penalty form for $\Delta\lambda$ yields an explicit algebraic expression that can be
+# substituted directly into the residuals, so no auxiliary multiplier field and no
+# Gauss-point-level Newton iteration are needed. For a strictly rate-independent treatment
+# (exact KKT enforcement via a semismooth NCP with an auxiliary multiplier field), and for
+# non-associative flow or non-smooth yield surfaces in general, see our
+# [Rankine plasticity demo](rankine.ipynb).
 # ```
 #
 # ## Parameters and mesh
@@ -292,7 +301,9 @@ S, B, h = S.expression(), B.expression(), h.expression()
 # Variation of Green-Lagrange strain
 δE = ufl.derivative(E, m, δm)
 
-# Plastic multiplier (J2 plasticity: closed-form solution for return-map)
+# Plastic multiplier (penalty / Perzyna-type regularisation, N = 1).
+# Rate-independent limit is recovered as eta/dt -> 0, at the cost of a small
+# admissible overstress f > 0 during plastic flow.
 dλ = ufl.max_value(f, 0)  # ppos = Macaulay bracket
 
 # Weak form (as one-form)
@@ -388,7 +399,6 @@ for step, factor in enumerate(cycles):
 
     # Basic consistency checks
     assert dolfiny.expression.assemble(dλ * df, dxg) / V < 1.0e-03, "|| dλ*df || != 0.0"
-    assert dolfiny.expression.assemble(dλ * f, dxg) / V < 1.0e-05, "|| dλ*f || != 0.0"
 
     # Project plastic strain magnitude to DG0 for output and visualisation
     dolfiny.projection.project(ufl.sqrt(ufl.inner(P, P)), eps_p)
