@@ -132,7 +132,7 @@ c = dolfinx.fem.Function(Cf, name="c")  # [mol / m^3] -- concentration
 m, δm = [c, φ], [δc, δφ]
 
 # Create other functions: output / visualisation
-vorder = mesh.geometry.cmap.degree
+vorder = mesh.geometry.cmap().degree
 co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), name="c")
 φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")
 

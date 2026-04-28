@@ -136,23 +136,8 @@ num_steps_per_t_ref = dolfinx.fem.Constant(mesh, scalar(1))  # dt = t_ref / num_
 # `dolfinx.fem.Constant` with extra metadata: besides the scalar value used in assembly, it stores
 # the unit, SymPy-based symbol, and derived dimension used for Buckingham Pi analysis and
 # dimensional checks.
-#
-# Buckingham Pi analysis below reports the basis (so-called Pi groups) of the nullspace of the
-# dimension matrix. For this problem, there are four Pi groups:
-# $$
-#    \Pi_1 = \frac{\nu}{v_\text{ref} l_\text{ref}},
-#    \qquad \Pi_2 = \frac{g_\text{ref} l_\text{ref}}{v_\text{ref}^2},
-#    \qquad \Pi_3 = \frac{p_\text{ref}}{\rho v_\text{ref}^2},
-#    \qquad \Pi_4 = \frac{t_\text{ref} v_\text{ref}}{l_\text{ref}}.
-# $$
-#
-# A call to `dolfiny.units.buckingham_pi_analysis` with a list of `Quantity` objects
-# reports the overview of all dimensional quantities in the model, the dimension matrix, and the
-# Pi groups. Please note, that Pi groups are found using a `Matrix.nullspace()` call in SymPy.
-# For matrices over the field of rational numbers, the nullspace is usually represented
-# with small integer coefficients, which is favorable for interpretability.
 
-# %% tags=["hide-input"]
+# %%
 nu = Quantity(mesh, 1000, syu.millimeter**2 / syu.second, "nu")
 rho = Quantity(mesh, 5000, syu.kilogram / syu.m**3, "rho")
 l_ref = Quantity(mesh, 1, syu.meter, "l_ref")
@@ -160,12 +145,9 @@ t_ref = Quantity(mesh, 1 / 60, syu.minute, "t_ref")
 v_ref = Quantity(mesh, 1, syu.meter / syu.second, "v_ref")
 p_ref = Quantity(mesh, default_p_ref, syu.pascal, "p_ref")
 g_ref = Quantity(mesh, 10, syu.meter / syu.second**2, "g_ref")
-quantities = [v_ref, l_ref, rho, nu, g_ref, p_ref, t_ref]  # order -> Pi_1, ..., Pi_4
-
-if comm.rank == 0:
-    dolfiny.units.buckingham_pi_analysis(quantities)
 
 # %% [markdown]
+#
 # ## Weak form and dimensional checks
 #
 # We write the residual in term-by-term form so that each contribution can be transformed and
@@ -193,7 +175,7 @@ if comm.rank == 0:
 # \end{align}
 # Here $A : B$ denotes the Frobenius product of tensors and $\text{d}x$ denotes integration over
 # $\Omega$.
-# The last term is identically zero. It is kept only so that `DOLFINx` allocates a pressure-pressure
+# The last term is identically zero. It is kept only so that `dolfinx` allocates a pressure-pressure
 # sparsity block, allowing the pressure pinning condition to modify a diagonal entry there. The
 # factor $1 / (p_\text{ref} t_\text{ref})$ is only a dimensional placeholder inside this zero
 # term.
@@ -211,39 +193,9 @@ if comm.rank == 0:
 #    \delta \mathbf{v} &\mapsto v_\text{ref} \, \delta \mathbf{v}, &
 #    \delta p &\mapsto p_\text{ref} \, \delta p.
 # \end{align}
-#
-# After the transformation, we proceed with the steps: *factorization* and *normalization*.
-# Factorization performs a homogeneous factorization of the weak form and extracts the
-# homogeneous factors. Normalization then divides each term by a chosen reference term, which is the
-# convection term in this case. The resulting dimensionless form contains only the Pi groups as
-# coefficients.
-#
-# ```{note}
-# While the dimensionless numbers obtained earlier from Buckingham Pi analysis are not unique,
-# the normalized form of the equations is unique for a given choice of the reference term. This is
-# because the normalization step effectively chooses a specific basis of the nullspace.
-#
-# The normalized weak form yields the following dimensionless numbers:
-# \begin{align}
-#    \mathrm{Re} &= \frac{v_\text{ref} l_\text{ref}}{\nu} = \frac{1}{\Pi_1}, &
-#    \mathrm{Fr}^2 &= \frac{v_\text{ref}^2}{g_\text{ref} l_\text{ref}} = \frac{1}{\Pi_2}, \\
-#    \mathrm{Eu} &= \frac{p_\text{ref}}{\rho v_\text{ref}^2} = \Pi_3, &
-#    \mathrm{St} &= \frac{l_\text{ref}}{v_\text{ref} t_\text{ref}} = \frac{1}{\Pi_4}.
-# \end{align}
-# These correspond to the Reynolds, Froude, Euler, and Strouhal numbers respectively.
-# ```
-
-# %% tags=["hide-input"]
-mapping = {
-    mesh.ufl_domain(): l_ref,
-    v: v_ref * v,
-    v0: v_ref * v0,
-    p: p_ref * p,
-    δv: v_ref * δv,
-    δp: p_ref * δp,
-}
 
 
+# %%
 def D(u_expr):
     """Strain rate tensor."""
     return ufl.sym(ufl.grad(u_expr))
@@ -259,8 +211,46 @@ terms = {
     "pressure_bc": -dolfinx.fem.Constant(mesh, 0.0) / p_ref / t_ref * ufl.inner(δp, p) * ufl.dx,
 }
 
+mapping = {
+    mesh.ufl_domain(): l_ref,
+    v: v_ref * v,
+    v0: v_ref * v0,
+    p: p_ref * p,
+    δv: v_ref * δv,
+    δp: p_ref * δp,
+}
 
-# Few dimensional sanity checks
+# %% [markdown]
+#
+# Once the weak form is defined, `dolfiny.units.collect_quantities` extracts the
+# `Quantity` objects directly from the form (composed with the `mapping` used for
+# non-dimensionalisation). Passing that list to `dolfiny.units.buckingham_pi_analysis` reports
+# the overview of all dimensional quantities in the model, the dimension matrix, and the Pi
+# groups. Pi groups are found using a `Matrix.nullspace()` call in SymPy. For matrices over the
+# field of rational numbers, the nullspace is usually represented with small integer
+# coefficients, which is favorable for interpretability.
+#
+# Buckingham Pi analysis reports the basis (so-called Pi groups) of the nullspace of the
+# dimension matrix. For this problem, there are four Pi groups. The specific basis returned
+# is not unique: it depends on the column ordering of the dimension matrix and on the
+# nullspace algorithm.
+
+# %%
+form = sum(terms.values(), ufl.form.Zero())
+
+quantities = dolfiny.units.collect_quantities(form, mapping=mapping)
+assert len(quantities) == 7
+
+if comm.rank == 0:
+    dolfiny.units.buckingham_pi_analysis(quantities)
+
+# %% [markdown]
+# An advantage of the dimensional analysis, is that we can extract the dimensions of an arbitrary
+# sub-expression in the weak form. In addition, we can perform a static dimensional consistency
+# checks: for example, the dimension of the entire weak form must be that of power per length.
+# This is demonstrated in the following.
+
+# %%
 dimsys = syu.si.SI.get_dimension_system()
 assert dimsys.equivalent_dims(dolfiny.units.get_dimension(D(v), quantities, mapping), 1 / syu.time)
 assert dimsys.equivalent_dims(
@@ -271,21 +261,42 @@ assert dimsys.equivalent_dims(
 )
 assert dolfiny.units.get_dimension(D(v), quantities, mapping) == 1 / syu.time
 
-form = sum(terms.values(), ufl.form.Zero())
 form_dim = dolfiny.units.get_dimension(form, quantities, mapping)
 assert dimsys.equivalent_dims(form_dim, syu.power / syu.length)
 
 convective_dim = dolfiny.units.get_dimension(rho * ufl.dot(v, ufl.grad(v)), quantities, mapping)
 assert syu.si.SI.get_dimension_system().equivalent_dims(convective_dim, syu.force / syu.length**3)
 
+# %% [markdown]
+# After the transformation, we proceed with the steps: *factorization* and *normalization*.
+# Factorization performs a homogeneous factorization of the weak form and extracts the
+# homogeneous factors. Normalization then divides each term by a chosen reference term, which is the
+# convection term in this case. The resulting dimensionless form contains only the Pi groups as
+# coefficients.
+#
+# ```{note}
+# While the dimensionless numbers obtained from Buckingham Pi analysis are not unique,
+# the normalized form of the equations is unique for a given choice of the reference term. This is
+# because the normalization step effectively chooses a specific basis of the nullspace.
+#
+# The normalized weak form yields the following dimensionless numbers:
+# \begin{align}
+#    \mathrm{Re} &= \frac{v_\text{ref} l_\text{ref}}{\nu}, &
+#    \mathrm{Fr}^2 &= \frac{v_\text{ref}^2}{g_\text{ref} l_\text{ref}}, \\
+#    \mathrm{Eu} &= \frac{p_\text{ref}}{\rho v_\text{ref}^2}, &
+#    \mathrm{St} &= \frac{l_\text{ref}}{v_\text{ref} t_\text{ref}}.
+# \end{align}
+# These correspond to the Reynolds, Froude, Euler, and Strouhal numbers respectively.
+# ```
+
+
+# %%
 terms_fact = dolfiny.units.factorize(terms, quantities, mode="factorize", mapping=mapping)
 assert isinstance(terms_fact, dict)
 
 reference_term = "convection"
 
 terms_norm = dolfiny.units.normalize(terms_fact, reference_term, quantities)
-
-# %% tags=["hide-input"]
 form_nondimensional = sum(terms_norm.values(), ufl.form.Zero())
 
 # %% [markdown]
@@ -347,11 +358,7 @@ bcs = [bc0, bc1, bc2]
 # velocity-velocity block, see Section 4.1 of {cite:t}`Habera2026DimensionalAnalysis` for more
 # details.
 
-# %% tags=["hide-input"]
-# | label: condition-number
-# | caption: |
-# |   Condition number of the Jacobian of the normalized mixed Navier-Stokes residual, assembled at
-# |   the zero state with cavity boundary conditions, as a function of the Euler number.
+# %% tags=["hide-input", "hide-output"]
 forms = ufl.extract_blocks(form_nondimensional)  # type: ignore[arg-type]
 problem = dolfiny.snesproblem.SNESProblem(forms, [v, p], bcs=bcs, prefix="ns", nest=False)
 
@@ -382,4 +389,15 @@ if comm.rank == 0:
     plt.grid(linewidth=0.25)
     plt.semilogy(euler_values, condition_numbers, "o-")
     plt.tight_layout()
-    plt.savefig(args.plot_file)
+    plt.savefig(args.plot_file, dpi=300)
+    plt.close()
+
+# %% [markdown]
+# ```{figure} navier_stokes_condition_number.png
+# :alt: Condition number of the Navier-Stokes Jacobian versus the Euler number.
+# :align: center
+# :name: fig-navier-stokes-condition-number
+#
+# Condition number of the Jacobian of the normalized mixed Navier-Stokes residual, assembled at
+# the zero state with cavity boundary conditions, as a function of the Euler number.
+# ```

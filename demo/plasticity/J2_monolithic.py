@@ -119,14 +119,15 @@ from petsc4py import PETSc
 import basix
 import dolfinx
 import ufl
-from dolfinx import default_scalar_type as scalar
 
 import matplotlib.pyplot as plt
 import mesh_iso6892_gmshapi as mg
 import numpy as np
 import pyvista
+import sympy.physics.units as syu
 
 import dolfiny
+from dolfiny.units import Quantity
 
 # Basic settings
 name = "J2_monolithic"
@@ -166,17 +167,31 @@ if comm.size == 1:
     plotter.close()
     plotter.deep_clean()
 
+GPa = syu.Quantity("gigapascal", abbrev="GPa")
+GPa.set_global_dimension(syu.pressure)
+GPa.set_global_relative_scale_factor(1e9, syu.pascal)
+
+ds = syu.DimensionSystem(base_dims=[syu.pressure, syu.length, syu.time])
+us = syu.UnitSystem(
+    base_units=[GPa, syu.meter, syu.second],
+    dimension_system=ds,
+)
+
 # Solid: material parameters
-mu = dolfinx.fem.Constant(mesh, scalar(100.0))  # [1e-9 * 1e+11 N/m^2 = 100 GPa]
-la = dolfinx.fem.Constant(mesh, scalar(10.00))  # [1e-9 * 1e+10 N/m^2 =  10 GPa]
-Sy = dolfinx.fem.Constant(mesh, scalar(0.300))  # initial yield stress [GPa]
-bh = dolfinx.fem.Constant(mesh, scalar(20.00))  # isotropic hardening: saturation rate  [-]
-qh = dolfinx.fem.Constant(mesh, scalar(0.100))  # isotropic hardening: saturation value [GPa]
-bb = dolfinx.fem.Constant(mesh, scalar(250.0))  # kinematic hardening: saturation rate  [-]
-qb = dolfinx.fem.Constant(mesh, scalar(0.100))  # kinematic hardening: saturation value [GPa]
+mu = Quantity(mesh, 100, GPa, "mu", us)
+la = Quantity(mesh, 10, GPa, "lambda", us)
+Sy = Quantity(mesh, 0.3, GPa, "S_y", us)  # initial yield stress
+bh = Quantity(mesh, 20, None, "b_h", us)  # isotropic hardening: saturation rate
+qh = Quantity(mesh, 0.1, GPa, "q_h", us)  # isotropic hardening: saturation value
+bb = Quantity(mesh, 250, None, "b_b", us)  # kinematic hardening: saturation rate
+qb = Quantity(mesh, 0.1, GPa, "q_b", us)  # kinematic hardening: saturation value
+dt = Quantity(mesh, 1.0, syu.second, "dt", us)  # pseudo time step size
+eta = Quantity(mesh, 1.0, GPa * syu.second, "eta", us)  # viscosity parameter for regularisation
 
 # Solid: load parameters
-μ = dolfinx.fem.Constant(mesh, scalar(1.0))  # load factor
+μ = Quantity(mesh, 1.0, None, "mu_l", us)  # load factor
+u_ref = Quantity(mesh, 1.0, syu.meter, "u_ref", us)
+S_ref = Quantity(mesh, 1.0, GPa, "S_ref", us)
 
 
 def u_bar(x):
@@ -280,7 +295,7 @@ S = 2 * mu * E_el + la * ufl.tr(E_el) * I  # S = S(E_el), PK2, St.Venant-Kirchho
 S, B, h = ufl.variable(S), ufl.variable(B), ufl.variable(h)
 
 # Yield function
-f = ufl.sqrt(3) * rJ2(S - B) - (Sy + h)  # von Mises criterion (J2), with hardening
+f = ufl.sqrt(3) * Sy * rJ2((S - B) / Sy) - (Sy + h)  # von Mises criterion (J2), with hardening
 
 # Plastic potential
 g = f
@@ -304,15 +319,39 @@ S, B, h = S.expression(), B.expression(), h.expression()
 # Plastic multiplier (penalty / Perzyna-type regularisation, N = 1).
 # Rate-independent limit is recovered as eta/dt -> 0, at the cost of a small
 # admissible overstress f > 0 during plastic flow.
-dλ = ufl.max_value(f, 0)  # ppos = Macaulay bracket
+dλ = dt / eta * Sy * ufl.max_value(f / Sy, 0)  # ppos = Macaulay bracket
 
 # Weak form (as one-form)
 form = (
     ufl.inner(δE, S) * dx
-    + ufl.inner(δP, (P - P0) - dλ * dgdS) * dx
-    + ufl.inner(δh, (h - h0) - dλ * bh * (qh * 1.00 - h)) * dx
+    + ufl.inner(δP, Sy * ((P - P0) - dλ * dgdS)) * dx
+    + ufl.inner(δh, (h - h0) - dλ * bh * (qh - h)) * dx
     + ufl.inner(δB, (B - B0) - dλ * bb * (qb * dgdS - B)) * dx
 )
+
+mapping = {
+    mesh.ufl_domain(): u_ref,
+    u: u_ref * u,
+    u0: u_ref * u0,
+    h: S_ref * h,
+    h0: S_ref * h0,
+    B: S_ref * B,
+    B0: S_ref * B0,
+    S0: S_ref * S0,
+}
+
+quantities = dolfiny.units.collect_quantities(form, mapping=mapping)
+assert len(quantities) == 11
+
+if comm.rank == 0:
+    dolfiny.units.buckingham_pi_analysis(quantities, us)
+
+dimsys_SI = syu.si.SI.get_dimension_system()
+assert dimsys_SI.equivalent_dims(
+    dolfiny.units.get_dimension(ufl.inner(δE, S) * dx, quantities, mapping=mapping), syu.energy
+)
+
+dolfiny.units.factorize(form, quantities, mode="check", mapping=mapping)
 
 # Overall form (as list of forms)
 forms = ufl.extract_blocks(form)
