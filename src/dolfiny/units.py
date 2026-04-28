@@ -44,6 +44,12 @@ class Quantity(dolfinx.fem.Constant):
         if np.asarray(scale).shape != ():
             raise ValueError("Quantity supports only scalar values.")
 
+        if unit is None:
+            unit = sy.sympify(1)
+
+        if not isinstance(unit, sy.Expr):
+            raise TypeError(f"Unit must be a sympy expression, got {type(unit).__name__}.")
+
         self._scale = scale
         self._unit = unit
 
@@ -103,7 +109,10 @@ class Quantity(dolfinx.fem.Constant):
         return str(self._symbol)
 
     def __repr__(self):
-        return f"Quantity(scale={self._scale}, unit={self._unit}, symbol={self._symbol})"
+        return (
+            f"Quantity(scale={self._scale}, unit={self._unit}, symbol={self._symbol}, "
+            f"unit_system={self._unit_system})"
+        )
 
 
 class UnitTransformer(MultiFunction):
@@ -183,7 +192,41 @@ class QuantityFactorizer(MultiFunction):
         return self.reuse_if_untouched(o, *ops)
 
     def inherit_from_operand(self, o, *ops):
+        r"""Inherit factor from first operand that has a factor defined.
+
+        Also checks that all operands with factors have consistent dimensions and factors.
+
+        """
+        operands_with_factors = [op for op in o.ufl_operands if op in self.factors]
+        fa = self.factors[operands_with_factors[0]]
+        fa_expr = expand(fa, [q.dimension for q in self._quantities]).simplify()
+        fa_symbol = expand(fa, [q.symbol for q in self._quantities])
+
+        for b in operands_with_factors[1:]:
+            fb = self.factors[b]
+            fb_symbol = expand(fb, [q.symbol for q in self._quantities])
+
+            dimsys = self._quantities[0].unit_system.get_dimension_system()
+            fb_expr = expand(fb, [q.dimension for q in self._quantities]).simplify()
+            if not dimsys.equivalent_dims(fa_expr, fb_expr):
+                raise RuntimeError(
+                    f"Inconsistent dimensions in operands of {o.__class__.__name__}.\n"
+                    f"{fa_expr} != {fb_expr}."
+                )
+
+            if self._mode == "factorize" and not np.allclose(fa, fb):
+                raise RuntimeError(
+                    f"Inconsistent factors in operands of {o.__class__.__name__}.\n"
+                    f"{fa_symbol} != {fb_symbol}."
+                )
+
         self.factors[o] = self.factors[o.ufl_operands[0]]
+        return self.reuse_if_untouched(o, *ops)
+
+    def multi_index(self, o, *ops):
+        return self.reuse_if_untouched(o, *ops)
+
+    def label(self, o, *ops):
         return self.reuse_if_untouched(o, *ops)
 
     def constant(self, o, *ops):
@@ -198,30 +241,28 @@ class QuantityFactorizer(MultiFunction):
 
     def sum(self, o, *ops):
         a, b = o.ufl_operands
+        self.factors[o] = self.factors[a]
+
         fa, fb = self.factors[a], self.factors[b]
-        self.factors[o] = fa
 
-        fa_symbol = expand(fa, [q.symbol for q in self._quantities])
-        fb_symbol = expand(fb, [q.symbol for q in self._quantities])
+        dimsys = self._quantities[0].unit_system.get_dimension_system()
+        fa_expr = expand(fa, [q.dimension for q in self._quantities]).simplify()
+        fb_expr = expand(fb, [q.dimension for q in self._quantities]).simplify()
+        if not dimsys.equivalent_dims(fa_expr, fb_expr):
+            raise RuntimeError(
+                f"Inconsistent dimensions\n"
+                f"     {a!s}.\n---> +\n     {b!s}.\n"
+                f"{fa_expr} != {fb_expr}."
+            )
 
-        if self._mode in ("check", "factorize"):
-            dimsys = self._quantities[0].unit_system.get_dimension_system()
-            fa_expr = expand(fa, [q.dimension for q in self._quantities]).simplify()
-            fb_expr = expand(fb, [q.dimension for q in self._quantities]).simplify()
-            if not dimsys.equivalent_dims(fa_expr, fb_expr):
-                raise RuntimeError(
-                    f"Inconsistent dimensions\n"
-                    f"     {a!s}.\n---> +\n     {b!s}.\n"
-                    f"Different dimensions: {fa_expr} != {fb_expr}."
-                )
-
-        if self._mode == "factorize":
-            if not np.allclose(fa, fb):
-                raise RuntimeError(
-                    f"Inconsistent factors\n"
-                    f"     {a!s}\n---> +\n     {b!s}.\n"
-                    f"Different factors: {fa_symbol} != {fb_symbol}."
-                )
+        if self._mode == "factorize" and not np.allclose(fa, fb):
+            fa_symbol = expand(fa, [q.symbol for q in self._quantities])
+            fb_symbol = expand(fb, [q.symbol for q in self._quantities])
+            raise RuntimeError(
+                f"Inconsistent factors\n"
+                f"     {a!s}\n---> +\n     {b!s}.\n"
+                f"{fa_symbol} != {fb_symbol}."
+            )
 
         return self.reuse_if_untouched(o, *ops)
 
@@ -259,14 +300,18 @@ class QuantityFactorizer(MultiFunction):
     deviatoric = inherit_from_operand
     sym = inherit_from_operand
     trace = inherit_from_operand
+    variable = inherit_from_operand
+    max_value = inherit_from_operand
+    coefficient_derivative = inherit_from_operand
+    lt = inherit_from_operand
+    gt = inherit_from_operand
+    conditional = inherit_from_operand
 
     variable_derivative = division
-    coefficient_derivative = inherit_from_operand
 
     inner = product
     dot = product
     cross = product
-    variable = inherit_from_operand
 
     expr = inhomogeneous
 
@@ -395,7 +440,7 @@ def factorize(
                 raise RuntimeError(
                     "Inconsistent dimensions across integrals in Form. \n"
                     f"Scales: {fa_symbol} != {fb_symbol}. \n"
-                    f"Dimensions: {fa_expr} != {fb_expr}."
+                    f"{fa_expr} != {fb_expr}."
                 )
 
             if mode == "factorize":
@@ -404,7 +449,7 @@ def factorize(
                 if not np.allclose(factors[i], factors[i + 1]):  # type: ignore
                     raise RuntimeError(
                         "Inconsistent factors across integrals in Form. \n"
-                        f"Different factors: {fa_symbol} != {fb_symbol}."
+                        f"{fa_symbol} != {fb_symbol}."
                     )
 
         factorized_expression = Form(factorized_integrals)
@@ -616,6 +661,10 @@ def get_factor(
     dimensional_dependencies = unit_system.get_dimension_system().get_dimensional_dependencies(
         dimension
     )
+
+    if not factor.is_number:
+        raise ValueError(f"Cannot convert {scale * unit} to base units {base_units}.")
+
     return factor, dimension, dimensional_dependencies
 
 
@@ -729,3 +778,31 @@ def normalize(
     logger.info("=" * 50)
 
     return normalized_dict
+
+
+def collect_quantities(expr, mapping: dict | None = None) -> list[Quantity]:
+    """Collect all Quantity instances from a UFL expression."""
+    if mapping is not None:
+        expr = transform(expr, mapping)
+
+    quantities = set()
+
+    class QuantityCollector(MultiFunction):
+        def ufl_type(self, o, *args):
+            return self.reuse_if_untouched(o, *args)
+
+        def constant(self, o, *ops):
+            if isinstance(o, Quantity):
+                quantities.add(o)
+            return self.reuse_if_untouched(o, *ops)
+
+    if isinstance(expr, Form):
+        for integral in expr.integrals():
+            map_expr_dag(QuantityCollector(), integral.integrand())
+        return list(quantities)
+    elif isinstance(expr, Expr):
+        map_expr_dag(QuantityCollector(), expr)
+    else:
+        raise TypeError(f"Unsupported type for collecting quantities: {type(expr).__name__}")
+
+    return list(quantities)

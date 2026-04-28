@@ -136,9 +136,11 @@ import ufl
 import matplotlib.pyplot as plt
 import numpy as np
 import pyvista
+import sympy.physics.units as syu
 from mesh_perforated import mesh_perforated
 
 import dolfiny
+from dolfiny.units import Quantity
 
 comm = MPI.COMM_WORLD
 name = "rankine"
@@ -167,11 +169,22 @@ facet_tags = dolfinx.mesh.meshtags(
     mesh, facet_dim, marked_facets[facet_order], marked_values[facet_order]
 )
 
+GPa = syu.Quantity("gigapascal", abbrev="GPa")
+GPa.set_global_dimension(syu.pressure)
+GPa.set_global_relative_scale_factor(1e9, syu.pascal)
+
+ds = syu.DimensionSystem(base_dims=[syu.pressure, syu.length, syu.time])
+us = syu.UnitSystem(
+    base_units=[GPa, syu.meter, syu.second],
+    dimension_system=ds,
+)
+
 # Material parameters
-mu = 100  # shear modulus [GPa]
-la = 10  # first Lamé parameter [GPa]
-Sy = 0.3  # tensile yield stress [GPa]
-H = 0.1  # isotropic hardening modulus [GPa]
+mu = Quantity(mesh, 100, GPa, "mu", us)  # shear modulus
+la = Quantity(mesh, 10, GPa, "la", us)  # first Lamé parameter
+Sy = Quantity(mesh, 0.3, GPa, "Sy", us)  # tensile yield stress
+H = Quantity(mesh, 0.1, GPa, "H", us)  # isotropic hardening modulus
+u_ref = Quantity(mesh, 1, syu.meter, "u_ref", us)  # reference length scale
 
 if comm.size == 1:
     grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
@@ -285,13 +298,36 @@ ds = ufl.Measure("ds", domain=mesh, subdomain_data=facet_tags)
 F0 = ufl.inner(sigma, ufl.sym(ufl.grad(δu))) * dx
 
 
-def phi_fb(a, b, eta=1e-10 * Sy):
+def phi_fb(a, b, eta=1e-10):
     return ufl.sqrt(a * a + b * b + eta * eta) - a - b
 
 
 g = -f(sigma, l0 + dl)
 
-F1 = (ufl.inner(dP - dl * ufl.diff(f(sigma, l0 + dl), sigma), δdP) + phi_fb(dl, g) * δdl) * dx
+F1 = (
+    ufl.inner(Sy * (dP - dl * ufl.diff(f(sigma, l0 + dl), sigma)), δdP)
+    + Sy * phi_fb(dl, g / Sy) * δdl
+) * dx
+
+mapping = {
+    mesh.ufl_domain(): u_ref,
+    u: u_ref * u,
+    δu: u_ref * δu,
+}
+
+quantities = dolfiny.units.collect_quantities(F0 + F1, mapping)
+assert len(quantities) == 5
+
+if comm.rank == 0:
+    dolfiny.units.buckingham_pi_analysis(quantities, us)
+
+dimsys_SI = syu.si.SI.get_dimension_system()
+assert dimsys_SI.equivalent_dims(dolfiny.units.get_dimension(g, quantities, mapping), syu.pressure)
+assert dimsys_SI.equivalent_dims(
+    dolfiny.units.get_dimension(F0, quantities, mapping), syu.energy / syu.length
+)
+
+dolfiny.units.factorize(F0 + F1, quantities, mode="check", mapping=mapping)
 
 # Boundary conditions
 # Bottom edge: u_y = 0 (allow horizontal sliding for Poisson contraction)
