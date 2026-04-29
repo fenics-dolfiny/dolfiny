@@ -319,7 +319,7 @@ S, B, h = S.expression(), B.expression(), h.expression()
 # Plastic multiplier (penalty / Perzyna-type regularisation, N = 1).
 # Rate-independent limit is recovered as eta/dt -> 0, at the cost of a small
 # admissible overstress f > 0 during plastic flow.
-dλ = dt / eta * Sy * ufl.max_value(f / Sy, 0)  # ppos = Macaulay bracket
+dλ = dt / eta * Sy * ufl.max_value(f / Sy, 0)
 
 # Weak form (as one-form)
 form = (
