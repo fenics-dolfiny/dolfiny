@@ -51,7 +51,7 @@ ty:
    allow_failure: true # mypy is blocking
    image: dolfinx/dolfinx:nightly
    script:
-      - pip install . ty
+      - pip install .[typing]
       - ty check --color always src/dolfiny 
       - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
       - ty check --color always demo/
