@@ -50,7 +50,7 @@ class Crisfield:
             dx_local.set(0.0)
 
         # dλ = ds
-        self.dλ.value = self.ds
+        self.dλ.value[...] = self.ds
 
     def solve_step(self, ds=None, zero_x_predictor=False):
         if ds is not None:
@@ -195,9 +195,9 @@ class Crisfield:
 
         # compute residuals for updated (x, λ)
         λ_save = continuation.λ.value.copy()  # store λ value
-        continuation.λ.value = 1.0  # evaluate F_1 = F(x, λ=1)
+        continuation.λ.value[...] = 1.0  # evaluate F_1 = F(x, λ=1)
         snes.computeFunction(continuation.problem.active_x, continuation.dFdλ)
-        continuation.λ.value = 0.0  # evaluate F_0 = F(x, λ=0)
+        continuation.λ.value[...] = 0.0  # evaluate F_0 = F(x, λ=0)
         snes.computeFunction(continuation.problem.active_x, continuation.problem.active_F)
         with (
             continuation.dFdλ.localForm() as dFdλ_local,

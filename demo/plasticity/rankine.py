@@ -1,7 +1,7 @@
 # %% [markdown]
 # # Rate-independent Rankine plasticity
 #
-# This demo solves a quasi-static small-strain boundary value problem in 2D using a
+# This demo solves a quasi-static small-strain boundary value problem in 3D using a
 # Rankine (maximum principal stress) yield criterion with isotropic hardening.
 #
 # Compared with $J_2$ (von Mises) plasticity, which depends on deviatoric stress and is
@@ -110,8 +110,9 @@
 #
 # ## Parameters and mesh
 #
-# The geometry is a unit square $[0,1]^2$ perforated by a staggered row of small circular holes
-# around mid-height ($y \approx 0.5$). These holes create a sequence of thin ligaments and local
+# The geometry is an extruded unit square $[0,1] \times [0,1] \times 0.05$ perforated by a
+# staggered row of small circular holes around mid-height ($y \approx 0.5$).
+# These holes create a sequence of thin ligaments and local
 # stress raisers, so the tensile failure path is no longer straight or unique.
 #
 # The loading is uniaxial vertical tension: the bottom edge ($y=0$) is constrained in $y$,
@@ -144,21 +145,23 @@ from dolfiny.units import Quantity
 
 comm = MPI.COMM_WORLD
 name = "rankine"
-gmsh_model, tdim = mesh_perforated(name, clscale=0.02)
+gmsh_model, tdim = mesh_perforated(name, clscale=0.02, extrude_z=0.05)
 
 # Get mesh and meshtags
-mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0, gdim=2)
+mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
 mesh = mesh_data.mesh
+gdim = mesh.geometry.dim
 
 # Write mesh and meshtags to file
 with dolfiny.io.XDMFFile(MPI.COMM_WORLD, f"{name}.xdmf", "w") as ofile:
     ofile.write_mesh_data(mesh_data)
 
 # Boundary facets
-top_facets = dolfinx.mesh.locate_entities_boundary(mesh, 1, lambda x: np.isclose(x[1], 1.0))
-bottom_facets = dolfinx.mesh.locate_entities_boundary(mesh, 1, lambda x: np.isclose(x[1], 0.0))
+top_facets = dolfinx.mesh.locate_entities_boundary(
+    mesh, fdim := tdim - 1, lambda x: np.isclose(x[1], 1.0)
+)
+bottom_facets = dolfinx.mesh.locate_entities_boundary(mesh, fdim, lambda x: np.isclose(x[1], 0.0))
 
-facet_dim = mesh.topology.dim - 1
 TOP, BOTTOM = 1, 2
 marked_facets = np.hstack([top_facets, bottom_facets]).astype(np.int32)
 marked_values = np.hstack(
@@ -166,7 +169,7 @@ marked_values = np.hstack(
 ).astype(np.int32)
 facet_order = np.argsort(marked_facets)
 facet_tags = dolfinx.mesh.meshtags(
-    mesh, facet_dim, marked_facets[facet_order], marked_values[facet_order]
+    mesh, fdim, marked_facets[facet_order], marked_values[facet_order]
 )
 
 GPa = syu.Quantity("gigapascal", abbrev="GPa")
@@ -193,7 +196,6 @@ if comm.size == 1:
         grid, show_edges=True, color="white", line_width=dolfiny.pyvista.pixels // 1000
     )
     plotter.show_axes()
-    plotter.view_xy()
     plotter.screenshot(f"{name}_mesh.png")
     plotter.close()
     plotter.deep_clean()
@@ -220,11 +222,13 @@ if comm.size == 1:
 # after each converged load step, while $(\Delta P, \Delta\lambda_p)$ denotes the current local
 # increment during one load step.
 #
-# The yield function $f$ uses a regularised closed form for $\sigma_{\max}$ in 2D:
-# if $p = \text{tr}(\sigma)/2$ and
-# $q = \sqrt{((\sigma_{11}-\sigma_{22})/2)^2 + \sigma_{12}^2}$, then
-# $\sigma_{\max} = p + \sqrt{q^2 + \varepsilon^2}$. The $\varepsilon$-regularisation removes the
-# eigenvalue-degeneracy singularity and keeps local Newton derivatives bounded.
+# The yield function $f$ uses a regularised closed form for $\sigma_{\max}$ in 3D
+# available at `dolfiny.invariants.eigenstate3_legacy`.
+# There is also an improved version `dolfiny.invariants.eigenstate3` which has better numerical
+# accuracy. Due to large regularization in this demo we prefer the legacy version here.
+# Legacy version produces simpler generated C code and therefore faster local solves.
+# The $\varepsilon$-regularisation removes the eigenvalue-degeneracy singularity and keeps local
+# Newton derivatives bounded.
 #
 # The NCP equation is written with the regularised Fischer-Burmeister function
 # $$
@@ -244,13 +248,18 @@ if comm.size == 1:
 # $$
 # where $R$ collects the local residuals for $(\Delta P, \Delta\lambda_p)$, $z$ is the stacked
 # local unknown vector, and $\alpha$ is the backtracking step length. Trial updates
-# $z_{\mathrm{trial}} = z - \alpha \Delta z$ are accepted only if $\Psi$ decreases sufficiently.
+# $z_{\mathrm{trial}} = z - \alpha \Delta z$ are accepted only if $\Psi$ decreases sufficiently,
+# $$
+#   \Psi(z_\mathrm{trial}) \leq \Psi(z) + c_1 \alpha \frac{\mathrm d \Psi}{\mathrm d \alpha}
+# $$
+# i.e. when the merit function decreases below very loose ($c_1 = 10^{-4}$) linear upper
+# bound.
 
 # %% tags=["hide-input"]
 quad_degree = 1
-Ue = basix.ufl.element("P", mesh.basix_cell(), 1, shape=(2,))
+Ue = basix.ufl.element("P", mesh.basix_cell(), 1, shape=(gdim,))
 Qe = basix.ufl.quadrature_element(mesh.basix_cell(), value_shape=(), degree=quad_degree)
-Pe = basix.ufl.blocked_element(Qe, shape=(2, 2), symmetry=True)
+Pe = basix.ufl.blocked_element(Qe, shape=(gdim, gdim), symmetry=True)
 Ze = basix.ufl.mixed_element([Pe, Qe])  # local state = (dP, dl)
 
 Uf = dolfinx.fem.functionspace(mesh, Ue)
@@ -268,28 +277,20 @@ P0, l0 = ufl.split(z0)
 δdP, δdl = ufl.split(δz)
 
 # for output (P1 interpolation of displacement for XDMF compatibility)
-uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (2,))), name="u")
+uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (gdim,))), name="u")
 
 
-def f(sigma, lam, eps_eig=1e-3 * Sy):
-    """Rankine yield function with regularised max eigenvalue (2D).
-
-    The regularisation replaces q = sqrt(s^2 + t^2) with sqrt(s^2 + t^2 + eps^2),
-    bounding the second derivative of f w.r.t. sigma at O(1/eps). This keeps
-    the local Newton Jacobian well-conditioned near degenerate stress states
-    (sigma_1 ≈ sigma_2) while shifting the yield surface by at most eps at
-    the vertex and is negligible for this perforated-specimen demonstration.
-    """
-    p = ufl.tr(sigma) / 2
-    q = ufl.sqrt(((sigma[0, 0] - sigma[1, 1]) / 2) ** 2 + sigma[0, 1] ** 2 + eps_eig**2)
-    return p + q - Sy - H * lam
+def f(sigma, lam):
+    """Rankine yield function with max eigenvalue."""
+    eigvals, _ = dolfiny.invariants.eigenstate3_legacy(sigma / Sy, eps_p=1e-3)
+    return Sy * eigvals[2] - Sy - H * lam
 
 
 # Strain measures
 E = ufl.sym(ufl.grad(u))  # linearised total strain
 E_el = E - (P0 + dP)  # elastic strain: E_el = E - P
 
-sigma_expr = 2 * mu * E_el + la * ufl.tr(E_el) * ufl.Identity(2)
+sigma_expr = 2 * mu * E_el + la * ufl.tr(E_el) * ufl.Identity(gdim)
 sigma = ufl.variable(sigma_expr)  # tag for automatic differentiation
 
 dx = ufl.Measure("dx", domain=mesh, metadata={"quadrature_degree": quad_degree})
@@ -302,12 +303,9 @@ def phi_fb(a, b, eta=1e-10):
     return ufl.sqrt(a * a + b * b + eta * eta) - a - b
 
 
-g = -f(sigma, l0 + dl)
+g = f(sigma, l0 + dl)
 
-F1 = (
-    ufl.inner(Sy * (dP - dl * ufl.diff(f(sigma, l0 + dl), sigma)), δdP)
-    + Sy * phi_fb(dl, g / Sy) * δdl
-) * dx
+F1 = (ufl.inner(Sy * (dP - dl * ufl.diff(g, sigma)), δdP) + Sy * phi_fb(dl, -g / Sy) * δdl) * dx
 
 mapping = {
     mesh.ufl_domain(): u_ref,
@@ -323,38 +321,26 @@ if comm.rank == 0:
 
 dimsys_SI = syu.si.SI.get_dimension_system()
 assert dimsys_SI.equivalent_dims(dolfiny.units.get_dimension(g, quantities, mapping), syu.pressure)
-assert dimsys_SI.equivalent_dims(
-    dolfiny.units.get_dimension(F0, quantities, mapping), syu.energy / syu.length
-)
+assert dimsys_SI.equivalent_dims(dolfiny.units.get_dimension(F0, quantities, mapping), syu.energy)
 
 dolfiny.units.factorize(F0 + F1, quantities, mode="check", mapping=mapping)
 
-# Boundary conditions
-# Bottom edge: u_y = 0 (allow horizontal sliding for Poisson contraction)
-Uf_y, _ = Uf.sub(1).collapse()
-u_bottom_y = dolfinx.fem.Function(Uf_y, name="u_bottom_y")
-bottom_dofs_y = dolfinx.fem.locate_dofs_topological((Uf.sub(1), Uf_y), 1, bottom_facets)
-bc_bottom_y = dolfinx.fem.dirichletbc(u_bottom_y, bottom_dofs_y, Uf.sub(1))
-
-# Pin u_x = 0 at bottom-left corner to remove horizontal rigid body mode
-Uf_x, _ = Uf.sub(0).collapse()
-u_pin_x = dolfinx.fem.Function(Uf_x, name="u_pin_x")
-pin_vertices = dolfinx.mesh.locate_entities_boundary(
-    mesh, 0, lambda x: np.isclose(x[0], 0.0) & np.isclose(x[1], 0.0)
-)
-pin_dofs_x = dolfinx.fem.locate_dofs_topological((Uf.sub(0), Uf_x), 0, pin_vertices)
-bc_pin_x = dolfinx.fem.dirichletbc(u_pin_x, pin_dofs_x, Uf.sub(0))
+u_bottom = dolfinx.fem.Function(Uf, name="u_bottom")
+mesh.topology.create_connectivity(1, tdim)
+bottom_dofs = dolfinx.fem.locate_dofs_topological(Uf, fdim, bottom_facets)
+bc_bottom = dolfinx.fem.dirichletbc(u_bottom, bottom_dofs)
 
 # Top edge: prescribed u_y displacement
+Uf_y, _ = Uf.sub(1).collapse()
 u_top_y = dolfinx.fem.Function(Uf_y, name="u_top_y")
 top_dofs_y = np.asarray(
-    dolfinx.fem.locate_dofs_topological((Uf.sub(1), Uf_y), 1, top_facets), dtype=np.int32
+    dolfinx.fem.locate_dofs_topological((Uf.sub(1), Uf_y), fdim, top_facets), dtype=np.int32
 )
 owned_size_u = Uf.dofmap.index_map.size_local * Uf.dofmap.index_map_bs
 top_dofs_y_owned = top_dofs_y[top_dofs_y < owned_size_u]
 bc_top_y = dolfinx.fem.dirichletbc(u_top_y, top_dofs_y, Uf.sub(1))
 
-bcs = [bc_bottom_y, bc_pin_x, bc_top_y]
+bcs = [bc_bottom, bc_top_y]
 
 # %% [markdown]
 # ## Local solver kernels
@@ -405,13 +391,16 @@ sc_F_cell = dolfiny.localsolver.UserKernel(
 
 
 solve_body = r"""
-    // Mixed local field z = [dP11, dP22, dP12, dl]
-    auto zloc = Eigen::Map<Eigen::Matrix<double, 4, 1>>(&F1.w[6]);
+    constexpr int local_size = 7;  // size of local unknown vector (dP + dl)
+    constexpr int displ_size = 12; // size of local displacement vector (4 tet nodes, 3 components)
+    const auto local_range = Eigen::seq(displ_size, displ_size + local_size - 1);
 
-    Eigen::Matrix<double, 4, 1> loc = zloc;
-    Eigen::Matrix<double, 4, 1> dloc;
-    Eigen::Matrix<double, 4, 1> R;
-    Eigen::Matrix<double, 4, 4> Jll;
+    auto zloc = Eigen::Map<Eigen::Matrix<double, local_size, 1>>(&F1.w[displ_size]);
+
+    Eigen::Matrix<double, local_size, 1> loc = zloc;
+    Eigen::Matrix<double, local_size, 1> dloc;
+    Eigen::Matrix<double, local_size, 1> R;
+    Eigen::Matrix<double, local_size, local_size> Jll;
 
     double err0 = 0.0;
     double alpha_prev = 1.0;
@@ -447,20 +436,18 @@ solve_body = r"""
         {
             const double c1 = 1e-4;
             const double rho = 0.5;
-            const double alpha_min = 1e-12;
+            const double alpha_min = 1e-6;
 
-            Eigen::Matrix<double, 4, 1> loc_old = loc;
+            Eigen::Matrix<double, local_size, 1> loc_old = loc;
             const double psi0 = 0.5 * R.squaredNorm();
-
-            bool accepted = false;
             double alpha = std::min(1.0, alpha_prev / rho);
 
             for (; alpha >= alpha_min; alpha *= rho)
             {
-                Eigen::Matrix<double, 4, 1> loc_trial = loc_old - alpha * dloc;
+                Eigen::Matrix<double, local_size, 1> loc_trial = loc_old - alpha * dloc;
 
-                F1.w(Eigen::seq(6, 9)) = loc_trial;
-                J11.w(Eigen::seq(6, 9)) = loc_trial;
+                F1.w(local_range) = loc_trial;
+                J11.w(local_range) = loc_trial;
 
                 F1.array.setZero();
                 F1.kernel(F1.array.data(), F1.w.data(), F1.c.data(),
@@ -469,24 +456,20 @@ solve_body = r"""
 
                 const double psi_trial = 0.5 * F1.array.squaredNorm();
 
-                if (psi_trial <= psi0 - c1 * alpha * R.squaredNorm())
-                {
-                    loc = loc_trial;
-                    accepted = true;
-                    alpha_prev = alpha;
+                loc = loc_trial;
+                alpha_prev = alpha;
+
+                // At alpha = 0, R = f(x0), p = -dloc:
+                // d/dalpha 1/2 ||f(x0 + alpha p)||^2
+                //     = R^T J p
+                //     = -R^T J dloc.
+                const double psi0_diff = -R.dot(Jll * dloc);
+                if (psi_trial <= psi0 + c1 * alpha * psi0_diff)
                     break;
-                }
             }
 
-            if (!accepted)
-            {
-                F1.w(Eigen::seq(6, 9)) = loc_old;
-                J11.w(Eigen::seq(6, 9)) = loc_old;
-                throw std::runtime_error("Local line search failed.");
-            }
-
-            F1.w(Eigen::seq(6, 9)) = loc;
-            J11.w(Eigen::seq(6, 9)) = loc;
+            F1.w(local_range) = loc;
+            J11.w(local_range) = loc;
         }
     }
 """
@@ -544,9 +527,10 @@ opts = PETSc.Options(name)  # type: ignore[attr-defined]
 
 opts["snes_type"] = "newtonls"
 opts["snes_linesearch_type"] = "bt"
-opts["snes_linesearch_order"] = 1
-opts["snes_atol"] = 1.0e-12
-opts["snes_rtol"] = 1.0e-8
+opts["snes_linesearch_order"] = 2
+opts["snes_atol"] = 1.0e-8
+opts["snes_rtol"] = 1.0e-6
+opts["snes_stol"] = 1.0e-7
 opts["snes_max_it"] = 100
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
@@ -564,8 +548,7 @@ ls.view()
 # A loading-unloading cycle is applied in vertical tension: the top edge ($y=1$) is displaced
 # vertically to a peak of $\bar{u}_y = 0.01$ m in $K = 60$ equal increments, then returned to
 # zero in $K / 2 = 30$ increments. Here $\bar{u}_y$ denotes the prescribed top-edge displacement.
-# The bottom edge ($y=0$) is held fixed in $y$; horizontal sliding is permitted (Poisson
-# contraction) except at the pinned corner.
+# The bottom edge ($y=0$) is held fixed.
 
 # %% tags=["hide-input", "hide-output"]
 K = 60  # load steps
@@ -625,8 +608,8 @@ for step, factor in enumerate(cycle):
 if comm.size == 1:
     # Build pyvista grid and attach displacement (padded to 3 components for warping)
     grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(uo.function_space.mesh))
-    u_arr = np.zeros((uo.x.array.reshape(-1, 2).shape[0], 3))
-    u_arr[:, :2] = uo.x.array.reshape(-1, 2)
+    u_arr = np.zeros((uo.x.array.reshape(-1, gdim).shape[0], 3))
+    u_arr[:, :gdim] = uo.x.array.reshape(-1, gdim)
     grid.point_data["u"] = u_arr
     grid_warped = grid.warp_by_vector("u", factor=1)
 
@@ -643,7 +626,6 @@ if comm.size == 1:
         line_width=dolfiny.pyvista.pixels // 1000,
     )
     plotter.show_axes()
-    plotter.view_xy()
     plotter.screenshot(f"{name}_deformed.png")
     plotter.close()
     plotter.deep_clean()

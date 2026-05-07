@@ -11,7 +11,6 @@ from ufl.core.expr import Expr
 from ufl.corealg.map_dag import map_expr_dag
 from ufl.corealg.multifunction import MultiFunction
 from ufl.form import Form
-from ufl.tensors import ComponentTensor
 
 import numpy as np
 import sympy as sy
@@ -191,36 +190,25 @@ class QuantityFactorizer(MultiFunction):
         self.factors.setdefault(o, np.zeros(len(self._quantities)))
         return self.reuse_if_untouched(o, *ops)
 
-    def inherit_from_operand(self, o, *ops):
-        r"""Inherit factor from first operand that has a factor defined.
+    def linear(self, o, *ops):
+        # Linear nodes which have all operands with the same factor (e.g. sum, grad, etc.)
+        # can be assigned that factor.
+        factors = [self.factors[op] for op in o.ufl_operands if op in self.factors]
 
-        Also checks that all operands with factors have consistent dimensions and factors.
+        if len(factors) > 0:
+            self._check_operands(o, factors[0])
+            self.factors[o] = factors[0]
 
-        """
-        operands_with_factors = [op for op in o.ufl_operands if op in self.factors]
-        fa = self.factors[operands_with_factors[0]]
-        fa_expr = expand(fa, [q.dimension for q in self._quantities]).simplify()
-        fa_symbol = expand(fa, [q.symbol for q in self._quantities])
+        return self.reuse_if_untouched(o, *ops)
 
-        for b in operands_with_factors[1:]:
-            fb = self.factors[b]
-            fb_symbol = expand(fb, [q.symbol for q in self._quantities])
+    def inhomogeneous(self, o, *ops):
+        # Inhomogeneous nodes (e.g. sin(x), exp(x), etc.) must have dimensionless operands,
+        # and in factorize mode can only have a trivial factor of 1.
+        factors = [self.factors[op] for op in o.ufl_operands if op in self.factors]
 
-            dimsys = self._quantities[0].unit_system.get_dimension_system()
-            fb_expr = expand(fb, [q.dimension for q in self._quantities]).simplify()
-            if not dimsys.equivalent_dims(fa_expr, fb_expr):
-                raise RuntimeError(
-                    f"Inconsistent dimensions in operands of {o.__class__.__name__}.\n"
-                    f"{fa_expr} != {fb_expr}."
-                )
-
-            if self._mode == "factorize" and not np.allclose(fa, fb):
-                raise RuntimeError(
-                    f"Inconsistent factors in operands of {o.__class__.__name__}.\n"
-                    f"{fa_symbol} != {fb_symbol}."
-                )
-
-        self.factors[o] = self.factors[o.ufl_operands[0]]
+        if len(factors) > 0:
+            self._check_operands(o, np.zeros_like(factors[0]))
+            self.factors[o] = factors[0]
         return self.reuse_if_untouched(o, *ops)
 
     def multi_index(self, o, *ops):
@@ -239,73 +227,53 @@ class QuantityFactorizer(MultiFunction):
             self.factors.setdefault(o, np.zeros(len(self._quantities)))
             return self.reuse_if_untouched(o, *ops)
 
-    def sum(self, o, *ops):
-        a, b = o.ufl_operands
-        self.factors[o] = self.factors[a]
-
-        fa, fb = self.factors[a], self.factors[b]
-
-        dimsys = self._quantities[0].unit_system.get_dimension_system()
-        fa_expr = expand(fa, [q.dimension for q in self._quantities]).simplify()
-        fb_expr = expand(fb, [q.dimension for q in self._quantities]).simplify()
-        if not dimsys.equivalent_dims(fa_expr, fb_expr):
-            raise RuntimeError(
-                f"Inconsistent dimensions\n"
-                f"     {a!s}.\n---> +\n     {b!s}.\n"
-                f"{fa_expr} != {fb_expr}."
-            )
-
-        if self._mode == "factorize" and not np.allclose(fa, fb):
-            fa_symbol = expand(fa, [q.symbol for q in self._quantities])
-            fb_symbol = expand(fb, [q.symbol for q in self._quantities])
-            raise RuntimeError(
-                f"Inconsistent factors\n"
-                f"     {a!s}\n---> +\n     {b!s}.\n"
-                f"{fa_symbol} != {fb_symbol}."
-            )
-
-        return self.reuse_if_untouched(o, *ops)
-
-    def inhomogeneous(self, o, *ops):
-        # Check if all operand factors are zero arrays
-        operand_factors = [
-            self.factors.get(operand, np.zeros(len(self._quantities))) for operand in o.ufl_operands
-        ]
-
-        if all(np.allclose(factor, np.zeros(len(self._quantities))) for factor in operand_factors):
-            # All operands have zero factors, store zero factor for this expression
-            self.factors[o] = np.zeros(len(self._quantities))
-            return self.reuse_if_untouched(o, *ops)
-        else:
-            raise RuntimeError(
-                f"Cannot factorize {o.__class__.__name__}. "
-                "Handler is not implemented or non-homogeneous within expression."
-            )
-
-    def component_tensor(self, o: ComponentTensor, *ops):
-        self.factors[o] = self.factors[o.ufl_operands[0]]
-        return self.reuse_if_untouched(o, *ops)
-
     def expr_list(self, o, *ops):
         return self.reuse_if_untouched(o, *ops)
 
+    def _check_operands(self, o, reference_factor):
+        r"""Check that all operands of the expression are consistent with a reference factor.
+
+        Verifies that all operands of a given expression have compatible units/dimensions
+        and, in factorize mode, identical factors.
+
+        """
+        factors = [self.factors[op] for op in o.ufl_operands if op in self.factors]
+
+        f0_expr = expand(reference_factor, [q.dimension for q in self._quantities]).simplify()
+        f0_symbol = expand(reference_factor, [q.symbol for q in self._quantities])
+
+        for fb in factors:
+            fb_symbol = expand(fb, [q.symbol for q in self._quantities])
+
+            dimsys = self._quantities[0].unit_system.get_dimension_system()
+            fb_expr = expand(fb, [q.dimension for q in self._quantities]).simplify()
+            if not dimsys.equivalent_dims(f0_expr, fb_expr):
+                raise RuntimeError(
+                    f"Inconsistent dimensions in operands of {o.__class__.__name__}.\n"
+                    f"dim({f0_symbol}) != dim({fb_symbol}), (i.e. {f0_expr} != {fb_expr}).\n"
+                )
+
+            if self._mode == "factorize" and not np.allclose(factors[0], fb):
+                raise RuntimeError(
+                    f"Inconsistent factors in operands of {o.__class__.__name__}.\n"
+                    f"{f0_symbol} != {fb_symbol}."
+                )
+
     terminal = independent
 
-    indexed = inherit_from_operand
-    grad = inherit_from_operand
-    div = inherit_from_operand
-    conj = inherit_from_operand
-    index_sum = inherit_from_operand
-    transposed = inherit_from_operand
-    deviatoric = inherit_from_operand
-    sym = inherit_from_operand
-    trace = inherit_from_operand
-    variable = inherit_from_operand
-    max_value = inherit_from_operand
-    coefficient_derivative = inherit_from_operand
-    lt = inherit_from_operand
-    gt = inherit_from_operand
-    conditional = inherit_from_operand
+    sum = linear
+    indexed = linear
+    grad = linear
+    div = linear
+    conj = linear
+    index_sum = linear
+    transposed = linear
+    deviatoric = linear
+    sym = linear
+    trace = linear
+    variable = linear
+    coefficient_derivative = linear
+    component_tensor = linear
 
     variable_derivative = division
 

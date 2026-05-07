@@ -23,7 +23,7 @@ def invariants_main(A):
     return j1, j2, j3
 
 
-def eigenstate3_legacy(A):
+def eigenstate3_legacy(A, eps_p=1.0e-10, eps_r=1.0e-10):
     """Eigenvalues and eigenprojectors of the 3x3 (real-valued) tensor A.
 
     Provides the spectral decomposition A = sum_{a=0}^{2} λ_a * E_a
@@ -35,8 +35,6 @@ def eigenstate3_legacy(A):
     """
     if ufl.shape(A) != (3, 3):
         raise RuntimeError(f"Tensor A of shape {ufl.shape(A)} != (3, 3) is not supported!")
-    #
-    eps = 1.0e-10
     #
     A = ufl.variable(A)
     #
@@ -54,9 +52,9 @@ def eigenstate3_legacy(A):
     #        0 = cos(3 * phi) - 4 * b / p**3
     #        0 = cos(3 * phi) - r                  with  -1 <= r <= +1
     #    phi_k = [acos(r) + (k + 1) * 2 * pi] / 3  for  k = 0, 1, 2
-    p = 2 / ufl.sqrt(3) * ufl.sqrt(j + eps**2)  # eps: MMM
+    p = 2 / ufl.sqrt(3) * ufl.sqrt(j + eps_p**2)  # eps: MMM
     r = 4 * b / p**3
-    r = ufl.max_value(ufl.min_value(r, +1 - eps), -1 + eps)  # eps: LMM, MMH
+    r = ufl.max_value(ufl.min_value(r, +1 - eps_r), -1 + eps_r)  # eps: LMM, MMH
     phi = ufl.acos(r) / 3
     # sorted eigenvalues: λ0 <= λ1 <= λ2
     λ0 = q + p * ufl.cos(phi + 2 / 3 * ufl.pi)  # low
@@ -72,7 +70,7 @@ def eigenstate3_legacy(A):
     return [λ0, λ1, λ2], [E0, E1, E2]
 
 
-def eigenstate3(A):
+def eigenstate3(A, eps_Δ=3e-16, eps_dp=3e-16):
     """Eigenvalues and eigenprojectors of the 3x3 (real-valued) tensor A.
 
     Provides the spectral decomposition A = sum_{a=0}^{2} λ_a * E_a
@@ -82,8 +80,6 @@ def eigenstate3(A):
     """
     if ufl.shape(A) != (3, 3):
         raise RuntimeError(f"Tensor A of shape {ufl.shape(A)} != (3, 3) is not supported!")
-    #
-    eps = 3.0e-16  # slightly above 2**-(53 - 1), see https://en.wikipedia.org/wiki/IEEE_754
     #
     A = ufl.variable(A)
     #
@@ -298,8 +294,8 @@ def eigenstate3(A):
 
     # Avoid dp = 0 and disc = 0, both are known with absolute error of ~eps**2
     # Required to avoid sqrt(0) derivatives and negative square roots
-    dp += eps**2
-    Δ += eps**2
+    dp += eps_dp**2
+    Δ += eps_Δ**2
 
     phi3 = ufl.atan2(ufl.sqrt(27) * ufl.sqrt(Δ), dq)
 
