@@ -262,6 +262,6 @@ for factor in np.linspace(0, 1, num=20 + 1):
     # Write output
     if q <= 2:
         dolfiny.interpolation.interpolate(ufl.as_vector([u, 0, w]), z)
-        ofile.write_function(z, μ.value)
+        ofile.write_function(z, float(μ.value))
 
 ofile.close()

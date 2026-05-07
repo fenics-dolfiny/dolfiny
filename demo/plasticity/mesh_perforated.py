@@ -1,7 +1,7 @@
 from mpi4py import MPI
 
 
-def mesh_perforated(name="perforated", comm=MPI.COMM_WORLD, clscale=0.2):
+def mesh_perforated(name="perforated", comm=MPI.COMM_WORLD, clscale=0.2, extrude_z=0.1):
     if comm.rank == 0:
         import gmsh
 
@@ -26,20 +26,7 @@ def mesh_perforated(name="perforated", comm=MPI.COMM_WORLD, clscale=0.2):
             voids.append((2, hole))
 
         cut_surfaces, _ = gmsh.model.occ.cut([(2, plate)], voids)
-
-        gmsh.model.occ.synchronize()
-        gmsh.model.addPhysicalGroup(2, [tag for dim, tag in cut_surfaces if dim == 2])
-
-        f_box = gmsh.model.mesh.field.add("Box")
-        gmsh.model.mesh.field.setNumber(f_box, "XMin", 0.0)
-        gmsh.model.mesh.field.setNumber(f_box, "XMax", 1.0)
-        gmsh.model.mesh.field.setNumber(f_box, "YMin", 0.4)
-        gmsh.model.mesh.field.setNumber(f_box, "YMax", 0.6)
-        gmsh.model.mesh.field.setNumber(f_box, "ZMin", -1.0)
-        gmsh.model.mesh.field.setNumber(f_box, "ZMax", 1.0)
-        gmsh.model.mesh.field.setNumber(f_box, "VIn", clscale / 2)
-        gmsh.model.mesh.field.setNumber(f_box, "VOut", clscale)
-        gmsh.model.mesh.field.setAsBackgroundMesh(f_box)
+        extruded = gmsh.model.occ.extrude(cut_surfaces, 0, 0, extrude_z)
 
         gmsh.option.setNumber("Mesh.CharacteristicLengthFromPoints", 0)
         gmsh.option.setNumber("Mesh.CharacteristicLengthFromCurvature", 0)
@@ -47,7 +34,10 @@ def mesh_perforated(name="perforated", comm=MPI.COMM_WORLD, clscale=0.2):
         gmsh.option.setNumber("Mesh.CharacteristicLengthMin", clscale / 2)
         gmsh.option.setNumber("Mesh.CharacteristicLengthMax", clscale)
 
+        gmsh.model.occ.synchronize()
+        gmsh.model.addPhysicalGroup(3, [tag for dim, tag in extruded if dim == 3])
+
         gmsh.model.mesh.generate()
         gmsh.write(f"{name}.msh")
 
-    return gmsh.model if comm.rank == 0 else None, 2
+    return gmsh.model if comm.rank == 0 else None, 3
