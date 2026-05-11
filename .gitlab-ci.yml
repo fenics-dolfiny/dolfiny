@@ -415,6 +415,7 @@ bookstrap:
             - plasticity/J2_monolithic.py
             - plasticity/rankine.py
             - units/navier_stokes.py
+            - continuation/tdc_shell_naghdi_cylindrical_roof.py
    variables:
       DOLFINY_LOG_PREFIX: "0"
 
