@@ -2,7 +2,7 @@ from pyvista import themes
 
 theme = themes.DocumentTheme()
 
-pixels = 4 * 1024
+pixels = 2 * 1024
 theme.window_size = (pixels, pixels)
 
 theme.axes.show = True
