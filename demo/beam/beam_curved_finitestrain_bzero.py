@@ -216,7 +216,7 @@ opts["snes_max_it"] = 60
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
-opts["mat_mumps_cntl_1"] = 0.0
+opts["mat_mumps_cntl_1"] = 0.0  # Disable relative pivoting threshold
 
 # Create nonlinear problem: SNES
 problem = dolfiny.snesproblem.SNESProblem(forms, m, prefix="beam")

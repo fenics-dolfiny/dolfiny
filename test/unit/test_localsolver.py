@@ -182,7 +182,7 @@ def test_linear_elasticity(squaremesh_5):
     opts["ksp_type"] = "preonly"
     opts["pc_type"] = "cholesky"
     opts["pc_factor_mat_solver_type"] = "mumps"
-    opts["mat_mumps_cntl_1"] = 0.0
+    opts["mat_mumps_cntl_1"] = 0.0  # Disable relative pivoting threshold
 
     problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1], [sigma0, u0], [bc], prefix="linear_elasticity", localsolver=ls
@@ -353,7 +353,7 @@ def test_nonlinear_elasticity_schur(squaremesh_5):
     opts["ksp_type"] = "preonly"
     opts["pc_type"] = "cholesky"
     opts["pc_factor_mat_solver_type"] = "mumps"
-    opts["mat_mumps_cntl_1"] = 0.0
+    opts["mat_mumps_cntl_1"] = 0.0  # Disable relative pivoting threshold
 
     problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1], [sigma0, u0], [bc], prefix="nonlinear_elasticity_schur", localsolver=ls
@@ -525,7 +525,7 @@ def test_nonlinear_elasticity_nonlinear(squaremesh_5):
     opts["ksp_type"] = "preonly"
     opts["pc_type"] = "cholesky"
     opts["pc_factor_mat_solver_type"] = "mumps"
-    opts["mat_mumps_cntl_1"] = 0.0
+    opts["mat_mumps_cntl_1"] = 0.0  # Disable relative pivoting threshold
 
     Usize = U.dofmap.index_map_bs * U.dofmap.index_map.size_local
     rdofsU = np.arange(Usize, dtype=np.int32)

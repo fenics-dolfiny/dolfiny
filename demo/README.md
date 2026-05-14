@@ -103,6 +103,17 @@ maintainable demos for `dolfiny`. Follow these when writing a new demo or review
    - Keep each `$...$` or `$$...$$` block on a single comment line if possible. A display math
      block broken across Python comment lines can fail to render in MyST.
 
+12. **PETSc solver MUMPS options with inline documentation**
+  Any line setting a PETSc solver MUMPS options via `opts["mat_mumps_icntl_*"]`
+  or `opts["mat_mumps_cntl_*"]`, must be accompanied by an inline comment explaining what the
+  option controls. The explanation must be sourced from or consistent with the PETSc manual
+  (see https://petsc.org/release/manualpages/Mat/MATSOLVERMUMPS/). This ensures that maintainers
+  and readers immediately understand the purpose of each setting without needing to consult
+  external documentation.
+  ```python
+  opts["mat_mumps_icntl_14"] = 20  # Percentage increase in estimated working space
+  ```
+
 ## Registering a new demo
 
 When you create a new demo, register it in several places to ensure it is tested and rendered:

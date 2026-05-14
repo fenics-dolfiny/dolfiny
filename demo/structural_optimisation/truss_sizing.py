@@ -194,7 +194,7 @@ state_solver = dolfinx.fem.petsc.LinearProblem(
         "pc_type": "lu",
         "pc_factor_mat_solver_type": "mumps",
         "ksp_error_if_not_converged": "True",
-        "mat_mumps_cntl_1": 0.0,
+        "mat_mumps_cntl_1": 0.0,  # Disable relative pivoting threshold
     },
     petsc_options_prefix="state_solver",
 )

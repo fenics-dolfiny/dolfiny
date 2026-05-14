@@ -96,7 +96,7 @@ def test_coupled_poisson():
     opts["ksp_type"] = "preonly"
     opts["pc_type"] = "lu"
     opts["pc_factor_mat_solver_type"] = "mumps"
-    opts["mat_mumps_icntl_24"] = 1
+    opts["mat_mumps_icntl_24"] = 1  # Detection of null pivot rows
 
     problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1, F2], [w0, w1, lam], bcs=bcs, restriction=r, prefix="poisson"
@@ -205,7 +205,7 @@ def test_sloped_stokes():
     opts["ksp_type"] = "preonly"
     opts["pc_type"] = "lu"
     opts["pc_factor_mat_solver_type"] = "mumps"
-    opts["mat_mumps_icntl_24"] = 1
+    opts["mat_mumps_icntl_24"] = 1  # Detection of null pivot rows
 
     problem = dolfiny.snesproblem.SNESProblem(
         [F0, F1, F2], [u, p, lam], bcs=bcs, restriction=r, prefix="stokes"

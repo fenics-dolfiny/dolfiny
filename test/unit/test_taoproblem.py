@@ -105,7 +105,7 @@ def test_poisson_discrete(n, order, atol, element):
     opts["tao_nls_ksp_type"] = "preonly"
     opts["tao_nls_pc_type"] = "cholesky"
     opts["tao_nls_pc_factor_mat_solver_type"] = "mumps"
-    opts["mat_mumps_cntl_1"] = 0.0
+    opts["mat_mumps_cntl_1"] = 0.0  # Disable relative pivoting threshold
 
     u = dolfinx.fem.Function(W)
     opt_problem = dolfiny.taoproblem.TAOProblem(
