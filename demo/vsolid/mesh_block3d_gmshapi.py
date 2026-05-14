@@ -32,8 +32,7 @@ def mesh_block3d_gmshapi(
     if comm.rank == 0:
         import gmsh
 
-        # Initialise gmsh and set options
-        gmsh.initialize()
+        # set options
         gmsh.option.setNumber("General.Terminal", 1)
 
         # gmsh.option.setNumber("Mesh.Algorithm", 9)

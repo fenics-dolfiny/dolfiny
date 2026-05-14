@@ -417,6 +417,7 @@ bookstrap:
             - plasticity/rankine.py
             - units/navier_stokes.py
             - continuation/tdc_shell_naghdi_cylindrical_roof.py
+            - vsolid/solid_disp_tda.py
    variables:
       DOLFINY_LOG_PREFIX: "0"
 
