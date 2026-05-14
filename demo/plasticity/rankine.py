@@ -535,7 +535,7 @@ opts["snes_max_it"] = 100
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "cholesky"
 opts["pc_factor_mat_solver_type"] = "mumps"
-opts["mat_mumps_cntl_1"] = 0.0
+opts["mat_mumps_cntl_1"] = 0.0  # Disable relative pivoting threshold
 opts["snes_linesearch_monitor"] = ""
 
 problem = dolfiny.snesproblem.SNESProblem([F0, F1], [u, z], bcs=bcs, prefix=name, localsolver=ls)
