@@ -58,3 +58,5 @@ site:
     favicon: favicon.ico
     logo_text: Dolfiny
     analytics_google: G-N54TY3269C
+  parts:
+    primary_sidebar_footer: primary-sidebar-footer.md
