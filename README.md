@@ -1,5 +1,9 @@
 # `dolfiny`: high-level convenience wrappers for DOLFINx
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/fenics-dolfiny/dolfiny/refs/heads/main/book/logo.svg" alt="Project Logo" width="300">
+</p>
+
 The `dolfiny` package provides a set of high-level convenience wrappers for 
 [DOLFINx](https://github.com/FEniCS/dolfinx), the [FEniCS library](https://www.fenicsproject.org).
 
