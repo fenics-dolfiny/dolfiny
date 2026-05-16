@@ -4,6 +4,8 @@ project:
   id: e9fddbc8-1467-4c50-a56f-c7d663551eee
   title: Dolfiny
   subtitle: Convenience wrappers for DOLFINx
+  description: The dolfiny package provides a set of high-level convenience wrappers for DOLFINx, the FEniCS library.
+  thumbnail: logo.svg
   # keywords: []
   license: LGPL-3.0-or-later
   authors:
@@ -58,3 +60,5 @@ site:
     favicon: favicon.ico
     logo_text: Dolfiny
     analytics_google: G-N54TY3269C
+  parts:
+    primary_sidebar_footer: primary-sidebar-footer.md
