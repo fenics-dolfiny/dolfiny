@@ -18,7 +18,7 @@
 # - $H^1$-seminorm regularization to handle non-smooth obstacle functions,
 # - non-matching interpolation of point-sampled boundary elevation data.
 ##
-# ```{figure} https://upload.wikimedia.org/wikipedia/commons/4/4b/Pavillon_de_l%27Allemagne_%282%29.jpg
+# ```{figure} ./media/pavillon.jpg
 # :label: img-pavillon
 # :align: center
 # German Pavillon at Expo '67 in Montreal. René Lavigne,

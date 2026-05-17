@@ -402,6 +402,7 @@ bookstrap:
          - book/**/*.ipynb
          - book/**/*.gif
          - book/**/*.png
+         - book/**/*.jpg
    parallel:
       matrix:
          - <<: *matrix_arch_runner
