@@ -43,22 +43,13 @@ if os.getcwd() != os.path.dirname(os.path.abspath(__file__)):
 
 # Step 1: Copy entire demo directories to book structure
 # Collect unique directories to avoid copying the same directory multiple times
-demo_dirs = set()
-for demo in demo_files:
-    if re.match(filter, demo):
-        demo_dirs.add(pathlib.Path(demo).parent)
+demo_dirs = set(pathlib.Path(demo).parent for demo in demo_files if re.match(filter, demo))
 
 for book_dir in sorted(demo_dirs):
     demo_dir = pathlib.Path(f"../demo/{book_dir}")
 
     print(f"📁 Copying directory: {demo_dir} → {book_dir}", flush=True)
-    subprocess.run(["mkdir", "-p", str(book_dir)], check=True)
-
-    # Copy all files from demo directory to book directory
-    if demo_dir.exists():
-        for file in demo_dir.iterdir():
-            if file.is_file():
-                subprocess.run(["cp", str(file), str(book_dir)], check=True)
+    subprocess.run(["cp", "-rf", demo_dir, book_dir.parent], check=True)
 
 # Step 2: Convert Python scripts to notebooks
 for demo in demo_files:
