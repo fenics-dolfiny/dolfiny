@@ -335,7 +335,7 @@ bc1 = dolfinx.fem.dirichletbc(lid_velocity, dolfinx.fem.locate_dofs_topological(
 dof0 = dolfinx.fem.locate_dofs_geometrical(
     Pf, lambda x: np.isclose(x[0], 0.0) & np.isclose(x[1], 0.0)
 )
-bc2 = dolfinx.fem.dirichletbc(scalar(0.0), dof0, Pf)
+bc2 = dolfinx.fem.dirichletbc(scalar(0.0), dof0, Pf)  # type: ignore
 
 bcs = [bc0, bc1, bc2]
 
