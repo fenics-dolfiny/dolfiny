@@ -249,14 +249,11 @@ if comm.size == 1:
     plotter_disp = pyvista.Plotter(
         off_screen=False, window_size=(res := 2048, int(res * 0.7)), theme=dolfiny.pyvista.theme
     )
-    plotter_disp.open_gif(f"{name}_disp.gif", fps=int(1 / dt.value))
+    plotter_disp.open_gif(f"{name}_disp.gif", fps=30)
     orig_points = grid.points.copy()
     grid.point_data["u"] = np.zeros(grid.points.shape[0])
     actor = plotter_disp.add_mesh(
-        grid,
-        scalars="u",
-        n_colors=10,
-        scalar_bar_args={"position_y": 0.85},
+        grid, scalars="u", n_colors=10, scalar_bar_args={"position_y": 0.85}, clim=(0, 0.25)
     )
     plotter_disp.show_axes()
     plotter_disp.camera_position = [(3.5, 1.2, -2.2), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
@@ -269,7 +266,6 @@ if comm.size == 1:
         grid.point_data["u"] = disp_mag
         grid.points = orig_points + vals
 
-        actor.mapper.scalar_range = (disp_mag.min(), disp_mag.max())
         plotter_disp.update_scalars(disp_mag, mesh=grid)
         plotter_disp.write_frame()
 
@@ -313,22 +309,23 @@ if comm.size == 1:
     plotter_disp.close()
     plotter_disp.deep_clean()
 
-    fig, ax = plt.subplots(figsize=(10, 6), dpi=400)
-    ax.plot(time_history, displacement_history[:, 0], label="$u_x$", marker="o", markersize=3)
-    ax.plot(time_history, displacement_history[:, 1], label="$u_y$", marker="s", markersize=3)
-    ax.plot(time_history, displacement_history[:, 2], label="$u_z$", marker="^", markersize=3)
-    ax.set_xlabel("Time $[s]$")
-    ax.set_ylabel("Displacement $[m]$")
-    ax.set_title("Midpoint deflection of free surface")
+    fig, ax = plt.subplots(dpi=300)
+    ax.plot(time_history, displacement_history[:, 0], label="$u_x$", marker="o", ms=4, lw=1)
+    ax.plot(time_history, displacement_history[:, 1], label="$u_y$", marker="s", ms=4, lw=1)
+    ax.plot(time_history, displacement_history[:, 2], label="$u_z$", marker="^", ms=4, lw=1)
+    ax.set_xlabel("Time $[s]$", fontsize=12)
+    ax.set_ylabel("Displacement $[m]$", fontsize=12)
     ax.legend()
-    ax.grid(True, alpha=0.3)
+    ax.grid(linewidth=0.25)
     plt.tight_layout()
-    plt.savefig(f"{name}_deflection.png", dpi=400)
+    plt.savefig(f"{name}_deflection.png", dpi=300)
+    plt.close()
 
 # %% [markdown]
 # ```{figure} solid_disp_tda_disp.gif
 # :alt: GIF of cantilever deflection over time.
 # :align: center
+# :label: fig-solid-disp-tda-disp
 #
 # Deflected cantilever over time.
 # ```
@@ -336,6 +333,7 @@ if comm.size == 1:
 # ```{figure} solid_disp_tda_deflection.png
 # :alt: Midpoint deflection of free surface
 # :align: center
+# :label: fig-solid-disp-tda-deflection
 #
 # Displacement components over time of the midpoint for the non-clamped face, showing the
 # oscillation of the cantilever.
