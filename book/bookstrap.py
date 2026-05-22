@@ -16,6 +16,7 @@ demo_files = [  # relative from demo/
     "structural_optimisation/topopt_3d_ge_bracket.py",
     "units/navier_stokes.py",
     "continuation/tdc_shell_naghdi_cylindrical_roof.py",
+    "vsolid/solid_disp_tda.py",
 ]
 
 parser = argparse.ArgumentParser("bookstrap")

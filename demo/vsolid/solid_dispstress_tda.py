@@ -8,6 +8,7 @@ import dolfinx
 import ufl
 from dolfinx import default_scalar_type as scalar
 
+import gmsh
 import mesh_block3d_gmshapi as mg
 
 import dolfiny
@@ -21,6 +22,7 @@ dimensions = (2.0, 0.01, 0.1)
 elements = (20, 2, 2)
 
 # Create the regular mesh of a block with given dimensions
+gmsh.initialize()
 gmsh_model, tdim = mg.mesh_block3d_gmshapi(
     name, *dimensions, *elements, px=1.0, py=1.0, pz=1.0, do_quads=False
 )

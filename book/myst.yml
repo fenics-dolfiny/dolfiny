@@ -44,6 +44,9 @@ project:
       - file: structural_optimisation/truss_sizing.ipynb
       - file: structural_optimisation/topopt_2d_cantilever.ipynb
       - file: structural_optimisation/topopt_3d_ge_bracket.ipynb
+    - title: Structural dynamics
+      children:
+        - file: vsolid/solid_disp_tda.ipynb
     - file: spectral/solid_elasticity.ipynb
     - title: Plasticity
       children:
