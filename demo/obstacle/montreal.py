@@ -27,6 +27,8 @@
 #
 # ---
 # %% tags=["hide-input"]
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -42,6 +44,8 @@ import numpy as np
 import pyvista
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 comm = MPI.COMM_WORLD
 # %% [markdown]

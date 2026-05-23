@@ -67,6 +67,8 @@
 # in metres by setting `Geometry.OCCTargetUnit = M`.
 
 # %% tags=["hide-input", "hide-output"]
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 from petsc4py.PETSc import ScalarType  # type: ignore
@@ -81,6 +83,8 @@ import sympy.physics.units as syu
 
 import dolfiny
 from dolfiny.units import Quantity
+
+warnings.filterwarnings("error")
 
 output = False
 

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -10,6 +12,8 @@ from dolfinx import default_scalar_type as scalar
 import numpy as np
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 """
 First order nonlinear system of ODEs: (Duffing oscillator, undamped, unforced)

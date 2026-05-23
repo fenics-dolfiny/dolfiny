@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -13,6 +15,8 @@ import mesh_spanner_gmshapi as mg
 import plot_spanner_pyvista as pl
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "solid_tdnns_3d_spanner"

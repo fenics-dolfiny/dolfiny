@@ -24,6 +24,8 @@
 # The mesh is generated with `gmsh`.
 #
 # %% tags=["hide-input"]
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -38,6 +40,8 @@ import numpy as np
 import pyvista
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "solid_disp_tda"

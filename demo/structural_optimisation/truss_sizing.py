@@ -16,6 +16,7 @@
 #
 # %% tags=["hide-input"]
 import argparse
+import warnings
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -32,6 +33,8 @@ import pyvista as pv
 import dolfiny
 import dolfiny.taoproblem
 from dolfiny.expression import normalize
+
+warnings.filterwarnings("error")
 
 parser = argparse.ArgumentParser(description="Truss sizing demo")
 parser.add_argument(

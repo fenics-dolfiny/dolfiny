@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 
+import warnings
+
 import basix
 import basix.ufl
 
 import numpy as np
+
+warnings.filterwarnings("error")
 
 
 def topological_dimension(celltype):

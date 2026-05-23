@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -12,6 +14,8 @@ import mesh_annulus_gmshapi as mg
 import numpy as np
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "bingham_lm_block"

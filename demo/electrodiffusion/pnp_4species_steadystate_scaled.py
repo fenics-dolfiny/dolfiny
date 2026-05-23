@@ -3,6 +3,8 @@
 
 # %%
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -20,6 +22,8 @@ import dolfiny
 
 # import dolfiny.ufl_utils
 from dolfiny.units import Quantity
+
+warnings.filterwarnings("error")
 
 # references:
 # https://doi.org/10.1524/zpch.1954.1.5_6.305

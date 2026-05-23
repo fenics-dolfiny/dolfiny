@@ -26,6 +26,8 @@
 
 # %% tags=["hide-input"]
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -39,6 +41,8 @@ import numpy as np
 import pyvista
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 name = "tdc_shell_naghdi_cylindrical_roof"
 comm = MPI.COMM_WORLD
