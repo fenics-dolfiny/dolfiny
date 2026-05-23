@@ -114,6 +114,11 @@ maintainable demos for `dolfiny`. Follow these when writing a new demo or review
   opts["mat_mumps_icntl_14"] = 20  # Percentage increase in estimated working space
   ```
 
+13. **Warnings policy**
+  Put `warnings.filterwarnings("error")` immediately after the imports in every demo file so
+  warnings fail the CI run instead of being propagated into the rendered book. Files which only
+  contain helper or utility functionality are to be excluded.
+
 ## Registering a new demo
 
 When you create a new demo, register it in several places to ensure it is tested and rendered:
