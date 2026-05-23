@@ -255,7 +255,7 @@ def plot_tube3d_pyvista(u, s, comm=MPI.COMM_WORLD):
         levels = 0
 
     s = plotter.add_mesh(
-        grid_warped.extract_surface(nonlinear_subdivision=levels),
+        grid_warped.extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface"),
         scalars="von_mises",
         scalar_bar_args={"title": "von Mises stress [MPa]"},
         n_colors=10,
@@ -265,7 +265,7 @@ def plot_tube3d_pyvista(u, s, comm=MPI.COMM_WORLD):
 
     plotter.add_mesh(
         grid_warped.separate_cells()
-        .extract_surface(nonlinear_subdivision=levels)
+        .extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface")
         .extract_feature_edges(),
         style="wireframe",
         color="black",

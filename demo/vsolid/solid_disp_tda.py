@@ -270,7 +270,6 @@ if comm.size == 1:
         grid.point_data["u"] = disp_mag
         grid.points = orig_points + vals
 
-        plotter_disp.update_scalars(disp_mag, mesh=grid)
         plotter_disp.write_frame()
 
     plot_step(uo)

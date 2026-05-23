@@ -39,7 +39,7 @@ def plot_diffusor_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm
         levels = 0
 
     s = plotter.add_mesh(
-        grid.extract_surface(nonlinear_subdivision=levels),
+        grid.extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface"),
         scalars="φ",
         scalar_bar_args={"title": "electrostatic potential [V]"},
     )
@@ -47,7 +47,9 @@ def plot_diffusor_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm
     s.mapper.scalar_range = [0.0, 0.14]
 
     plotter.add_mesh(
-        grid.separate_cells().extract_surface(nonlinear_subdivision=levels).extract_feature_edges(),
+        grid.separate_cells()
+        .extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface")
+        .extract_feature_edges(),
         style="wireframe",
         color="black",
         line_width=dolfiny.pyvista.pixels // 1000,

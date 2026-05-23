@@ -187,11 +187,13 @@ if __name__ == "__main__":
     grid = pyvista.read(vtk_file)
 
     plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
-    grid_surface_hires = grid.extract_surface(nonlinear_subdivision=3)
+    grid_surface_hires = grid.extract_surface(nonlinear_subdivision=3, algorithm="dataset_surface")
     plotter.add_mesh(grid_surface_hires, color="tab:orange")
 
     plotter.add_mesh(
-        grid.separate_cells().extract_surface(nonlinear_subdivision=3).extract_feature_edges(),
+        grid.separate_cells()
+        .extract_surface(nonlinear_subdivision=3, algorithm="dataset_surface")
+        .extract_feature_edges(),
         style="wireframe",
         color="lightgray",
         line_width=dolfiny.pyvista.pixels // 1000,

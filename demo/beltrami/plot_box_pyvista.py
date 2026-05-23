@@ -61,7 +61,7 @@ def plot_box_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=MPI.
         levels = 0
 
     s = plotter.add_mesh(
-        grid_warped.extract_surface(nonlinear_subdivision=levels),
+        grid_warped.extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface"),
         scalars="s",
         scalar_bar_args={"title": options["s_title"]},
         cmap="coolwarm",
@@ -72,7 +72,7 @@ def plot_box_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=MPI.
 
     plotter.add_mesh(
         grid_warped.separate_cells()
-        .extract_surface(nonlinear_subdivision=levels)
+        .extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface")
         .extract_feature_edges(),
         style="wireframe",
         color="black",

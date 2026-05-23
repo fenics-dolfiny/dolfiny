@@ -236,7 +236,7 @@ plotter = pp.Plotter(
 )
 
 # Create vector function space and vector function for writing the displacement vector
-Z = dolfinx.fem.functionspace(mesh, ("CG", p, (mesh.geometry.dim,)))
+Z = dolfinx.fem.functionspace(mesh, ("P", p, (mesh.geometry.dim,)))
 z = dolfinx.fem.Function(Z)
 
 # Process load steps
