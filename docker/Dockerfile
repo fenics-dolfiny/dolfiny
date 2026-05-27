@@ -25,7 +25,7 @@ RUN apt-get -y update && \
 # Note: cppyy is not self maintained, but needs cache for install of cppyy-cling
 RUN pip install --no-cache-dir --index-url https://gitlab.com/api/v4/projects/59503118/packages/pypi/simple \
     cppyy-cling==6.32.8 \
-    vtk==9.4.2 \
+    vtk==9.6.2 \
     cppyy && \
     find / -type f -name 'allDict.cxx*' -delete
 
