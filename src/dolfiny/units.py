@@ -339,6 +339,15 @@ def transform(expr: Expr | Form | dict, mapping: dict):
     raise TypeError(f"Unsupported type for unit transformation: {type(expr).__name__}")
 
 
+def _root_factor(factorizer: QuantityFactorizer, root_expr: Expr) -> np.ndarray | None:
+    """Return the factor of the mapped root expression, with a traversal-order fallback."""
+    if root_expr in factorizer.factors:
+        return factorizer.factors[root_expr]
+
+    fallback_root_expr = next(reversed(factorizer.factors), None)
+    return factorizer.factors[fallback_root_expr] if fallback_root_expr is not None else None
+
+
 @overload
 def factorize(
     expr: dict,
@@ -355,15 +364,6 @@ def factorize(
     mode: str = "factorize",
     mapping: dict | None = None,
 ) -> FactorizedExpr: ...
-
-
-def _root_factor(factorizer: QuantityFactorizer, root_expr: Expr) -> np.ndarray | None:
-    """Return the factor of the mapped root expression, with a traversal-order fallback."""
-    if root_expr in factorizer.factors:
-        return factorizer.factors[root_expr]
-
-    fallback_root_expr = next(reversed(factorizer.factors), None)
-    return factorizer.factors[fallback_root_expr] if fallback_root_expr is not None else None
 
 
 def factorize(
