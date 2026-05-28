@@ -12,6 +12,7 @@ from dolfiny.units import (
     buckingham_pi_analysis,
     factorize,
     transform,
+    normalize
 )
 
 
@@ -120,3 +121,44 @@ def test_form_transformation(mesh):
     assert factorized is not None
     assert factorized.factor[0] == 2  # length factor should be 2 (L^2)
     assert factorized.factor[1] == 2
+
+
+def test_factorize_rejects_nontrivial_dimensionless_argument_of_sin(mesh):
+    k = Quantity(mesh, 1.0, unit=1 / syu.meter, symbol=sy.Symbol("k"))
+    ell = Quantity(mesh, 1.0, unit=syu.meter, symbol=sy.Symbol("ell"))
+
+    with pytest.raises(RuntimeError):
+        factorize(ufl.sin(k * ell), [k, ell], mode="factorize")
+
+
+def test_check_allows_nontrivial_dimensionless_argument_of_sin(mesh):
+    """The same expression should still be admissible in dimensional check mode."""
+    k = Quantity(mesh, 1.0, unit=1 / syu.meter, symbol=sy.Symbol("k"))
+    ell = Quantity(mesh, 1.0, unit=syu.meter, symbol=sy.Symbol("ell"))
+
+    checked = factorize(ufl.sin(k * ell), [k, ell], mode="check")
+    assert checked.factor is not None
+
+
+def test_factorize_accepts_trivial_dimensionless_argument_of_sin(mesh):
+    """sin(ell/ell) has a zero exponent vector and is factorizable."""
+    ell = Quantity(mesh, 1.0, unit=syu.meter, symbol=sy.Symbol("ell"))
+
+    factorized = factorize(ufl.sin(ell / ell), [ell], mode="factorize")
+    assert factorized.factor is not None
+    assert factorized.factor[0] == pytest.approx(0.0)
+
+
+def test_normalize_expr_multiplies_by_factor_ratio(mesh):
+    """Expr normalization should use the same factor-ratio sign as Form normalization."""
+    ell = Quantity(mesh, 1.0, unit=syu.meter, symbol=sy.Symbol("ell"))
+
+    factorized = {
+        "reference": factorize(ell, [ell]),
+        "higher": factorize(ell**2, [ell]),
+    }
+    normalized = normalize(factorized, "reference", [ell])
+
+    normalized_higher = factorize(normalized["higher"], [ell])
+    assert normalized_higher.factor is not None
+    assert normalized_higher.factor[0] == pytest.approx(1.0)

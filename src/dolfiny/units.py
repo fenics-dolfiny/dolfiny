@@ -191,8 +191,9 @@ class QuantityFactorizer(MultiFunction):
         return self.reuse_if_untouched(o, *ops)
 
     def linear(self, o, *ops):
-        # Linear nodes which have all operands with the same factor (e.g. sum, grad, etc.)
-        # can be assigned that factor.
+        # Linear nodes whose operands have the same factor (e.g. sum, grad, etc.)
+        # can be assigned that factor. In check mode, only dimensional equivalence
+        # is enforced, so the first operand is used as a dimension witness.
         factors = [self.factors[op] for op in o.ufl_operands if op in self.factors]
 
         if len(factors) > 0:
@@ -202,13 +203,18 @@ class QuantityFactorizer(MultiFunction):
         return self.reuse_if_untouched(o, *ops)
 
     def inhomogeneous(self, o, *ops):
-        # Inhomogeneous nodes (e.g. sin(x), exp(x), etc.) must have dimensionless operands,
-        # and in factorize mode can only have a trivial factor of 1.
+        # Inhomogeneous nodes (e.g. sin(x), exp(x), etc.) must have dimensionless
+        # operands. In factorize mode, these operands must also have trivial factor,
+        # because no multiplicative scale can be pulled out of a nonlinear function.
         factors = [self.factors[op] for op in o.ufl_operands if op in self.factors]
 
         if len(factors) > 0:
-            self._check_operands(o, np.zeros_like(factors[0]))
-            self.factors[o] = factors[0]
+            zero = np.zeros_like(factors[0])
+            self._check_operands(o, zero)
+            self.factors[o] = zero
+        else:
+            self.factors.setdefault(o, np.zeros(len(self._quantities)))
+
         return self.reuse_if_untouched(o, *ops)
 
     def multi_index(self, o, *ops):
@@ -235,7 +241,6 @@ class QuantityFactorizer(MultiFunction):
 
         Verifies that all operands of a given expression have compatible units/dimensions
         and, in factorize mode, identical factors.
-
         """
         factors = [self.factors[op] for op in o.ufl_operands if op in self.factors]
 
@@ -253,7 +258,7 @@ class QuantityFactorizer(MultiFunction):
                     f"dim({f0_symbol}) != dim({fb_symbol}), (i.e. {f0_expr} != {fb_expr}).\n"
                 )
 
-            if self._mode == "factorize" and not np.allclose(factors[0], fb):
+            if self._mode == "factorize" and not np.allclose(reference_factor, fb):
                 raise RuntimeError(
                     f"Inconsistent factors in operands of {o.__class__.__name__}.\n"
                     f"{f0_symbol} != {fb_symbol}."
@@ -322,7 +327,6 @@ def transform(expr: Expr | Form | dict, mapping: dict):
     Returns
     -------
     Transformed expression, form, or dictionary
-
     """
     if isinstance(expr, dict):
         return {key: transform(value, mapping) for key, value in expr.items()}
@@ -352,6 +356,15 @@ def factorize(
 ) -> FactorizedExpr: ...
 
 
+def _root_factor(factorizer: QuantityFactorizer, root_expr: Expr) -> np.ndarray | None:
+    """Return the factor of the mapped root expression, with a traversal-order fallback."""
+    if root_expr in factorizer.factors:
+        return factorizer.factors[root_expr]
+
+    fallback_root_expr = next(reversed(factorizer.factors), None)
+    return factorizer.factors[fallback_root_expr] if fallback_root_expr is not None else None
+
+
 def factorize(
     expr: Expr | Form | dict,
     quantities: list["Quantity"],
@@ -375,7 +388,6 @@ def factorize(
     -------
     FactorizedExpr | dict
         Factorized expression with dimensional factors, or dict of factorized items
-
     """
     if mapping is not None:
         expr = transform(expr, mapping)
@@ -389,21 +401,18 @@ def factorize(
         factors = []
         for integral in expr.integrals():
             factorizer = QuantityFactorizer(quantities, mode=mode)
-            factorized_integrals.append(
-                integral.reconstruct(map_expr_dag(factorizer, integral.integrand()))
-            )
-            integral_root_expr = next(reversed(factorizer.factors), None)
-            integral_root_factor = (
-                factorizer.factors[integral_root_expr] if integral_root_expr is not None else None
-            )
-            factors.append(integral_root_factor)
+            integrand = integral.integrand()
+            factorized_integrand = map_expr_dag(factorizer, integrand)
+            factorized_integrals.append(integral.reconstruct(factorized_integrand))
+            factors.append(_root_factor(factorizer, integrand))
+
         for i in range(len(factors) - 1):
             unit_system = quantities[0].unit_system
             dimsys = unit_system.get_dimension_system()
-            fa_expr = expand(factors[i], [q.dimension for q in quantities]).simplify()  # type: ignore
-            fb_expr = expand(factors[i + 1], [q.dimension for q in quantities]).simplify()  # type: ignore
-            fa_symbol = expand(factors[i], [q.symbol for q in quantities])  # type: ignore
-            fb_symbol = expand(factors[i + 1], [q.symbol for q in quantities])  # type: ignore
+            fa_expr = expand(factors[i], [q.dimension for q in quantities]).simplify()  # type: ignore[arg-type]
+            fb_expr = expand(factors[i + 1], [q.dimension for q in quantities]).simplify()  # type: ignore[arg-type]
+            fa_symbol = expand(factors[i], [q.symbol for q in quantities])  # type: ignore[arg-type]
+            fb_symbol = expand(factors[i + 1], [q.symbol for q in quantities])  # type: ignore[arg-type]
             if dimsys.equivalent_dims(fa_expr, fb_expr) is False:
                 raise RuntimeError(
                     "Inconsistent dimensions across integrals in Form. \n"
@@ -412,21 +421,20 @@ def factorize(
                 )
 
             if mode == "factorize":
-                fa_symbol = expand(factors[i], [q.symbol for q in quantities])  # type: ignore
-                fb_symbol = expand(factors[i + 1], [q.symbol for q in quantities])  # type: ignore
-                if not np.allclose(factors[i], factors[i + 1]):  # type: ignore
+                if not np.allclose(factors[i], factors[i + 1]):  # type: ignore[arg-type]
                     raise RuntimeError(
                         "Inconsistent factors across integrals in Form. \n"
                         f"{fa_symbol} != {fb_symbol}."
                     )
 
         factorized_expression = Form(factorized_integrals)
-    else:
+        root_factor = factors[0] if factors else None
+    elif isinstance(expr, Expr):
         factorizer = QuantityFactorizer(quantities, mode=mode)
         factorized_expression = map_expr_dag(factorizer, expr)
-
-    root_expr = next(reversed(factorizer.factors), None)
-    root_factor = factorizer.factors[root_expr] if root_expr is not None else None
+        root_factor = _root_factor(factorizer, expr)
+    else:
+        raise TypeError(f"Unsupported type for factorization: {type(expr).__name__}")
 
     return FactorizedExpr(factorized_expression, root_factor)
 
@@ -439,13 +447,12 @@ def expand(factor: np.ndarray | list, quantities: list) -> sy.Expr:
     factor
         Array of exponents for each quantity
     quantities
-        List of quantities/symbols to use as base
+        Quantities/symbols to use as base
 
     Returns
     -------
     sy.Expr
         Symbolic expression with quantities raised to corresponding powers
-
     """
     return math.prod(q ** fractions.Fraction(f) for q, f in zip(quantities, factor))
 
@@ -456,8 +463,8 @@ def dimension_matrix(
 ) -> tuple[sy.Matrix, list[Dimension]]:
     """Build dimension matrix for Buckingham Pi analysis.
 
-    Returns matrix where each column represents a quantity's dimensional exponents
-    with respect to base dimensions.
+    Returns matrix where each column represents the exponents of a quantity with
+    respect to the base dimensions.
     """
     dimsys = unit_system.get_dimension_system()
     base_dims: list[Dimension] = dimsys.base_dims
@@ -489,12 +496,11 @@ def buckingham_pi_analysis(
     unit_system
         Unit system for analysis (default: SI)
     outlier_threshold
-        Threshold for detecting outlier values (default: 1e-3)
+        Threshold for detecting outlier values
 
     Returns
     -------
         Dimension matrix, base dimensions, and Pi groups
-
     """
     dim_matrix, base_dims = dimension_matrix(quantities, unit_system)
 
@@ -591,7 +597,6 @@ def to_base_units(expr: sy.Expr, unit_system: UnitSystem = sy.physics.units.syst
     Returns
     -------
         Expression with units converted to base units of the specified system.
-
     """
     base_units = unit_system._base_units
     return sy.physics.units.convert_to(expr, base_units)
@@ -618,7 +623,6 @@ def get_factor(
     Returns
     -------
         (factor, dimension, dimensional_dependencies)
-
     """
     base_units = unit_system._base_units
     base_value = sy.physics.units.convert_to(scale * unit, base_units)
@@ -654,7 +658,6 @@ def get_dimension(
     -------
     unit
         The simplified physical dimension of the expression.
-
     """
     factor = factorize(expr, quantities, mode="check", mapping=mapping)
     assert isinstance(factor, FactorizedExpr)
@@ -675,17 +678,14 @@ def normalize(
     ----------
     expr_dict
         Dictionary of expressions or forms to normalize
-    reference_key : str
+    reference_key
         Key of the reference expression for normalization
     quantities
         List of quantities to use for factorization
-    mapping
-        Mapping for unit transformation
 
     Returns
     -------
         Dictionary of normalized expressions or forms
-
     """
     if reference_key not in expr_dict:
         raise KeyError(f"Reference key '{reference_key}' not found in expression dictionary")
@@ -735,12 +735,14 @@ def normalize(
 
         rows.append([key, str(ratio_sym), ratio_expr.simplify().n(4)])
 
-        # Create normalized expression by dividing by reference factor
-        ref_value = expand(normalized_factor, quantities)
+        # Create normalized expression by applying the ratio F_original/F_reference.
+        # The factorized expression has had F_original stripped out, so multiplying
+        # by this ratio leaves the term scaled relative to the reference factor.
+        ratio_value = expand(normalized_factor, quantities)
         if isinstance(factorized_expr.expr, Form):
-            normalized_dict[key] = map_integrands(lambda x: x * ref_value, factorized_expr.expr)
+            normalized_dict[key] = map_integrands(lambda x: x * ratio_value, factorized_expr.expr)
         else:
-            normalized_dict[key] = factorized_expr.expr / ref_value
+            normalized_dict[key] = factorized_expr.expr * ratio_value
 
     print_table(rows, ["Term", "Factor", "Value (in base units)"])
     logger.info("=" * 50)
