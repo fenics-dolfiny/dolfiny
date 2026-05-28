@@ -327,6 +327,7 @@ def transform(expr: Expr | Form | dict, mapping: dict):
     Returns
     -------
     Transformed expression, form, or dictionary
+
     """
     if isinstance(expr, dict):
         return {key: transform(value, mapping) for key, value in expr.items()}
@@ -388,6 +389,7 @@ def factorize(
     -------
     FactorizedExpr | dict
         Factorized expression with dimensional factors, or dict of factorized items
+
     """
     if mapping is not None:
         expr = transform(expr, mapping)
@@ -453,6 +455,7 @@ def expand(factor: np.ndarray | list, quantities: list) -> sy.Expr:
     -------
     sy.Expr
         Symbolic expression with quantities raised to corresponding powers
+
     """
     return math.prod(q ** fractions.Fraction(f) for q, f in zip(quantities, factor))
 
@@ -501,6 +504,7 @@ def buckingham_pi_analysis(
     Returns
     -------
         Dimension matrix, base dimensions, and Pi groups
+
     """
     dim_matrix, base_dims = dimension_matrix(quantities, unit_system)
 
@@ -597,6 +601,7 @@ def to_base_units(expr: sy.Expr, unit_system: UnitSystem = sy.physics.units.syst
     Returns
     -------
         Expression with units converted to base units of the specified system.
+
     """
     base_units = unit_system._base_units
     return sy.physics.units.convert_to(expr, base_units)
@@ -623,6 +628,7 @@ def get_factor(
     Returns
     -------
         (factor, dimension, dimensional_dependencies)
+
     """
     base_units = unit_system._base_units
     base_value = sy.physics.units.convert_to(scale * unit, base_units)
@@ -658,6 +664,7 @@ def get_dimension(
     -------
     unit
         The simplified physical dimension of the expression.
+
     """
     factor = factorize(expr, quantities, mode="check", mapping=mapping)
     assert isinstance(factor, FactorizedExpr)
@@ -686,6 +693,7 @@ def normalize(
     Returns
     -------
         Dictionary of normalized expressions or forms
+
     """
     if reference_key not in expr_dict:
         raise KeyError(f"Reference key '{reference_key}' not found in expression dictionary")

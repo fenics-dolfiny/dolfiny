@@ -7,13 +7,7 @@ import pytest
 import sympy as sy
 import sympy.physics.units as syu
 
-from dolfiny.units import (
-    Quantity,
-    buckingham_pi_analysis,
-    factorize,
-    transform,
-    normalize
-)
+from dolfiny.units import Quantity, buckingham_pi_analysis, factorize, normalize, transform
 
 
 @pytest.fixture(scope="module")
