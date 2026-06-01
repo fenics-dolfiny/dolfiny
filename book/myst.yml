@@ -37,21 +37,21 @@ project:
     - file: index.md
     - title: Obstacle problems
       children:
-      - file: obstacle/membrane.ipynb
-      - file: obstacle/montreal.ipynb
+        - file: obstacle/membrane.ipynb
+        - file: obstacle/montreal.ipynb
     - title: Structural optimisation
       children:
-      - file: structural_optimisation/truss_sizing.ipynb
-      - file: structural_optimisation/topopt_2d_cantilever.ipynb
-      - file: structural_optimisation/topopt_3d_ge_bracket.ipynb
+        - file: structural_optimisation/truss_sizing.ipynb
+        - file: structural_optimisation/topopt_2d_cantilever.ipynb
+        - file: structural_optimisation/topopt_3d_ge_bracket.ipynb
     - title: Structural dynamics
       children:
         - file: vsolid/solid_disp_tda.ipynb
     - file: spectral/solid_elasticity.ipynb
     - title: Plasticity
       children:
-      - file: plasticity/J2_monolithic.ipynb
-      - file: plasticity/rankine.ipynb
+        - file: plasticity/J2_monolithic.ipynb
+        - file: plasticity/rankine.ipynb
     - file: units/navier_stokes.ipynb
     - file: continuation/tdc_shell_naghdi_cylindrical_roof.ipynb
     - file: getting-involved.md

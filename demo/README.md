@@ -62,12 +62,14 @@ maintainable demos for `dolfiny`. Follow these when writing a new demo or review
 7. **Figure labels and captions**
    Every code cell that produces a pyvista or matplotlib plot output must carry a MyST `label` and
    `caption` directly inside the cell, immediately after the `# %% tags=[...]` marker:
+
    ```python
    # %% tags=["hide-input"]
    # | label: fig-my-plot
    # | caption: |
    #   One-sentence description of what is shown.
    ```
+
    - The label must start with `fig-` and use kebab-case.
    - The caption is a single sentence (or two at most) describing the content of the figure.
      Do not explain axes or restate surrounding maths — just say what is being shown.
@@ -75,7 +77,7 @@ maintainable demos for `dolfiny`. Follow these when writing a new demo or review
      caption exceeds 100 characters; otherwise a single `# | caption: ...` line is fine.
 
 8. **Contextualising visible output**
-   Every cell whose output is rendered in the book (i.e. does *not* carry `hide-output`) must be
+   Every cell whose output is rendered in the book (i.e. does _not_ carry `hide-output`) must be
    contextualised for the reader. Specifically:
    - **Figures and plots**: the `label` / `caption` block (Rule 7) is sufficient — no additional
      `[markdown]` cell is needed for plot output.
@@ -92,32 +94,34 @@ maintainable demos for `dolfiny`. Follow these when writing a new demo or review
    - The script must exit with code `0` without unhandled warnings.
 
 10. **Avoid describing the obvious**
-   Do not explain FEniCS/dolfiny API mechanics. Comment on the *mathematical choice* (which function
-   space, which quadrature rule, why) rather than the *how* (what the function call does).
-   Do not restate the same fact in two places.
+    Do not explain FEniCS/dolfiny API mechanics. Comment on the _mathematical choice_ (which function
+    space, which quadrature rule, why) rather than the _how_ (what the function call does).
+    Do not restate the same fact in two places.
 
 11. **LaTeX conventions**
-   - Section headings use **sentence case**: capitalise only the first word and proper nouns.
-   - Use `\text{tr}`, `\text{dev}`, `\text{sym}` (not `\mathrm{...}`) for named operators.
-   - Use `\,\text{d}x` for integration measures.
-   - Keep each `$...$` or `$$...$$` block on a single comment line if possible. A display math
-     block broken across Python comment lines can fail to render in MyST.
+
+- Section headings use **sentence case**: capitalise only the first word and proper nouns.
+- Use `\text{tr}`, `\text{dev}`, `\text{sym}` (not `\mathrm{...}`) for named operators.
+- Use `\,\text{d}x` for integration measures.
+- Keep each `$...$` or `$$...$$` block on a single comment line if possible. A display math
+  block broken across Python comment lines can fail to render in MyST.
 
 12. **PETSc solver MUMPS options with inline documentation**
-  Any line setting a PETSc solver MUMPS options via `opts["mat_mumps_icntl_*"]`
-  or `opts["mat_mumps_cntl_*"]`, must be accompanied by an inline comment explaining what the
-  option controls. The explanation must be sourced from or consistent with the PETSc manual
-  (see https://petsc.org/release/manualpages/Mat/MATSOLVERMUMPS/). This ensures that maintainers
-  and readers immediately understand the purpose of each setting without needing to consult
-  external documentation.
-  ```python
-  opts["mat_mumps_icntl_14"] = 20  # Percentage increase in estimated working space
-  ```
+    Any line setting a PETSc solver MUMPS options via `opts["mat_mumps_icntl_*"]`
+    or `opts["mat_mumps_cntl_*"]`, must be accompanied by an inline comment explaining what the
+    option controls. The explanation must be sourced from or consistent with the PETSc manual
+    (see https://petsc.org/release/manualpages/Mat/MATSOLVERMUMPS/). This ensures that maintainers
+    and readers immediately understand the purpose of each setting without needing to consult
+    external documentation.
+
+```python
+opts["mat_mumps_icntl_14"] = 20  # Percentage increase in estimated working space
+```
 
 13. **Warnings policy**
-  Put `warnings.filterwarnings("error")` immediately after the imports in every demo file so
-  warnings fail the CI run instead of being propagated into the rendered book. Files which only
-  contain helper or utility functionality are to be excluded.
+    Put `warnings.filterwarnings("error")` immediately after the imports in every demo file so
+    warnings fail the CI run instead of being propagated into the rendered book. Files which only
+    contain helper or utility functionality are to be excluded.
 
 ## Registering a new demo
 

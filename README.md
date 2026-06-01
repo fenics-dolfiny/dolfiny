@@ -4,15 +4,15 @@
   <img src="https://raw.githubusercontent.com/fenics-dolfiny/dolfiny/refs/heads/main/book/logo.svg" alt="Project Logo" width="300">
 </p>
 
-The `dolfiny` package provides a set of high-level convenience wrappers for 
+The `dolfiny` package provides a set of high-level convenience wrappers for
 [DOLFINx](https://github.com/FEniCS/dolfinx), the [FEniCS library](https://www.fenicsproject.org).
 
-While DOLFINx involves many low-level operations - from handling ghosted values 
+While DOLFINx involves many low-level operations - from handling ghosted values
 to interfacing PETSc solvers directly - `dolfiny` serves as a wrapper around the
 low-level functionality of DOLFINx and is meant to combine a user-oriented API
 with the performance and functionality of DOLFINx, FFCx, Basix and UFL.
 
-This library is written exclusively in Python with optional interfacing 
+This library is written exclusively in Python with optional interfacing
 to user-provided C++ kernels.
 
 # Installation
@@ -26,20 +26,23 @@ Certain functionality (see [demos](https://github.com/fenics-dolfiny/dolfiny/tre
 of external packages such as
 
 - [Matplotlib](https://github.com/matplotlib/matplotlib) (plotting),
-- [PyVista](https://github.com/pyvista/pyvista) (scientific visualisation), or 
+- [PyVista](https://github.com/pyvista/pyvista) (scientific visualisation), or
 - [cppyy](https://github.com/wlav/cppyy) (dynamic Python/C++ bindings).
 
-Install `dolfiny` with these dependencies by running 
+Install `dolfiny` with these dependencies by running
+
 ```
 pip install dolfiny[all]
 ```
 
 For ARM-based architectures (`aarch64`/`arm64` on Linux) we recommend to fallback to our
 custom-compiled binary wheels for `vtk` and `cppyy-cling` by setting the
-local package index repository in the respective environment variable 
+local package index repository in the respective environment variable
+
 ```
 export PIP_INDEX_URL=https://gitlab.com/api/v4/projects/59503118/packages/pypi/simple
 ```
+
 before calling `pip`.
 
 You may also check the [Dockerfile](https://github.com/fenics-dolfiny/dolfiny/blob/main/docker/Dockerfile) for an up-to-date version of the installation process.
@@ -60,6 +63,7 @@ Some of our demos are available as documented and rendered `jupyter notebooks` o
 Besides this, other references are [demos](https://github.com/fenics-dolfiny/dolfiny/tree/main/demo) or [unit tests](https://github.com/fenics-dolfiny/dolfiny/tree/main/test).
 
 Presentations about `dolfiny` functionality:
+
 - [dolfiny: Convenience wrappers for DOLFINx](https://hdl.handle.net/10993/47422)
   at FEniCS 2021 conference,
 - [Nonlinear analysis of thin-walled structures based on tangential differential calculus with FEniCSx](https://hdl.handle.net/10993/54222)
@@ -86,7 +90,7 @@ Presentations about `dolfiny` functionality:
 # Contributing
 
 We are always looking for contributions and help with `dolfiny`.
-If you have ideas, nice applications or code contributions then we would 
+If you have ideas, nice applications or code contributions then we would
 be happy to help you get them included.
 We ask you to follow the FEniCS Project git workflow.
 

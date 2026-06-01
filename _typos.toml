@@ -1,7 +1,5 @@
 [files]
-extend-exclude = [
-  "book/references.bib"
-]
+extend-exclude = ["book/references.bib"]
 
 [default.extend-words]
 Ue = "Ue" # function space name

@@ -1,77 +1,75 @@
 stages:
-   - lint
-   - image
-   - test
-   - demo
-   - book
-   - release
+  - lint
+  - image
+  - test
+  - demo
+  - book
+  - release
 
 variables:
-   CONTAINER_COMMIT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
-   DOLFINY_LOG_PREFIX: "1"
+  CONTAINER_COMMIT_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  DOLFINY_LOG_PREFIX: "1"
 
 workflow:
-   auto_cancel:
-      on_new_commit: interruptible
-   rules:
-      - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-      - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
-        when: never
-      - if: $CI_COMMIT_BRANCH
+  auto_cancel:
+    on_new_commit: interruptible
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
 
 .matrix_arch_runner: &matrix_arch_runner
-   ARCH: [amd64] # FIXME: add arm64
-   RUNNER_TAG: [zed] # FIXME: add saas-linux-medium-arm64
+  ARCH: [amd64] # FIXME: add arm64
+  RUNNER_TAG: [zed] # FIXME: add saas-linux-medium-arm64
 
 # jobs
 default:
-   interruptible: true
-   tags: 
-      - zed
+  interruptible: true
+  tags:
+    - zed
 
 ruff:
-   stage: lint
-   image: dolfinx/dev-env:current
-   script:
-      - pip install ruff
-      - ruff format --check
-      - ruff check .
+  stage: lint
+  image: dolfinx/dev-env:current
+  script:
+    - pip install ruff
+    - ruff format --check
+    - ruff check .
 
 mypy:
-   stage: lint
-   image: dolfinx/dolfinx:nightly
-   script:
-      - pip install .[typing]
-      - mypy -p dolfiny
-      - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
-      - mypy test/ demo/ --explicit-package-bases
+  stage: lint
+  image: dolfinx/dolfinx:nightly
+  script:
+    - pip install .[typing]
+    - mypy -p dolfiny
+    - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
+    - mypy test/ demo/ --explicit-package-bases
 
 ty:
-   stage: lint
-   allow_failure: true # mypy is blocking
-   image: dolfinx/dolfinx:nightly
-   script:
-      - pip install .[typing]
-      - ty check --color always src/dolfiny 
-      - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
-      - ty check --color always demo/
-      - ty check --color always test/
+  stage: lint
+  allow_failure: true # mypy is blocking
+  image: dolfinx/dolfinx:nightly
+  script:
+    - pip install .[typing]
+    - ty check --color always src/dolfiny
+    - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
+    - ty check --color always demo/
+    - ty check --color always test/
 
 typos:
-   stage: lint
-   image: python:3.13-slim
-   script:
-      - pip install typos
-      - typos
-
+  stage: lint
+  image: python:3.13-slim
+  script:
+    - pip install typos
+    - typos
 
 bibtex-tidy:
-   stage: lint
-   image: node:current-alpine
-   script:
-      - npm install -g bibtex-tidy
-      - bibtex-tidy book/references.bib --v2 | diff -u book/references.bib -
-
+  stage: lint
+  image: node:current-alpine
+  script:
+    - npm install -g bibtex-tidy
+    - bibtex-tidy book/references.bib --v2 | diff -u book/references.bib -
 
 prettier:
   stage: lint
@@ -80,399 +78,398 @@ prettier:
     - npm install prettier prettier-plugin-toml
     - npx prettier . --check --plugin prettier-plugin-toml
 
-
 image build:
-   stage: image
-   needs: []
-   image: docker:git
-   parallel:
-      matrix:
-         - ARCH: amd64
-           RUNNER_TAG: zed
-         - ARCH: arm64
-           RUNNER_TAG: saas-linux-medium-arm64
-   tags:
-      - $RUNNER_TAG
-   services:
-      - name: docker:dind
-        command: ["--mtu=1450"]
-   before_script:
-      - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-   script:
-      - echo "Building $CONTAINER_COMMIT_IMAGE-$ARCH on $(uname -m)"
-      - docker pull $CONTAINER_COMMIT_IMAGE-$ARCH || true
-      - docker build
-               --cache-from $CONTAINER_COMMIT_IMAGE-$ARCH
-               --build-arg BUILDKIT_INLINE_CACHE=1
-               --pull
-               --push
-               --tag $CONTAINER_COMMIT_IMAGE-$ARCH
-               --file docker/Dockerfile .
-   rules:
-      - if: '$ARCH == "arm64" && $CI_COMMIT_TAG'
-      - if: '$ARCH == "arm64" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "schedule"'
-      - if: '$ARCH == "arm64" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      - if: '$ARCH == "arm64"'
-        when: never
-      - if: '$ARCH == "amd64"'
-        when: on_success
-      - when: never  # Fallback
+  stage: image
+  needs: []
+  image: docker:git
+  parallel:
+    matrix:
+      - ARCH: amd64
+        RUNNER_TAG: zed
+      - ARCH: arm64
+        RUNNER_TAG: saas-linux-medium-arm64
+  tags:
+    - $RUNNER_TAG
+  services:
+    - name: docker:dind
+      command: ["--mtu=1450"]
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - echo "Building $CONTAINER_COMMIT_IMAGE-$ARCH on $(uname -m)"
+    - docker pull $CONTAINER_COMMIT_IMAGE-$ARCH || true
+    - docker build
+      --cache-from $CONTAINER_COMMIT_IMAGE-$ARCH
+      --build-arg BUILDKIT_INLINE_CACHE=1
+      --pull
+      --push
+      --tag $CONTAINER_COMMIT_IMAGE-$ARCH
+      --file docker/Dockerfile .
+  rules:
+    - if: '$ARCH == "arm64" && $CI_COMMIT_TAG'
+    - if: '$ARCH == "arm64" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$ARCH == "arm64" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$ARCH == "arm64"'
+      when: never
+    - if: '$ARCH == "amd64"'
+      when: on_success
+    - when: never # Fallback
 
 image release:
-   stage: release
-   image: docker:git
-   services:
-      - name: docker:dind
-        command: ["--mtu=1450"]
-   before_script:
-      - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-      - docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
-   script:
-      - echo "Gitlab registry -- create multiarch manifest"
-      - docker pull $CONTAINER_COMMIT_IMAGE-amd64
-      - docker pull $CONTAINER_COMMIT_IMAGE-arm64
-      - docker buildx imagetools create -t $CONTAINER_COMMIT_IMAGE $(printf "$CONTAINER_COMMIT_IMAGE-%s " amd64 arm64)
-      - echo "DockerHub registry -- create multiarch manifest"
-      - docker tag $CONTAINER_COMMIT_IMAGE-amd64 $DOCKERHUB_COMMIT_IMAGE-amd64
-      - docker tag $CONTAINER_COMMIT_IMAGE-arm64 $DOCKERHUB_COMMIT_IMAGE-arm64
-      - docker push $DOCKERHUB_COMMIT_IMAGE-amd64
-      - docker push $DOCKERHUB_COMMIT_IMAGE-arm64
-      - docker buildx imagetools create -t $DOCKERHUB_COMMIT_IMAGE $(printf "$DOCKERHUB_COMMIT_IMAGE-%s " amd64 arm64)
-   rules:
-      - if: $CI_COMMIT_TAG
-        variables:
-           DOCKERHUB_COMMIT_IMAGE: dolfiny/dolfiny:$CI_COMMIT_TAG
-      - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "schedule")
-        variables:
-           DOCKERHUB_COMMIT_IMAGE: dolfiny/dolfiny:nightly
-      - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-        variables:
-           DOCKERHUB_COMMIT_IMAGE: dolfiny/dolfiny:latest
+  stage: release
+  image: docker:git
+  services:
+    - name: docker:dind
+      command: ["--mtu=1450"]
+  before_script:
+    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+    - docker login -u $DOCKERHUB_USER -p $DOCKERHUB_PASSWORD
+  script:
+    - echo "Gitlab registry -- create multiarch manifest"
+    - docker pull $CONTAINER_COMMIT_IMAGE-amd64
+    - docker pull $CONTAINER_COMMIT_IMAGE-arm64
+    - docker buildx imagetools create -t $CONTAINER_COMMIT_IMAGE $(printf "$CONTAINER_COMMIT_IMAGE-%s " amd64 arm64)
+    - echo "DockerHub registry -- create multiarch manifest"
+    - docker tag $CONTAINER_COMMIT_IMAGE-amd64 $DOCKERHUB_COMMIT_IMAGE-amd64
+    - docker tag $CONTAINER_COMMIT_IMAGE-arm64 $DOCKERHUB_COMMIT_IMAGE-arm64
+    - docker push $DOCKERHUB_COMMIT_IMAGE-amd64
+    - docker push $DOCKERHUB_COMMIT_IMAGE-arm64
+    - docker buildx imagetools create -t $DOCKERHUB_COMMIT_IMAGE $(printf "$DOCKERHUB_COMMIT_IMAGE-%s " amd64 arm64)
+  rules:
+    - if: $CI_COMMIT_TAG
+      variables:
+        DOCKERHUB_COMMIT_IMAGE: dolfiny/dolfiny:$CI_COMMIT_TAG
+    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "schedule")
+      variables:
+        DOCKERHUB_COMMIT_IMAGE: dolfiny/dolfiny:nightly
+    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+      variables:
+        DOCKERHUB_COMMIT_IMAGE: dolfiny/dolfiny:latest
 
 wheel release:
-   stage: release
-   image: dolfinx/dev-env:current
-   variables:
-      PYPI_PACKAGES_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
-   script:
-      - pip install build twine
-      - python -m build
-      - python -m twine upload -u gitlab-ci-token -p ${CI_JOB_TOKEN} --repository-url ${PYPI_PACKAGES_URL} dist/*
-      - python -m twine upload -u ${PYPI_USER} -p ${PYPI_PASSWORD} dist/*
-   only:
-      - tags
+  stage: release
+  image: dolfinx/dev-env:current
+  variables:
+    PYPI_PACKAGES_URL: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
+  script:
+    - pip install build twine
+    - python -m build
+    - python -m twine upload -u gitlab-ci-token -p ${CI_JOB_TOKEN} --repository-url ${PYPI_PACKAGES_URL} dist/*
+    - python -m twine upload -u ${PYPI_USER} -p ${PYPI_PASSWORD} dist/*
+  only:
+    - tags
 
 .install_template:
-   image: $CONTAINER_COMMIT_IMAGE-$ARCH
-   needs: ["image build: [amd64, zed]"]
-   tags:
-      - $RUNNER_TAG
-   script:
-      - echo "Apply optional runtime hot-fixes here."
-   parallel:
-      matrix:
-         - *matrix_arch_runner
+  image: $CONTAINER_COMMIT_IMAGE-$ARCH
+  needs: ["image build: [amd64, zed]"]
+  tags:
+    - $RUNNER_TAG
+  script:
+    - echo "Apply optional runtime hot-fixes here."
+  parallel:
+    matrix:
+      - *matrix_arch_runner
 
 .test_template:
-   stage: test
-   extends: .install_template
-   before_script:
-      - export COVERAGE_PROCESS_START=pyproject.toml
-      - pip install coverage_enable_subprocess
-   after_script:
-      - coverage combine -a
-      - coverage report -m
-      - coverage xml
-   coverage: '/[Tt][Oo][Tt][Aa][Ll].*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
-   artifacts:
-      name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-$ARCH-artifacts"
-      paths:
-         - "report.xml"
-         - "coverage.xml"
-         - "test_*.json"
-         - "test_*.pdf"
-      reports:
-         junit: report.xml
-         coverage_report:
-            coverage_format: cobertura
-            path: coverage.xml
-      expire_in: 2 hours
+  stage: test
+  extends: .install_template
+  before_script:
+    - export COVERAGE_PROCESS_START=pyproject.toml
+    - pip install coverage_enable_subprocess
+  after_script:
+    - coverage combine -a
+    - coverage report -m
+    - coverage xml
+  coverage: '/[Tt][Oo][Tt][Aa][Ll].*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-$ARCH-artifacts"
+    paths:
+      - "report.xml"
+      - "coverage.xml"
+      - "test_*.json"
+      - "test_*.pdf"
+    reports:
+      junit: report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    expire_in: 2 hours
 
 test/unit/serial:
-   extends: .test_template
-   script:
-      - coverage run -m pytest -vsx test/unit # FIXME: -n $(nproc)
+  extends: .test_template
+  script:
+    - coverage run -m pytest -vsx test/unit # FIXME: -n $(nproc)
 
 test/unit/parallel:
-   extends: .test_template
-   script:
-      - mpirun -n $(nproc) coverage run -m pytest -vsx test/unit
+  extends: .test_template
+  script:
+    - mpirun -n $(nproc) coverage run -m pytest -vsx test/unit
 
 test/convergence:
-   extends: .test_template
-   script:
-      - coverage run -m pytest -n $(nproc) -m 'convergence' -vsx test/convergence
-      - coverage run -m pytest -n $(nproc) -m 'postprocess' -vsx test/convergence
-   rules:
-      - if: ($DOLFINY_TEST_CONVERGENCE == "yes")
-      - exists:
-         - "test/convergence/*.py"
-        when: manual
-        allow_failure: true
+  extends: .test_template
+  script:
+    - coverage run -m pytest -n $(nproc) -m 'convergence' -vsx test/convergence
+    - coverage run -m pytest -n $(nproc) -m 'postprocess' -vsx test/convergence
+  rules:
+    - if: ($DOLFINY_TEST_CONVERGENCE == "yes")
+    - exists:
+        - "test/convergence/*.py"
+      when: manual
+      allow_failure: true
 
 .demo_template:
-   stage: demo
-   extends: .install_template
-   rules:
-      - if: ($CI_PIPELINE_SOURCE == "merge_request_event")
-      - if: ($CI_PIPELINE_SOURCE == "schedule")
-      - if: ($CI_PIPELINE_SOURCE == "push")
-        changes:
-         - "demo/*/*.py"
-      - exists: 
-         - "demo/*/*.py"
-        when: manual
-        allow_failure: true
-   artifacts:
-      name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-$ARCH-artifacts"
-      paths:
-         - "demo/*/*"
-      expire_in: 2 hours
-   variables:
-      PARALLEL: True
-   script:
-      - cd demo/$DIRECTORY
-      - mpirun -n 1 python $SCRIPT
-      - |
-         if $PARALLEL; then
-            mpirun -n $(nproc) python $SCRIPT
-         fi
+  stage: demo
+  extends: .install_template
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == "merge_request_event")
+    - if: ($CI_PIPELINE_SOURCE == "schedule")
+    - if: ($CI_PIPELINE_SOURCE == "push")
+      changes:
+        - "demo/*/*.py"
+    - exists:
+        - "demo/*/*.py"
+      when: manual
+      allow_failure: true
+  artifacts:
+    name: "$CI_PROJECT_NAME-$CI_JOB_NAME-$CI_COMMIT_REF_SLUG-$ARCH-artifacts"
+    paths:
+      - "demo/*/*"
+    expire_in: 2 hours
+  variables:
+    PARALLEL: True
+  script:
+    - cd demo/$DIRECTORY
+    - mpirun -n 1 python $SCRIPT
+    - |
+      if $PARALLEL; then
+         mpirun -n $(nproc) python $SCRIPT
+      fi
 
 bingham:
-   extends: .demo_template
-   variables:
-      DIRECTORY: bingham
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - bingham_block.py
-              - bingham_lm_block.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: bingham
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - bingham_block.py
+          - bingham_lm_block.py
 
 beam:
-   extends: .demo_template
-   variables:
-      DIRECTORY: beam
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - beam_curved_finitestrain_bstar.py
-              - beam_curved_finitestrain_bzero.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: beam
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - beam_curved_finitestrain_bstar.py
+          - beam_curved_finitestrain_bzero.py
 
 vsolid:
-   extends: .demo_template
-   variables:
-      DIRECTORY: vsolid
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - duffing.py
-              - solid_disp_tda.py
-              - solid_dispstress_tda.py
-              - solid_velostress_tda.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: vsolid
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - duffing.py
+          - solid_disp_tda.py
+          - solid_dispstress_tda.py
+          - solid_velostress_tda.py
 
 plasticity:
-   extends: .demo_template
-   variables:
-      DIRECTORY: plasticity
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - J2_monolithic.py
-              - rankine.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: plasticity
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - J2_monolithic.py
+          - rankine.py
 
 spectral:
-   extends: .demo_template
-   variables:
-      DIRECTORY: spectral
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - "solid_elasticity.py --formulation classic"
-              - "solid_elasticity.py --formulation spectral"
+  extends: .demo_template
+  variables:
+    DIRECTORY: spectral
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - "solid_elasticity.py --formulation classic"
+          - "solid_elasticity.py --formulation spectral"
 
 continuation:
-   extends: .demo_template
-   variables:
-      DIRECTORY: continuation
-      PARALLEL: "false"
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - continuation_planartruss.py
-              - continuation_planartruss_disp.py
-              - continuation_spatialtruss.py
-              - continuation_stardome.py
-              - continuation_schwedler.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: continuation
+    PARALLEL: "false"
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - continuation_planartruss.py
+          - continuation_planartruss_disp.py
+          - continuation_spatialtruss.py
+          - continuation_stardome.py
+          - continuation_schwedler.py
 
 tdnns:
-   extends: .demo_template
-   variables:
-      DIRECTORY: tdnns
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - solid_tdnns_2d_cantilever.py
-              - solid_tdnns_3d_cantilever.py
-              - solid_tdnns_3d_spanner.py
-              - solid_displ_3d_spanner.py
-              - solid_mixed_3d_spanner.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: tdnns
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - solid_tdnns_2d_cantilever.py
+          - solid_tdnns_3d_cantilever.py
+          - solid_tdnns_3d_spanner.py
+          - solid_displ_3d_spanner.py
+          - solid_mixed_3d_spanner.py
 
 units:
-   extends: .demo_template
-   variables:
-      DIRECTORY: units
-      PARALLEL: False
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - navier_stokes.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: units
+    PARALLEL: False
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - navier_stokes.py
 
 beltrami:
-   extends: .demo_template
-   variables:
-      DIRECTORY: beltrami
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - solid_stressonly.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: beltrami
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - solid_stressonly.py
 
 obstacle:
-   extends: .demo_template
-   variables:
-      DIRECTORY: obstacle
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - membrane.py
-              - montreal.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: obstacle
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - membrane.py
+          - montreal.py
 
 structural_optimisation:
-   extends: .demo_template
-   variables:
-      DIRECTORY: structural_optimisation
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - "truss_sizing.py --algorithm conlin"
-              - "truss_sizing.py --algorithm mma"
-              - "topopt_2d_cantilever.py --algorithm conlin"
-              - "topopt_2d_cantilever.py --algorithm mma"
+  extends: .demo_template
+  variables:
+    DIRECTORY: structural_optimisation
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - "truss_sizing.py --algorithm conlin"
+          - "truss_sizing.py --algorithm mma"
+          - "topopt_2d_cantilever.py --algorithm conlin"
+          - "topopt_2d_cantilever.py --algorithm mma"
 
 electrodiffusion:
-   extends: .demo_template
-   variables:
-      DIRECTORY: electrodiffusion
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           SCRIPT: 
-              - pnp_4species_steadystate.py
-              - pnp_4species_transient.py
-              - pnp_4species_steadystate_scaled.py
-              - diffusor_4species_steadystate.py
+  extends: .demo_template
+  variables:
+    DIRECTORY: electrodiffusion
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - pnp_4species_steadystate.py
+          - pnp_4species_transient.py
+          - pnp_4species_steadystate_scaled.py
+          - diffusor_4species_steadystate.py
 
 bookstrap:
-   stage: demo
-   extends: .install_template
-   tags:
-      - zed
-   rules:
-      - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-      - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
-            ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
-   before_script:
-      - cd book
-   script:
-      - python bookstrap.py --filter $REGEX
-   artifacts:
-      expire_in: 2 hours
-      paths:
-         - book/**/*.ipynb
-         - book/**/*.gif
-         - book/**/*.png
-         - book/**/*.jpg
-   parallel:
-      matrix:
-         - <<: *matrix_arch_runner
-           REGEX:
-            - obstacle/membrane.py 
-            - obstacle/montreal.py 
-            - spectral/solid_elasticity.py
-            - structural_optimisation/truss_sizing.py
-            - structural_optimisation/topopt_2d_cantilever.py
-            - structural_optimisation/topopt_3d_ge_bracket.py
-            - plasticity/J2_monolithic.py
-            - plasticity/rankine.py
-            - units/navier_stokes.py
-            - continuation/tdc_shell_naghdi_cylindrical_roof.py
-            - vsolid/solid_disp_tda.py
-   variables:
-      DOLFINY_LOG_PREFIX: "0"
+  stage: demo
+  extends: .install_template
+  tags:
+    - zed
+  rules:
+    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" &&
+        ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
+  before_script:
+    - cd book
+  script:
+    - python bookstrap.py --filter $REGEX
+  artifacts:
+    expire_in: 2 hours
+    paths:
+      - book/**/*.ipynb
+      - book/**/*.gif
+      - book/**/*.png
+      - book/**/*.jpg
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        REGEX:
+          - obstacle/membrane.py
+          - obstacle/montreal.py
+          - spectral/solid_elasticity.py
+          - structural_optimisation/truss_sizing.py
+          - structural_optimisation/topopt_2d_cantilever.py
+          - structural_optimisation/topopt_3d_ge_bracket.py
+          - plasticity/J2_monolithic.py
+          - plasticity/rankine.py
+          - units/navier_stokes.py
+          - continuation/tdc_shell_naghdi_cylindrical_roof.py
+          - vsolid/solid_disp_tda.py
+  variables:
+    DOLFINY_LOG_PREFIX: "0"
 
 book build:
-   stage: book
-   image: $CONTAINER_COMMIT_IMAGE-amd64
-   dependencies:
-      - bookstrap
-   script:
-      - apt-get -y update
-      - apt-get -y install nodejs npm
-      - cd book
-      - jupyter book build --html --strict
-   after_script:
-      - mv book/_build/html public
-   artifacts:
-      paths:
-         - public
-      expire_in: 2 hours
-   rules:
-      - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-      - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
-            ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
-        variables:
-            BASE_URL: "/mr-${CI_MERGE_REQUEST_IID}"
+  stage: book
+  image: $CONTAINER_COMMIT_IMAGE-amd64
+  dependencies:
+    - bookstrap
+  script:
+    - apt-get -y update
+    - apt-get -y install nodejs npm
+    - cd book
+    - jupyter book build --html --strict
+  after_script:
+    - mv book/_build/html public
+  artifacts:
+    paths:
+      - public
+    expire_in: 2 hours
+  rules:
+    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" &&
+        ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
+      variables:
+        BASE_URL: "/mr-${CI_MERGE_REQUEST_IID}"
 
 book release:
-   stage: release
-   script:
-      - echo "Book accessible at ${PAGES_URL}"
-   pages:
-      path_prefix: $PAGES_PREFIX
-      expire_in: $PAGES_EXPIRE
-   environment:
-      name: "Book ${PAGES_PREFIX}"
-      url: $PAGES_URL
-      auto_stop_in: 1 week
-   rules:
-      - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-        variables:
-           PAGES_PREFIX: ""
-           PAGES_URL: $CI_PAGES_URL
-           PAGES_EXPIRE: never
-      - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
-            ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
-        variables:
-           PAGES_PREFIX: "mr-${CI_MERGE_REQUEST_IID}"
-           PAGES_URL: $CI_PAGES_URL/mr-${CI_MERGE_REQUEST_IID}
-           PAGES_EXPIRE: 48 hours
+  stage: release
+  script:
+    - echo "Book accessible at ${PAGES_URL}"
+  pages:
+    path_prefix: $PAGES_PREFIX
+    expire_in: $PAGES_EXPIRE
+  environment:
+    name: "Book ${PAGES_PREFIX}"
+    url: $PAGES_URL
+    auto_stop_in: 1 week
+  rules:
+    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+      variables:
+        PAGES_PREFIX: ""
+        PAGES_URL: $CI_PAGES_URL
+        PAGES_EXPIRE: never
+    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" &&
+        ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
+      variables:
+        PAGES_PREFIX: "mr-${CI_MERGE_REQUEST_IID}"
+        PAGES_URL: $CI_PAGES_URL/mr-${CI_MERGE_REQUEST_IID}
+        PAGES_EXPIRE: 48 hours
