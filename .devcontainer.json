@@ -1,45 +1,54 @@
 {
-    "name": "dolfiny",
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "charliermarsh.ruff",
-                "gitlab.gitlab-workflow",
-                "ms-python.mypy-type-checker",
-                "ms-toolsai.jupyter",
-                "tamasfe.even-better-toml",
-                "Xrimson.bibtex-tidy"
-            ],
-            "settings": {
-                "[python]": {
-                    "editor.defaultFormatter": "charliermarsh.ruff",
-                    "editor.formatOnSave": true,
-                    "editor.codeActionsOnSave": {
-                        "source.fixAll.ruff": "explicit",
-                        "source.organizeImports.ruff": "explicit"
-                    }
-                },
-                "remote.autoForwardPorts": false,
-                "ruff.nativeServer": true,
-                "mypy-type-checker.preferDaemon": true,
-                "mypy-type-checker.reportingScope": "workspace",
-                "python.analysis.extraPaths": [
-                    "test"
-                ],
-                "python.venvPath": "/dolfinx-env"
-            }
-        }
-    },
-    "build": {
-        "dockerfile": "docker/Dockerfile",
-        "context": ".",
-        "options": [
-            "--progress",
-            "plain"
-        ]
-    },
-    "features": {
-        "ghcr.io/devcontainers/features/common-utils:2": {}
-    },
-    "postCreateCommand": "pip3 install --no-deps --editable ."
+  "name": "dolfiny",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "charliermarsh.ruff",
+        "esbenp.prettier-vscode",
+        "gitlab.gitlab-workflow",
+        "ms-python.mypy-type-checker",
+        "ms-toolsai.jupyter",
+        "tamasfe.even-better-toml",
+        "Xrimson.bibtex-tidy",
+        "openai.chatgpt"
+      ],
+      "settings": {
+        "[json]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        },
+        "[jsonc]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        },
+        "[markdown]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        },
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+        "remote.autoForwardPorts": false,
+        "ruff.nativeServer": true,
+        "mypy-type-checker.preferDaemon": true,
+        "mypy-type-checker.reportingScope": "workspace",
+        "python.analysis.extraPaths": ["test"],
+        "python.venvPath": "/dolfinx-env"
+      }
+    }
+  },
+  "build": {
+    "dockerfile": "docker/Dockerfile",
+    "context": ".",
+    "options": ["--progress", "plain"]
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {}
+  },
+  "postCreateCommand": "pip3 install --no-deps --editable ."
 }
