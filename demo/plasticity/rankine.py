@@ -126,6 +126,8 @@
 # $\sigma_{yy}$ below refers to the normal stress in the loading direction.
 
 # %% tags=["hide-input", "hide-output"]
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -142,6 +144,8 @@ from mesh_perforated import mesh_perforated
 
 import dolfiny
 from dolfiny.units import Quantity
+
+warnings.filterwarnings("error")
 
 comm = MPI.COMM_WORLD
 name = "rankine"

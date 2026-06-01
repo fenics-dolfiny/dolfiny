@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import warnings
 from collections import namedtuple
 
 from mpi4py import MPI
@@ -16,6 +17,8 @@ import numpy as np
 import plot_diffusor_pyvista as pl
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 # references:
 # https://doi.org/10.1524/zpch.1954.1.5_6.305

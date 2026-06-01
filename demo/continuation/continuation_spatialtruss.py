@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -14,6 +16,8 @@ import numpy as np
 
 import dolfiny
 from dolfiny.expression import normalize
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "continuation_spatialtruss"

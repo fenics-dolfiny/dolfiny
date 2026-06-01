@@ -27,6 +27,8 @@
 #
 # ---
 # %% tags=["hide-input"]
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -42,6 +44,8 @@ import numpy as np
 import pyvista
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 comm = MPI.COMM_WORLD
 # %% [markdown]
@@ -191,7 +195,11 @@ support_boxes = pyvista.MultiBlock(
     ]
 )
 
-plotter.add_mesh(support_boxes.combine().extract_surface(), color="green", label="Support")
+plotter.add_mesh(
+    support_boxes.combine().extract_surface(algorithm="dataset_surface"),
+    color="green",
+    label="Support",
+)
 plotter.add_legend()
 plotter.show()
 plotter.close()
@@ -342,7 +350,7 @@ def fixed_boundary_data() -> tuple[dolfinx.fem.Function, dolfinx.fem.Function]:
         )
     )
 
-    V_bdy = dolfinx.fem.functionspace(boundary_mesh, ("CG", 1))
+    V_bdy = dolfinx.fem.functionspace(boundary_mesh, ("P", 1))
     h = dolfinx.fem.Function(V_bdy)
 
     for i in range(boundary_geometry.shape[0]):

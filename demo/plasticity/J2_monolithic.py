@@ -113,6 +113,8 @@
 # the scalar load factor $\mu \in [-1, 1]$ scales the reference boundary displacement field.
 
 # %% tags=["hide-input", "hide-output"]
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -128,6 +130,8 @@ import sympy.physics.units as syu
 
 import dolfiny
 from dolfiny.units import Quantity
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "J2_monolithic"

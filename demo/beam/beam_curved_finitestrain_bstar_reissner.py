@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -17,6 +19,8 @@ import sympy.physics.units as syu
 import dolfiny
 from dolfiny.expression import normalize
 from dolfiny.units import Quantity
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "beam_curved_finitestrain_bstar_reissner"

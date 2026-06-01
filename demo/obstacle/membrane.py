@@ -94,6 +94,8 @@
 #
 
 # %% tags=["hide-input", "hide-output"]
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -105,6 +107,8 @@ import pyvista
 
 import dolfiny
 import dolfiny.taoproblem
+
+warnings.filterwarnings("error")
 
 comm = MPI.COMM_WORLD
 

@@ -15,6 +15,7 @@
 #
 # %% tags=["hide-input"]
 import argparse
+import warnings
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -28,6 +29,8 @@ import numpy as np
 import pyvista as pv
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 output = False
 parser = argparse.ArgumentParser(description="Topology optimisation of a 2D cantilever beam")

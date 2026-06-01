@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -12,6 +14,8 @@ import gmsh
 import mesh_block3d_gmshapi as mg
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "solid_dispstress_tda"

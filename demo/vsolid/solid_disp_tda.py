@@ -24,6 +24,8 @@
 # The mesh is generated with `gmsh`.
 #
 # %% tags=["hide-input"]
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -38,6 +40,8 @@ import numpy as np
 import pyvista
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "solid_disp_tda"
@@ -266,7 +270,6 @@ if comm.size == 1:
         grid.point_data["u"] = disp_mag
         grid.points = orig_points + vals
 
-        plotter_disp.update_scalars(disp_mag, mesh=grid)
         plotter_disp.write_frame()
 
     plot_step(uo)

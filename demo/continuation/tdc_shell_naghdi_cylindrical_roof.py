@@ -26,6 +26,8 @@
 
 # %% tags=["hide-input"]
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -39,6 +41,8 @@ import numpy as np
 import pyvista
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 name = "tdc_shell_naghdi_cylindrical_roof"
 comm = MPI.COMM_WORLD
@@ -328,7 +332,7 @@ def plot_roof_pyvista(u, s, png, comm=MPI.COMM_WORLD):
     levels = 5 if not grid.get_cell(0).is_linear else 0
 
     surf = plotter.add_mesh(
-        grid_warped.extract_surface(nonlinear_subdivision=levels),
+        grid_warped.extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface"),
         scalars="stress",
         scalar_bar_args={"title": "Bending stress resultant [-]"},
         n_colors=10,
@@ -338,7 +342,7 @@ def plot_roof_pyvista(u, s, png, comm=MPI.COMM_WORLD):
 
     plotter.add_mesh(
         grid_warped.separate_cells()
-        .extract_surface(nonlinear_subdivision=levels)
+        .extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface")
         .extract_feature_edges(),
         style="wireframe",
         color="black",

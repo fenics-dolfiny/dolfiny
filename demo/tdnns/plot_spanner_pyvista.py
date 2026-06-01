@@ -63,7 +63,7 @@ def plot_spanner_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=
         levels = 0
 
     s = plotter.add_mesh(
-        grid_warped.extract_surface(nonlinear_subdivision=levels),
+        grid_warped.extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface"),
         scalars="s",
         scalar_bar_args={"title": "von Mises stress [GPa]"},
         n_colors=10,
@@ -74,7 +74,7 @@ def plot_spanner_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=
     if options["wire_deformed"]:
         plotter.add_mesh(
             grid_warped.separate_cells()
-            .extract_surface(nonlinear_subdivision=levels)
+            .extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface")
             .extract_feature_edges(),
             style="wireframe",
             color="black",
@@ -85,7 +85,7 @@ def plot_spanner_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=
     if options["wire_undeformed"]:
         plotter.add_mesh(
             grid.separate_cells()
-            .extract_surface(nonlinear_subdivision=levels)
+            .extract_surface(nonlinear_subdivision=levels, algorithm="dataset_surface")
             .extract_feature_edges(),
             style="wireframe",
             color="lightgray",

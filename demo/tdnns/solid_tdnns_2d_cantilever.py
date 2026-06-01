@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import warnings
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -12,6 +14,8 @@ import hdivdiv
 import numpy as np
 
 import dolfiny
+
+warnings.filterwarnings("error")
 
 # Basic settings
 name = "solid_tdnns_2d_cantilever"
@@ -208,7 +212,9 @@ if comm.rank == 0:
     subdivision_levels = 4 if not grid.get_cell(0).is_linear else 0
 
     plotter.add_mesh(
-        grid_warped.extract_surface(nonlinear_subdivision=subdivision_levels),
+        grid_warped.extract_surface(
+            nonlinear_subdivision=subdivision_levels, algorithm="dataset_surface"
+        ),
         scalars="s",
         scalar_bar_args={"title": "von Mises stress"},
         n_colors=10,
@@ -216,7 +222,7 @@ if comm.rank == 0:
 
     plotter.add_mesh(
         grid_warped.separate_cells()
-        .extract_surface(nonlinear_subdivision=subdivision_levels)
+        .extract_surface(nonlinear_subdivision=subdivision_levels, algorithm="dataset_surface")
         .extract_feature_edges(),
         style="wireframe",
         color="black",
