@@ -13,6 +13,7 @@ workflow:
    auto_cancel:
       on_new_commit: interruptible
    rules:
+      - if: $CI_COMMIT_TAG
       - if: $CI_PIPELINE_SOURCE == "merge_request_event"
       - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
         when: never
@@ -27,6 +28,10 @@ default:
 ruff:
    stage: lint
    image: dolfinx/dev-env:current
+   rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - when: on_success
    script:
       - pip install ruff
       - ruff format --check
@@ -35,6 +40,10 @@ ruff:
 mypy:
    stage: lint
    image: dolfinx/dolfinx:v0.10.0
+   rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - when: on_success
    script:
       - pip install .[typing]
       - mypy -p dolfiny
@@ -43,6 +52,10 @@ mypy:
 typos:
    stage: lint
    image: python:3.13-slim
+   rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - when: on_success
    script:
       - pip install typos==1.36.3
       - typos
@@ -133,6 +146,10 @@ wheel release:
 .test_template:
    stage: test
    extends: .install_template
+   rules:
+      - if: $CI_COMMIT_TAG
+        when: never
+      - when: on_success
    before_script:
       - export COVERAGE_PROCESS_START=pyproject.toml
       - pip install coverage_enable_subprocess
@@ -171,6 +188,8 @@ test/convergence:
       - coverage run -m pytest -n $(nproc) -m 'convergence' -vsx test/convergence
       - coverage run -m pytest -n $(nproc) -m 'postprocess' -vsx test/convergence
    rules:
+      - if: $CI_COMMIT_TAG
+        when: never
       - if: ($DOLFINY_TEST_CONVERGENCE == "yes")
       - exists:
          - "test/convergence/*.py"
@@ -181,6 +200,8 @@ test/convergence:
    stage: demo
    extends: .install_template
    rules:
+      - if: $CI_COMMIT_TAG
+        when: never
       - if: ($CI_PIPELINE_SOURCE == "merge_request_event")
       - if: ($CI_PIPELINE_SOURCE == "schedule")
       - if: ($CI_PIPELINE_SOURCE == "push")
@@ -326,6 +347,8 @@ bookstrap:
    tags:
       - zed
    rules:
+      - if: $CI_COMMIT_TAG
+        when: never
       - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
       - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
             ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
@@ -366,6 +389,8 @@ book build:
          - public
       expire_in: 2 hours
    rules:
+      - if: $CI_COMMIT_TAG
+        when: never
       - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
       - if: ($CI_PIPELINE_SOURCE == "merge_request_event" && 
             ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
@@ -384,6 +409,8 @@ book release:
       url: $CI_PAGES_URL
       auto_stop_in: 1 week
    rules:
+      - if: $CI_COMMIT_TAG
+        when: never
       - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
         variables:
            PAGES_PREFIX: ""
