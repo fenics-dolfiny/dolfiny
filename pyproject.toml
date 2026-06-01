@@ -7,9 +7,9 @@ name = "dolfiny"
 version = "0.11.0dev0"
 description = "High-level and convenience wrappers for DOLFINx, the FEniCS library."
 authors = [
-      { name = "Andreas Zilian", email = "andreas.zilian@uni.lu" },
-      { name = "Michal Habera", email = "michal.habera@gmail.com" },
-      { name = "Paul T. Kühner", email = "paul.kuehner@uni.lu" },
+  { name = "Andreas Zilian", email = "andreas.zilian@uni.lu" },
+  { name = "Michal Habera", email = "michal.habera@gmail.com" },
+  { name = "Paul T. Kühner", email = "paul.kuehner@uni.lu" },
 ]
 readme = "README.md"
 requires-python = ">=3.10.0"
@@ -54,21 +54,21 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-      "D",   # pydocstyle
-      "E",   # pycodestyle
-      "W",   # pycodestyle
-      "F",   # pyflakes
-      "I",   # isort - use standalone isort
-      "RUF", # Ruff-specific rules
-      "UP",  # pyupgrade
-      "ICN", # flake8-import-conventions
-      "NPY", # numpy-specific rules
-      "FLY", # use f-string not static joins
+  "D",   # pydocstyle
+  "E",   # pycodestyle
+  "W",   # pycodestyle
+  "F",   # pyflakes
+  "I",   # isort - use standalone isort
+  "RUF", # Ruff-specific rules
+  "UP",  # pyupgrade
+  "ICN", # flake8-import-conventions
+  "NPY", # numpy-specific rules
+  "FLY", # use f-string not static joins
 ]
 ignore = [
-      "D1",   # undocumented
-      "D203", # incompatible with D203 `no-blank-line-before-class`
-      "D213", # incomptabile with D212 `multi-line-summary-first-line`
+  "D1",   # undocumented
+  "D203", # incompatible with D203 `no-blank-line-before-class`
+  "D213", # incomptabile with D212 `multi-line-summary-first-line`
 ]
 
 allowed-confusables = ["σ", "×"]
@@ -80,13 +80,13 @@ allowed-confusables = ["σ", "×"]
 known-first-party = ["dolfiny"]
 known-third-party = ["cppyy", "gmsh", "numba", "numpy", "pytest", "pyvista"]
 section-order = [
-      "future",
-      "standard-library",
-      "mpi",
-      "fenics",
-      "third-party",
-      "first-party",
-      "local-folder",
+  "future",
+  "standard-library",
+  "mpi",
+  "fenics",
+  "third-party",
+  "first-party",
+  "local-folder",
 ]
 
 [tool.ruff.lint.isort.sections]
