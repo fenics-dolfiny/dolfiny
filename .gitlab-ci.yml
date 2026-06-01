@@ -72,6 +72,15 @@ bibtex-tidy:
       - npm install -g bibtex-tidy
       - bibtex-tidy book/references.bib --v2 | diff -u book/references.bib -
 
+
+prettier:
+  stage: lint
+  image: node:current-alpine
+  script:
+    - npm install prettier prettier-plugin-toml
+    - npx prettier . --check --plugin prettier-plugin-toml
+
+
 image build:
    stage: image
    needs: []
