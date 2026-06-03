@@ -118,7 +118,7 @@ ct = dolfinx.fem.Function(Cf, name="ct")  # rate of concentration
 m, mt, δm = [c, φ], [ct, φt], [δc, δφ]
 
 # Create other functions: output / visualisation
-vorder = mesh.geometry.cmap().degree
+vorder = mesh.geometry.cmaps[0].degree
 co = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (n,))), name="c")
 φo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="φ")
 

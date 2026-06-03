@@ -64,7 +64,7 @@ u_ = dolfinx.fem.Function(Uf, name="u_")  # boundary conditions
 m = [u]
 
 # Create other functions: output / visualisation
-vorder = mesh.geometry.cmap().degree
+vorder = mesh.geometry.cmaps[0].degree
 So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3, 3), True)), name="S")
 uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder, (3,))), name="u")
 so = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", vorder)), name="s")
