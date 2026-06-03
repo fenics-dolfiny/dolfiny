@@ -139,11 +139,11 @@ def locate_dofs_geometrical(V, meshtags, value, exclude_dofs=None, unroll=False)
             connect_node_vertex = mesh.topology.connectivity(0, 0)
             connect_cell_vertex = mesh.topology.connectivity(mesh.topology.dim, 0)
 
-            vertices_per_cell = mesh.geometry.dofmap.shape[1]
+            vertices_per_cell = mesh.geometry.dofmaps[0].shape[1]
             v2n = empty(connect_node_vertex.num_nodes, dtype=int32)
             c2v = connect_cell_vertex.array.reshape(-1, vertices_per_cell)
 
-            v2n[c2v] = mesh.geometry.dofmap
+            v2n[c2v] = mesh.geometry.dofmaps[0]
 
             local_dof_idx = v2n[meshtags.indices[match]]
 

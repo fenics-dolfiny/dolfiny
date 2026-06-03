@@ -296,7 +296,7 @@ class LocalSolver:
             self.stacked_constants[-1][1][1] if len(self.stacked_constants) > 0 else 0
         )
 
-        num_coordinate_dofs = self.function_spaces[0].mesh.geometry.dofmap.shape[1]
+        num_coordinate_dofs = self.function_spaces[0].mesh.geometry.dofmaps[0].shape[1]
 
         # Extract number of coeffs/consts for later use in compile-time branch
         # elimination
@@ -475,7 +475,7 @@ class LocalSolver:
             shape = (sizes[indices[0]], sizes[indices[1]])
 
         code = ""
-        num_coordinate_dofs = self.function_spaces[0].mesh.geometry.dofmap.shape[1]
+        num_coordinate_dofs = self.function_spaces[0].mesh.geometry.dofmaps[0].shape[1]
 
         alloc_code = ""
         copy_code = ""
