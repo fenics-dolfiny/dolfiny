@@ -43,7 +43,7 @@ class Plotter:
 
     def interpolate_on_mesh(self, mesh, q, u):
         # Extract mesh geometry nodal coordinates
-        dm = mesh.geometry.dofmap
+        dm = mesh.geometry.dofmaps[0]
         oq = [0, *range(2, q + 1), 1]  # reorder lineX nodes: all ducks in a row...
         x0_idx = dm[:, oq].flatten()
         x0 = mesh.geometry.x[x0_idx]

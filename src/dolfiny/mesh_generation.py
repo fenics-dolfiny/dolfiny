@@ -41,7 +41,7 @@ def create_truss_x_braced_mesh(
 
     assert mesh is not None
 
-    if mesh.geometry.cmap().degree != 1:
+    if mesh.geometry.cmaps[0].degree != 1:
         raise RuntimeError("Only 1st order coordinate elements are supported.")
 
     cell_type = mesh.topology.cell_type
