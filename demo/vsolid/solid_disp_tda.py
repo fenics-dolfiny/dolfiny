@@ -68,12 +68,20 @@ surface_right = mesh_data.physical_groups["surface_right"].tag
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
 ds = ufl.Measure("ds", domain=mesh, subdomain_data=mesh_data.facet_tags)
 
+fixed_boundary_marker = pyvista.Plane(
+    center=(0.0, dimensions[1] / 2, dimensions[2] / 2),
+    direction=(1.0, 0.0, 0.0),
+    i_size=5 * dimensions[2],
+    j_size=10 * dimensions[1],
+)
+
 if comm.size == 1:
     grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
     plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_mesh(
         grid, show_edges=True, color="white", line_width=dolfiny.pyvista.pixels // 1000
     )
+    plotter.add_mesh(fixed_boundary_marker, color="gray", opacity=0.4)
     plotter.show_axes()
     plotter.camera_position = [(3.5, 1.2, -2.2), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
     plotter.screenshot("solid_disp_tda_mesh.png")
@@ -259,6 +267,7 @@ if comm.size == 1:
     actor = plotter_disp.add_mesh(
         grid, scalars="u", n_colors=10, scalar_bar_args={"position_y": 0.85}, clim=(0, 0.25)
     )
+    plotter_disp.add_mesh(fixed_boundary_marker, color="gray", opacity=0.4)
     plotter_disp.show_axes()
     plotter_disp.camera_position = [(3.5, 1.2, -2.2), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
     plotter_disp.camera.zoom(1.5)
