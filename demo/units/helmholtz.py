@@ -45,53 +45,45 @@ mesh = dolfinx.mesh.create_unit_square(comm, 2, 2)
 V = dolfinx.fem.functionspace(mesh, ("P", 1))
 
 u = dolfinx.fem.Function(V, name="u")
-f = dolfinx.fem.Function(V, name="rhs")
+f = dolfinx.fem.Function(V, name="source")
 v = ufl.TestFunction(V)
 
-ell = Quantity(mesh, 1.0, syu.meter, "ell")
 kappa = Quantity(mesh, 2.0, 1 / syu.meter, "kappa")
+
+l_ref = Quantity(mesh, 1.0, syu.meter, "l_ref")
 u_ref = Quantity(mesh, 3.0, syu.kelvin, "u_ref")
 
-quantities = [ell, kappa, u_ref]
+quantities = [l_ref, kappa, u_ref] # TODO: reorder?
 
-print("Step 2: weak form and mapping")
-dx = ufl.dx(domain=mesh)
+term_source = f * v * ufl.dx
+term_diff = (1 / kappa**2) * ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
 terms = {
-    "diffusion": (1 / kappa**2) * ufl.inner(ufl.grad(u), ufl.grad(v)) * dx,
-    "rhs": f * v * dx,
+    "diffusion": term_diff,
+    "source": term_source,
 }
 mapping = {
-    mesh.ufl_domain(): ell,
+    mesh.ufl_domain(): l_ref,
     u: u_ref * u,
     f: u_ref * f,
     v: u_ref * v,
 }
 
 transformed_terms = transform(terms, mapping)
-assert isinstance(transformed_terms, dict)
-assert set(transformed_terms) == { "diffusion", "rhs"}
+assert transformed_terms.keys() == { "diffusion", "source"}
 
-print("Step 3: dimensional checks")
 dimsys = syu.si.SI.get_dimension_system()
 diffusion_dim = get_dimension(transformed_terms["diffusion"], quantities)
-rhs_dim = get_dimension(transformed_terms["rhs"], quantities)
+rhs_dim = get_dimension(transformed_terms["source"], quantities)
 
-print("Step 4: factorization and normalization")
-factorized_terms = factorize(transformed_terms, quantities, mode="factorize")
+# factorize
+factorized_terms = factorize(transformed_terms, quantities, mode="check")
 assert np.allclose(factorized_terms["diffusion"].factor, np.array([0.0, -2.0, 2.0]))
-assert np.allclose(factorized_terms["rhs"].factor, np.array([2.0, 0.0, 2.0]))
+assert np.allclose(factorized_terms["source"].factor, np.array([2.0, 0.0, 2.0]))
 
-# normalized_terms = normalize(factorized_terms, "mass", quantities)
-# normalized_diffusion = factorize(normalized_terms["diffusion"], quantities, mode="factorize")
-# assert np.allclose(normalized_diffusion.factor, np.array([-2.0, -2.0, 0.0]))
-
-print("Step 5: Buckingham Pi analysis")
+# buckingham pi
 dim_matrix, base_dims, pi_groups = buckingham_pi_analysis(quantities)
 assert dim_matrix.shape == (len(base_dims), len(quantities))
 assert len(pi_groups) == 1
 
 pi_expr = sy.simplify(expand(list(pi_groups[0]), [q.symbol for q in quantities]))
-assert sy.simplify(pi_expr - ell.symbol * kappa.symbol) == 0
-
-print("Helmholtz demo completed successfully.")
-
+assert sy.simplify(pi_expr - l_ref.symbol * kappa.symbol) == 0
