@@ -1,3 +1,22 @@
+"""
++--------------------------------------------+
+| Minimal Helmholtz dimensional demo         |
++--------------------------------------------+
+
+PDE
+---
+
+    -∇ · (κ^-2 ∇u) + u = rhs
+
+Units
+-----
+
+    [x]     = l = L
+    [u]     = u_ref = Θ
+    [rhs]   = u_ref = Θ
+    [κ]     = l^-1 = L^-1
+"""
+
 from mpi4py import MPI
 
 import dolfinx
