@@ -64,9 +64,7 @@ mapping = {
     v: u_ref * v,
 }
 
-form = sum(terms.values(), ufl.form.Zero())
-
-quantities = dolfiny.units.collect_quantities(form, mapping=mapping)
+quantities = dolfiny.units.collect_quantities(sum(terms.values(), ufl.form.Zero()), mapping=mapping)
 assert set(quantities) == {l_ref, kappa, u_ref}
 
 # Buckingham Pi analysis
