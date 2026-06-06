@@ -31,10 +31,30 @@ def mesh_perforated(name="perforated", comm=MPI.COMM_WORLD, clscale=0.2, extrude
         gmsh.option.setNumber("Mesh.CharacteristicLengthFromPoints", 0)
         gmsh.option.setNumber("Mesh.CharacteristicLengthFromCurvature", 0)
         gmsh.option.setNumber("Mesh.CharacteristicLengthExtendFromBoundary", 0)
-        gmsh.option.setNumber("Mesh.CharacteristicLengthMin", clscale / 2)
-        gmsh.option.setNumber("Mesh.CharacteristicLengthMax", clscale)
+        gmsh.option.setNumber("Mesh.CharacteristicLengthMin", h_min := clscale)
+        gmsh.option.setNumber("Mesh.CharacteristicLengthMax", h_max := 10 * clscale)
 
         gmsh.model.occ.synchronize()
+
+        # Adaptive mesh sizing (with background mesh)
+        strip_points = [
+            gmsh.model.occ.addPoint(x_c, y_c, 0.5 * extrude_z) for (x_c, y_c), _ in holes
+        ]
+
+        gmsh.model.occ.synchronize()
+
+        field_dist = gmsh.model.mesh.field.add("Distance")
+        gmsh.model.mesh.field.setNumbers(field_dist, "PointsList", strip_points)
+        gmsh.model.mesh.field.setNumber(field_dist, "Sampling", 100)
+
+        field_th = gmsh.model.mesh.field.add("Threshold")
+        gmsh.model.mesh.field.setNumber(field_th, "InField", field_dist)
+        gmsh.model.mesh.field.setNumber(field_th, "SizeMin", h_min)
+        gmsh.model.mesh.field.setNumber(field_th, "SizeMax", h_max)
+        gmsh.model.mesh.field.setNumber(field_th, "DistMin", 0.00)
+        gmsh.model.mesh.field.setNumber(field_th, "DistMax", 0.30)
+        gmsh.model.mesh.field.setAsBackgroundMesh(field_th)
+
         gmsh.model.addPhysicalGroup(3, [tag for dim, tag in extruded if dim == 3])
 
         gmsh.model.mesh.generate()
