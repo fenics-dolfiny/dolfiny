@@ -191,9 +191,9 @@ ofile.close()
 
 # Read results and plot using pyvista (all in serial)
 if comm.rank == 0:
-    import pyvista
+    import pyvista as pv
 
-    class Xdmf3Reader(pyvista.XdmfReader):
+    class Xdmf3Reader(pv.XdmfReader):
         _vtk_module_name = "vtkIOXdmf3"
         _vtk_class_name = "vtkXdmf3Reader"
 
@@ -205,7 +205,7 @@ if comm.rank == 0:
     grid.point_data["S"] = multiblock[1].point_data["S"]
     grid.point_data["s"] = multiblock[2].point_data["s"]
 
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
 
     grid_warped = grid.warp_by_vector("u", factor=1.0)
 

@@ -41,7 +41,7 @@ import ufl
 import gmsh
 import matplotlib.pyplot as plt
 import numpy as np
-import pyvista
+import pyvista as pv
 
 import dolfiny
 
@@ -163,25 +163,25 @@ plt.show()
 # | label: fig-montreal-3d
 # | caption: Three-dimensional view of the roof boundary with support trusses rendered as
 # |          boxes at their respective heights.
-plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
+plotter = pv.Plotter(theme=dolfiny.pyvista.theme)
 
 geometry_proj = geometry.copy()
 geometry_proj[:, 2] = 0
-floor_plan = pyvista.PolyData(
+floor_plan = pv.PolyData(
     geometry_proj,
     np.append(geometry.shape[0], np.append(np.arange(0, geometry.shape[0]), [0])),
 ).triangulate()
 plotter.add_mesh(floor_plan, opacity=0.5, label="Floor Plan (top-down view)")
 plotter.add_mesh(
-    pyvista.PolyData(geometry),
+    pv.PolyData(geometry),
     color="black",
     point_size=dolfiny.pyvista.pixels // 100,
     label="Fixtures",
 )
 width = 1
-support_boxes = pyvista.MultiBlock(
+support_boxes = pv.MultiBlock(
     [
-        pyvista.Box(
+        pv.Box(
             (
                 p[0] - 0.5 * width,
                 p[0] + 0.5 * width,
@@ -287,8 +287,8 @@ mesh_data = mesh_pavillon()
 mesh = mesh_data.mesh
 facet_tags = mesh_data.facet_tags
 
-pv_grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh, 2))
-plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
+pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh, 2))
+plotter = pv.Plotter(theme=dolfiny.pyvista.theme)
 plotter.add_mesh(pv_grid, show_edges=True)
 plotter.add_axes()
 plotter.view_xy()
@@ -454,12 +454,12 @@ if comm.allreduce(dolfinx.fem.assemble_scalar(dolfinx.fem.form(S(g)))) >= comm.a
 
 
 def plot(f):
-    pv_grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh, 2))
+    pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh, 2))
     surface = np.zeros((V.dofmap.index_map.size_local + V.dofmap.index_map.num_ghosts, 3))
     surface[:, 2:3] = f.x.array.reshape(-1, 1)
     pv_grid.point_data[f.name] = surface
     pv_grid.warp_by_vector(f.name, inplace=True)
-    plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
+    plotter = pv.Plotter(theme=dolfiny.pyvista.theme)
     plotter.add_mesh(pv_grid, scalars=f.name, scalar_bar_args={"title": "Surface deflection [m]"})
     plotter.add_axes()
     plotter.camera.parallel_projection = False

@@ -138,7 +138,7 @@ import ufl
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pyvista
+import pyvista as pv
 import sympy.physics.units as syu
 from mesh_perforated import mesh_perforated
 
@@ -194,8 +194,8 @@ H = Quantity(mesh, 0.1, GPa, "H", us)  # isotropic hardening modulus
 u_ref = Quantity(mesh, 1, syu.meter, "u_ref", us)  # reference length scale
 
 if comm.size == 1:
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_mesh(
         grid, show_edges=True, color="white", line_width=dolfiny.pyvista.pixels // 1000
     )
@@ -611,7 +611,7 @@ for step, factor in enumerate(cycle):
 
 if comm.size == 1:
     # Build pyvista grid and attach displacement (padded to 3 components for warping)
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(uo.function_space.mesh))
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(uo.function_space.mesh))
     u_arr = np.zeros((uo.x.array.reshape(-1, gdim).shape[0], 3))
     u_arr[:, :gdim] = uo.x.array.reshape(-1, gdim)
     grid.point_data["u"] = u_arr
@@ -620,7 +620,7 @@ if comm.size == 1:
     # Attach cell data from DG0 field
     grid_warped.cell_data["eps_p"] = eps_p.x.array
 
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_mesh(
         grid_warped,
         scalars="eps_p",

@@ -1,6 +1,6 @@
-from pyvista import themes
+import pyvista as pv
 
-theme = themes.DocumentTheme()
+theme = pv.themes.DocumentTheme()
 
 pixels = 2 * 1024
 theme.window_size = (pixels, pixels)

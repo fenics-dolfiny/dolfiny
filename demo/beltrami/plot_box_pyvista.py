@@ -2,12 +2,12 @@
 
 from mpi4py import MPI
 
-import pyvista
+import pyvista as pv
 
 import dolfiny
 
 
-class Xdmf3Reader(pyvista.XdmfReader):
+class Xdmf3Reader(pv.XdmfReader):
     _vtk_module_name = "vtkIOXdmf3"
     _vtk_class_name = "vtkXdmf3Reader"
 
@@ -39,7 +39,7 @@ def plot_box_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=MPI.
     grid.point_data["S"] = multiblock[1].point_data["S"]
     grid.point_data["s"] = multiblock[2].point_data["s"]
 
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     factor = options["u_factor"]  # scaling factor, warped deformation
 
     plotter.add_text(

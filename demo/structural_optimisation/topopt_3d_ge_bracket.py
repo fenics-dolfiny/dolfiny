@@ -71,18 +71,19 @@ import warnings
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from petsc4py.PETSc import ScalarType  # type: ignore
 
 import dolfinx
 import ufl
 
 import gmsh
 import numpy as np
-import pyvista
+import pyvista as pv
 import sympy.physics.units as syu
 
 import dolfiny
 from dolfiny.units import Quantity
+
+ScalarType = PETSc.ScalarType  # type: ignore
 
 warnings.filterwarnings("error")
 
@@ -153,8 +154,8 @@ bolts_tag = mesh_data.physical_groups["bolts"].tag
 # | label: fig-bracket-mesh
 # | caption: Tetrahedral mesh of the GE bracket geometry.
 if comm.size == 1:
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_mesh(
         grid, show_edges=True, color="white", line_width=dolfiny.pyvista.pixels // 1000
     )
@@ -440,12 +441,12 @@ for name in load_conditions.keys():
 
 # Plot subplots for all load cases
 if comm.size == 1:
-    plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme, shape=(2, 2))
+    plotter = pv.Plotter(theme=dolfiny.pyvista.theme, shape=(2, 2))
 
     for i, name in enumerate(load_conditions.keys()):
         plotter.subplot(i // 2, i % 2)
         u_lc = load_conditions[name]["u"]
-        grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u_lc.function_space.mesh))  # type: ignore
+        grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u_lc.function_space.mesh))  # type: ignore
 
         assert isinstance(u_lc, dolfinx.fem.Function)  # type: ignore
         grid.point_data["u"] = u_lc.x.array.reshape((-1, 3)) * 1000  # type: ignore # displacement in mm
@@ -705,12 +706,12 @@ problem.solve()
 # |   Filtered density field $\hat{\rho}$ clipped at 0.5, showing the optimised
 # |   solid structure from two viewpoints.
 if comm.size == 1:
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(ρ_f.function_space.mesh))
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(ρ_f.function_space.mesh))
 
     grid.point_data["density-filtered"] = ρ_f.x.array
     grid_clipped = grid.clip_scalar(scalars="density-filtered", invert=False, value=0.5)
 
-    plotter = pyvista.Plotter(
+    plotter = pv.Plotter(
         off_screen=True,
         theme=dolfiny.pyvista.theme,
         shape=(1, 2),

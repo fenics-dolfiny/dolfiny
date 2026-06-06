@@ -19,7 +19,6 @@ import warnings
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from petsc4py.PETSc import ScalarType  # type: ignore
 
 import dolfinx
 import dolfinx.fem.petsc
@@ -29,6 +28,8 @@ import numpy as np
 import pyvista as pv
 
 import dolfiny
+
+ScalarType = PETSc.ScalarType  # type: ignore
 
 warnings.filterwarnings("error")
 
