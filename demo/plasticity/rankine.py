@@ -149,7 +149,7 @@ warnings.filterwarnings("error")
 
 comm = MPI.COMM_WORLD
 name = "rankine"
-gmsh_model, tdim = mesh_perforated(name, clscale=0.02, extrude_z=0.05)
+gmsh_model, tdim = mesh_perforated(name, clscale=0.004, extrude_z=0.05)
 
 # Get mesh and meshtags
 mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh_model, comm, rank=0)
