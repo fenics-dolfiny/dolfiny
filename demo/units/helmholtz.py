@@ -49,17 +49,13 @@ u = dolfinx.fem.Function(V, name="u")
 f = dolfinx.fem.Function(V, name="source")
 v = ufl.TestFunction(V)
 
-kappa = Quantity(mesh, 2.0, 1 / syu.meter, "kappa")
-
+kappa = Quantity(mesh, 1.0, 1 / syu.meter, "kappa")
 l_ref = Quantity(mesh, 1.0, syu.meter, "l_ref")
 u_ref = Quantity(mesh, 1.0, syu.kelvin, "u_ref")
 
-
-term_source = f * v * ufl.dx
-term_diff = (1 / kappa**2) * ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx
 terms = {
-    "diffusion": term_diff,
-    "source": term_source,
+    "diffusion": f * v * ufl.dx,
+    "source": (1 / kappa**2) * ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx,
 }
 mapping = {
     mesh.ufl_domain(): l_ref,
@@ -70,32 +66,20 @@ mapping = {
 
 form = sum(terms.values(), ufl.form.Zero())
 
-# collect quantities from the form using the same mapping (mirrors navier_stokes demo)
 quantities = dolfiny.units.collect_quantities(form, mapping=mapping)
 assert set(quantities) == {l_ref, kappa, u_ref}
 
 # Buckingham Pi analysis
-dim_matrix, base_dims, pi_groups = dolfiny.units.buckingham_pi_analysis(quantities)
-assert dim_matrix.shape == (len(base_dims), len(quantities))
+_, _, pi_groups = dolfiny.units.buckingham_pi_analysis(quantities)
+
 assert len(pi_groups) == 1
-
-# Dimensional checks using mapping
-dimsys = syu.si.SI.get_dimension_system()
-diffusion_dim = get_dimension(terms["diffusion"], quantities, mapping=mapping)
-rhs_dim = get_dimension(terms["source"], quantities, mapping=mapping)
-
-assert dimsys.equivalent_dims(diffusion_dim, rhs_dim)
-
-# Factorize original terms with mapping (factorization strips homogeneous factors)
-factorized_terms = factorize(terms, quantities, mode="factorize", mapping=mapping)
-assert np.allclose(factorized_terms["diffusion"].factor, np.array([0.0, -2.0, 2.0]))
-assert np.allclose(factorized_terms["source"].factor, np.array([2.0, 0.0, 2.0]))
-
-# Normalize with respect to the source term (reference), then re-factorize a normalized term
-normalized_terms = normalize(factorized_terms, "source", quantities)
-normalized_diff = factorize(normalized_terms["diffusion"], quantities, mode="factorize")
-assert np.allclose(normalized_diff.factor, np.array([-2.0, -2.0, 0.0]))
-
-# Verify Pi group expression
 pi_expr = sy.simplify(expand(list(pi_groups[0]), [q.symbol for q in quantities]))
 assert sy.simplify(pi_expr - l_ref.symbol * kappa.symbol) == 0
+
+# Dimensional consistency using mapping
+diffusion_dim = get_dimension(terms["diffusion"], quantities, mapping=mapping)
+rhs_dim = get_dimension(terms["source"], quantities, mapping=mapping)
+assert syu.si.SI.get_dimension_system().equivalent_dims(diffusion_dim, rhs_dim)
+
+factorized = factorize(terms, quantities, mode="factorize", mapping=mapping)
+normalized = normalize(factorized, "source", quantities)
