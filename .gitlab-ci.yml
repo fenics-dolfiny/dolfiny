@@ -54,6 +54,7 @@ ty:
   script:
     - pip install --group lint-typing
     - pip install .
+    - pip uninstall -y pyvista # https://github.com/astral-sh/ty/issues/350
     - ty check --color always src/dolfiny
     - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
     - ty check --color always demo/
