@@ -33,7 +33,7 @@ ruff:
   stage: lint
   image: dolfinx/dev-env:current
   script:
-    - pip install ruff
+    - pip install --group lint-format
     - ruff format --check
     - ruff check .
 
@@ -41,7 +41,8 @@ mypy:
   stage: lint
   image: dolfinx/dolfinx:nightly
   script:
-    - pip install .[typing]
+    - pip install --group lint-typing
+    - pip install .
     - mypy -p dolfiny
     - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
     - mypy test/ demo/ --explicit-package-bases
@@ -51,7 +52,9 @@ ty:
   allow_failure: true # mypy is blocking
   image: dolfinx/dolfinx:nightly
   script:
-    - pip install .[typing]
+    - pip install --group lint-typing
+    - pip install .
+    - pip uninstall -y pyvista # https://github.com/astral-sh/ty/issues/350
     - ty check --color always src/dolfiny
     - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
     - ty check --color always demo/
@@ -61,7 +64,7 @@ typos:
   stage: lint
   image: python:3.13-slim
   script:
-    - pip install typos
+    - pip install --group lint-spell-check
     - typos
 
 bibtex-tidy:
