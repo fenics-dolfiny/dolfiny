@@ -16,15 +16,24 @@ requires-python = ">=3.10.0"
 dependencies = ["fenics-dolfinx>=0.11.0.dev0,<0.12.0"]
 
 [project.optional-dependencies]
-dev = ["dolfiny[typing]", "typos", "ruff", "pdbpp"]
+dev = ["pdbpp"]
 vis = ["matplotlib", "pyvista[jupyter]>=0.45.0"]
 jit = ["numba", "cppyy>=3.1.0"]
 test = ["dolfiny[jit,vis]", "pytest-xdist", "coverage", "scipy"]
 demo = ["dolfiny[jit,vis]", "imageio"]
-typing = ["mypy", "ty"]
 book = ["dolfiny[vis]", "jupytext", "jupyter-book>=2.0.0", "jupyter"]
 units = ["sympy", "pygraphviz"]
-all = ["dolfiny[test,demo,dev,typing,book,units]"]
+all = ["dolfiny[test,demo,dev,book,units]"]
+
+[dependency-groups]
+lint-format = ["ruff"]
+lint-typing = ["mypy", "ty"]
+lint-spell-check = ["typos"]
+lint = [
+  { include-group = "lint-format" },
+  { include-group = "lint-typing" },
+  { include-group = "lint-spell-check" },
+]
 
 [project.urls]
 repository = "https://github.com/fenics-dolfiny/dolfiny"
