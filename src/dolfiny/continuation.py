@@ -40,7 +40,7 @@ class Crisfield:
             self.ds = ds
 
         if psi is not None:
-            self.psi = λ
+            self.psi = psi
 
         if λ is not None:
             self.λ.value = λ
