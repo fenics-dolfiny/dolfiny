@@ -20,13 +20,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pdbpp"]
 jit = ["numba", "cppyy>=3.1.0"]
 test = ["dolfiny[jit]", "pytest-xdist", "coverage", "scipy"]
 demo = ["dolfiny[jit]", "imageio"]
 book = ["jupytext", "jupyter-book>=2.0.0", "jupyter"]
 units = ["sympy", "pygraphviz"]
-all = ["dolfiny[test,demo,dev,book,units]"]
+all = ["dolfiny[test,demo,book,units]"]
 
 [dependency-groups]
 lint-format = ["ruff"]
@@ -37,6 +36,7 @@ lint = [
   { include-group = "lint-typing" },
   { include-group = "lint-spell-check" },
 ]
+dev = ["pdbpp"]
 
 [project.urls]
 repository = "https://github.com/fenics-dolfiny/dolfiny"
