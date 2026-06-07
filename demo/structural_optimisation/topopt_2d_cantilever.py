@@ -16,6 +16,7 @@
 # %% tags=["hide-input"]
 import argparse
 import warnings
+from pathlib import Path
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -24,6 +25,8 @@ import dolfinx
 import dolfinx.fem.petsc
 import ufl
 
+import matplotlib.pyplot as plt
+import matplotlib_inline
 import numpy as np
 import pyvista as pv
 
@@ -388,6 +391,10 @@ problem = dolfiny.taoproblem.TAOProblem(
     J, [ρ], J=(DJ, ρ.x.petsc_vec.copy()), h=[g], lb=ρ_min, ub=np.float64(1)
 )
 
+volume_form = dolfinx.fem.form(volume_fraction)
+comp = np.zeros(max_it, np.float64)
+volume = np.zeros(max_it, np.float64)
+
 # %% tags=["hide-input", "hide-output"]
 if comm.size == 1:
     plotter = pv.Plotter(
@@ -428,8 +435,11 @@ if comm.size == 1:
     plotter_f.camera.zoom(1.5)
 
 
-def monitor(tao: PETSc.TAO, output: bool) -> None:  # type: ignore
+def monitor(tao: PETSc.TAO, output: bool, comp, volume) -> None:  # type: ignore
     it = tao.getIterationNumber()
+    comp[it] = tao.getObjectiveValue()
+    volume[it] = comm.allreduce(dolfinx.fem.assemble_scalar(volume_form))
+
     if comm.size == 1:
         text.SetText(0, f"Iteration {it}")
         pv_grid.cell_data[ρ.name] = ρ.x.array
@@ -453,7 +463,7 @@ if output:
     with dolfinx.io.XDMFFile(comm, "topopt_simp/data.xdmf", "w") as file:
         file.write_mesh(mesh)
 
-problem.tao.setMonitor(monitor, args=[output])
+problem.tao.setMonitor(monitor, args=[output, comp, volume])
 problem.solve()
 
 if comm.size == 1:
@@ -461,6 +471,50 @@ if comm.size == 1:
     plotter_f.close()
 
 # %% [markdown]
+# ## Convergence history
+#
+# %% tags=["hide-input"]
+if comm.size == 1:
+    matplotlib_inline.backend_inline.set_matplotlib_formats("png")
+    it = problem.tao.getIterationNumber()
+    comp = comp[:it]
+    volume = volume[:it]
+
+    fig, ax1 = plt.subplots(dpi=400)
+    ax1.set_xlim(0, it - 1)
+    ax1.set_xlabel("Outer MMA iteration")
+    ax1.set_ylabel("Rel. compliance $C / C_0$")
+    plt_compliance = ax1.plot(
+        np.arange(0, it, dtype=int),
+        comp / comp[0],
+        color="tab:orange",
+        marker="x",
+    )
+    ax1.set_yscale("log")
+    ax1.grid(True, which="both")
+
+    ax2 = ax1.twinx()
+    ax2.set_ylabel(r"$|1 - V / V_\text{max}|$")
+    vol_violation = np.abs(1 - volume / max_volume_fraction)
+    plt_volume = ax2.plot(np.arange(0, it, dtype=int), vol_violation, marker=".")
+    ax2.set_ylim(ymin=0.8 * np.min(vol_violation[1:]))
+    ax2.axhline(y=1, linestyle="--")
+    ax2.set_yscale("log")
+    ax1.legend(plt_compliance + plt_volume, ["compliance", "volume"], loc=7)
+    Path("topopt_simp").mkdir(exist_ok=True)
+    plt.savefig("topopt_simp/convergence.png", dpi=300)
+    plt.close()
+
+# %% [markdown]
+# ```{figure} topopt_simp/convergence.png
+# :alt: Convergence plot of the MMA-iterations.
+# :align: center
+# :name: fig-convergence
+# We plot the compliance and volume constraint residual versus the outer MMA iteration.
+# Compliance is shown relative to the initial value, while the volume is shown relative to the
+# upper bound.
+# ```
+#
 # ## Results
 #
 # We plot the {ref}`density<gif-density>` and {ref}`filtered-density<gif-filtered-density>` across
