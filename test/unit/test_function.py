@@ -3,8 +3,8 @@ from mpi4py import MPI
 import dolfinx
 
 import numpy as np
+import numpy.typing as npt
 import pytest
-from numpy import typing as npt
 
 from dolfiny.function import evaluate, unroll_dofs
 

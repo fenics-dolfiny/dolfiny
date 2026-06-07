@@ -103,7 +103,7 @@ import dolfinx
 import ufl
 
 import numpy as np
-import pyvista
+import pyvista as pv
 
 import dolfiny
 import dolfiny.taoproblem
@@ -150,8 +150,8 @@ dolfiny.utils.pprint(f"S(g)        = {problem.tao.getFunctionValue():.4f}")
 # %% tags=["hide-input"]
 # | label: fig-membrane-obstacle
 # | caption: Obstacle $\phi$ shown as a deflected surface.
-pyvista.set_jupyter_backend("static")
-pv_grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(msh, 2))
+pv.set_jupyter_backend("static")
+pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(msh, 2))
 
 
 def plot_deflected(f):
@@ -163,7 +163,7 @@ def plot_deflected(f):
     u[:, 2:3] = f.x.array.reshape(-1, 1)
     pv_grid.point_data[f.name] = u
 
-    plotter = pyvista.Plotter(theme=dolfiny.pyvista.theme)
+    plotter = pv.Plotter(theme=dolfiny.pyvista.theme)
 
     warped = pv_grid.warp_by_vector(f.name, factor=1.0)
     warped.active_scalars_name = f.name

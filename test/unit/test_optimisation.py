@@ -4,8 +4,8 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 import numpy as np
+import numpy.typing as npt
 import pytest
-from numpy import typing as npt
 
 from dolfiny.conlin import CONLIN
 from dolfiny.mma import MMA

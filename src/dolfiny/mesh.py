@@ -65,21 +65,19 @@ def locate_dofs_topological(V, meshtags, value, exclude_dofs=None, unroll=False)
     """
     from dolfinx import fem
 
-    from numpy import setdiff1d, where
-
     from dolfiny import function
 
     if isinstance(value, list):
         match = []
         for v in value:
-            match.extend(where(meshtags.values == v)[0])
+            match.extend(np.where(meshtags.values == v)[0])
     else:
-        match = where(meshtags.values == value)[0]
+        match = np.where(meshtags.values == value)[0]
 
     dofs = fem.locate_dofs_topological(V, meshtags.dim, meshtags.indices[match])
 
     if exclude_dofs is not None:
-        dofs = setdiff1d(dofs, exclude_dofs)
+        dofs = np.setdiff1d(dofs, exclude_dofs)
 
     if unroll:
         dofs = function.unroll_dofs(dofs, V.dofmap.bs)
@@ -110,16 +108,14 @@ def locate_dofs_geometrical(V, meshtags, value, exclude_dofs=None, unroll=False)
     """
     from dolfinx import fem
 
-    from numpy import empty, int32, isclose, setdiff1d, where
-
     from dolfiny import function
 
     if isinstance(value, list):
         match = []
         for v in value:
-            match.extend(where(meshtags.values == v)[0])
+            match.extend(np.where(meshtags.values == v)[0])
     else:
-        match = where(meshtags.values == value)[0]
+        match = np.where(meshtags.values == value)[0]
 
     if isinstance(V, tuple):
         V_ = V[0]
@@ -140,19 +136,19 @@ def locate_dofs_geometrical(V, meshtags, value, exclude_dofs=None, unroll=False)
             connect_cell_vertex = mesh.topology.connectivity(mesh.topology.dim, 0)
 
             vertices_per_cell = mesh.geometry.dofmaps[0].shape[1]
-            v2n = empty(connect_node_vertex.num_nodes, dtype=int32)
+            v2n = np.empty(connect_node_vertex.num_nodes, dtype=np.int32)
             c2v = connect_cell_vertex.array.reshape(-1, vertices_per_cell)
 
             v2n[c2v] = mesh.geometry.dofmaps[0]
 
             local_dof_idx = v2n[meshtags.indices[match]]
 
-            return isclose(x.T, mesh.geometry.x[local_dof_idx]).all(axis=1)
+            return np.isclose(x.T, mesh.geometry.x[local_dof_idx]).all(axis=1)
 
     dofs = fem.locate_dofs_geometrical(V, marker)
 
     if exclude_dofs is not None:
-        dofs = setdiff1d(dofs, exclude_dofs)
+        dofs = np.setdiff1d(dofs, exclude_dofs)
 
     if unroll:
         dofs = function.unroll_dofs(dofs, V_.dofmap.bs)

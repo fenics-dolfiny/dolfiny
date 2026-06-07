@@ -182,10 +182,10 @@ if __name__ == "__main__":
 
     mesh_spanner_gmshapi(msh_file=msh_file, vtk_file=vtk_file)
 
-    import pyvista
+    import pyvista as pv
 
-    grid = pyvista.read(vtk_file)
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    grid = pv.read(vtk_file)
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
 
     grid_surface_hires = grid.extract_surface(nonlinear_subdivision=4, algorithm="dataset_surface")
     plotter.add_mesh(grid_surface_hires, color="tab:orange")

@@ -75,7 +75,7 @@ import ufl
 from dolfinx import default_scalar_type as scalar
 
 import numpy as np
-import pyvista
+import pyvista as pv
 import sympy.physics.units as syu
 
 import dolfiny
@@ -229,7 +229,7 @@ def mesh_tube3d_gmshapi(
     return gmsh.model if comm.rank == 0 else None, tdim
 
 
-class Xdmf3Reader(pyvista.XdmfReader):
+class Xdmf3Reader(pv.XdmfReader):
     _vtk_module_name = "vtkIOXdmf3"
     _vtk_class_name = "vtkXdmf3Reader"
 
@@ -238,9 +238,9 @@ def plot_tube3d_pyvista(u, s, comm=MPI.COMM_WORLD):
     if comm.rank > 0:
         return
 
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u.function_space))
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u.function_space))
 
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_axes()
     plotter.enable_parallel_projection()
 

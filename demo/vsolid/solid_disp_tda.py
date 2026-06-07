@@ -37,7 +37,7 @@ import gmsh
 import matplotlib.pyplot as plt
 import mesh_block3d_gmshapi as mg
 import numpy as np
-import pyvista
+import pyvista as pv
 
 import dolfiny
 
@@ -68,7 +68,7 @@ surface_right = mesh_data.physical_groups["surface_right"].tag
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
 ds = ufl.Measure("ds", domain=mesh, subdomain_data=mesh_data.facet_tags)
 
-fixed_boundary_marker = pyvista.Plane(
+fixed_boundary_marker = pv.Plane(
     center=(0.0, dimensions[1] / 2, dimensions[2] / 2),
     direction=(1.0, 0.0, 0.0),
     i_size=5 * dimensions[2],
@@ -76,8 +76,8 @@ fixed_boundary_marker = pyvista.Plane(
 )
 
 if comm.size == 1:
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_mesh(
         grid, show_edges=True, color="white", line_width=dolfiny.pyvista.pixels // 1000
     )
@@ -258,7 +258,7 @@ if comm.size == 1:
 
     displacement_history[0] = u.eval(point_eval, np.array([cell]))
 
-    plotter_disp = pyvista.Plotter(
+    plotter_disp = pv.Plotter(
         off_screen=False, window_size=(res := 2048, int(res * 0.7)), theme=dolfiny.pyvista.theme
     )
     plotter_disp.open_gif(f"{name}_disp.gif", fps=30)

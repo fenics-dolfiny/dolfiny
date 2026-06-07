@@ -125,7 +125,7 @@ import ufl
 import matplotlib.pyplot as plt
 import mesh_iso6892_gmshapi as mg
 import numpy as np
-import pyvista
+import pyvista as pv
 import sympy.physics.units as syu
 
 import dolfiny
@@ -160,8 +160,8 @@ surface_1 = mesh_data.physical_groups["surface_grip_left"].tag
 surface_2 = mesh_data.physical_groups["surface_grip_right"].tag
 
 if comm.size == 1:
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh))
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_mesh(
         grid, show_edges=True, color="white", line_width=dolfiny.pyvista.pixels // 1000
     )
@@ -470,13 +470,13 @@ for step, factor in enumerate(cycles):
 ofile.close()
 
 if comm.size == 1:
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u.function_space.mesh))
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u.function_space.mesh))
     grid.point_data["u"] = u.x.array.reshape(-1, mesh.geometry.dim)
     grid_warped = grid.warp_by_vector("u", factor=1)
 
     grid_warped.cell_data["eps_p"] = eps_p.x.array
 
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_mesh(
         grid_warped,
         scalars="eps_p",

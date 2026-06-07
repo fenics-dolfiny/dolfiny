@@ -38,7 +38,7 @@ import ufl
 import matplotlib.pyplot as plt
 import mesh_opencylinder_gmshapi as mg
 import numpy as np
-import pyvista
+import pyvista as pv
 
 import dolfiny
 
@@ -317,9 +317,9 @@ def plot_roof_pyvista(u, s, png, comm=MPI.COMM_WORLD):
     if comm.size > 1:
         return
 
-    grid = pyvista.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u.function_space))
+    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u.function_space))
 
-    plotter = pyvista.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
+    plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.theme.font.fmt = "%1.3f"
     plotter.add_axes()
     plotter.enable_parallel_projection()
