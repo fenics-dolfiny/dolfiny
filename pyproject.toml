@@ -18,15 +18,14 @@ dependencies = [
   "matplotlib",
   "pyvista[jupyter]>=0.45.0",
   "scipy",
-  "imageio"
+  "imageio",
 ]
 
 [project.optional-dependencies]
 jit = ["numba", "cppyy>=3.1.0"]
-test = ["dolfiny[jit]", "pytest-xdist", "coverage"]
 book = ["jupytext", "jupyter-book>=2.0.0", "jupyter"]
 units = ["sympy", "pygraphviz"]
-all = ["dolfiny[test,book,units]"]
+all = ["dolfiny[book,units]"]
 
 [dependency-groups]
 lint-format = ["ruff"]
@@ -38,6 +37,7 @@ lint = [
   { include-group = "lint-spell-check" },
 ]
 dev = ["pdbpp"]
+test = ["pytest-xdist", "coverage"]
 
 [project.urls]
 repository = "https://github.com/fenics-dolfiny/dolfiny"

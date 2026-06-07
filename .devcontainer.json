@@ -50,5 +50,5 @@
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2": {}
   },
-  "postCreateCommand": "pip install --group lint --group dev && pip3 install --no-deps --editable ."
+  "postCreateCommand": "pip install --group lint --group dev --group test && pip3 install --no-deps --editable ."
 }
