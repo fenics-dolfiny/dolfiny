@@ -21,11 +21,10 @@ dependencies = [
 
 [project.optional-dependencies]
 jit = ["numba", "cppyy>=3.1.0"]
-test = ["dolfiny[jit]", "pytest-xdist", "coverage", "scipy"]
-demo = ["dolfiny[jit]", "imageio"]
+test = ["dolfiny[jit]", "pytest-xdist", "coverage", "scipy", "imageio"]
 book = ["jupytext", "jupyter-book>=2.0.0", "jupyter"]
 units = ["sympy", "pygraphviz"]
-all = ["dolfiny[test,demo,book,units]"]
+all = ["dolfiny[test,book,units]"]
 
 [dependency-groups]
 lint-format = ["ruff"]
