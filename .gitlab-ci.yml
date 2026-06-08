@@ -319,6 +319,7 @@ continuation:
           - continuation_spatialtruss.py
           - continuation_stardome.py
           - continuation_schwedler.py
+          - tdc_shell_naghdi_cylindrical_roof.py
 
 tdnns:
   extends: .demo_template
