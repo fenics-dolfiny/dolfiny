@@ -72,12 +72,20 @@ for demo in demo_files:
     )
 
 
-def poll_jobs(running_jobs, num):
+def poll_jobs(running_jobs: list[subprocess.Popen], num: int) -> None:
     """Wait until the number of running jobs is less than or equal to num."""
     polling_interval = 0.5
 
     while len(running_jobs) > num:
         time.sleep(polling_interval)
+
+        # check any crashed
+        if any(p for p in running_jobs if p.poll() is not None and p.returncode < 0):
+            for _p in running_jobs:
+                _p.kill()
+
+            raise RuntimeError(f"Job crashed (PID: {p.pid})")
+
         # Check for completed jobs and remove them from the list
         running_jobs = [p for p in running_jobs if p.poll() is None]
 

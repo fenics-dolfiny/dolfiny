@@ -486,7 +486,7 @@ def plot_load_displacement(u_step, λ_step, png):
 problem = dolfiny.snesproblem.SNESProblem(F, m, bcs, prefix="roof")
 
 continuation = dolfiny.continuation.Crisfield(problem, λ, inner=block_inner)
-continuation.initialise(ds=0.1, λ=0.0, psi=1.0)
+continuation.initialise(ds=0.1, λ=0.0, psi=0.0)
 monitor(continuation)
 
 for k in range(64):
