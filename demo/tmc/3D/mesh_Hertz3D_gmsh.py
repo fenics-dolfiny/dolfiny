@@ -120,16 +120,11 @@ def mesh_Hertz3D_gmsh(
         # # Set geometric order of mesh cells
         gmsh.model.mesh.setOrder(order)
 
-        # # Extract mesh data for Dolfinx
-        mesh_data = dolfinx.io.gmsh.model_to_mesh(gmsh.model, comm, rank=0, gdim=tdim)
-
         # Optional: Write msh file
         if msh_file is not None:
             gmsh.write(msh_file)
         
-        gmsh.finalize()
-
-    return mesh_data
+    return gmsh.model if comm.rank == 0 else None, tdim
         
 
 

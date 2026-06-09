@@ -37,14 +37,16 @@ facet_tags = {"sphere_top": 10, "bottom": 11, "x_symm": 12, "y_symm": 13, "body_
 
 verbosity = 1
 
-mesh_data = mesh_Hertz3D_gmsh(cell_tags, facet_tags, W=W, L=L, H=H, H2=H2, R=R, verbosity=verbosity)
+model, tdim = mesh_Hertz3D_gmsh(cell_tags, facet_tags, W=W, L=L, H=H, H2=H2, R=R, verbosity=verbosity)
+
+# Extract mesh data for Dolfinx
+mesh_data = dolfinx.io.gmsh.model_to_mesh(model, comm, rank=0)
+
 mesh = mesh_data.mesh
 ct = mesh_data.cell_tags
 ft = mesh_data.facet_tags
 
-tdim = mesh.topology.dim # 3
 fdim = tdim - 1 # 2
-
 
 num_cells_local = (
     mesh.topology.index_map(tdim).size_local
@@ -58,7 +60,7 @@ num_facets_local = (
 )
 
 # Export mesh and markers for inspection
-with dolfinx.io.XDMFFile(comm, f"{name}_mesh.xdmf", "w") as xdmf:
+with dolfinx.io.XDMFFile(comm, f"{name}/{name}_mesh.xdmf", "w") as xdmf:
     xdmf.write_mesh(mesh)
     xdmf.write_meshtags(ct, mesh.geometry)
     xdmf.write_meshtags(ft, mesh.geometry)
@@ -69,7 +71,7 @@ num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
 num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
 
 pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
-pprint(f"Mesh saved to {name}_mesh.xdmf")
+pprint(f"Mesh saved to {name}/{name}_mesh.xdmf")
 
 # Integration measures
 metadata = {"quadrature_degree": 1} # one quadrature point for TET1 elements
@@ -153,7 +155,7 @@ for dim in range(mesh.geometry.dim):
 d = fem.Constant(mesh, np.max(L_i))
 
 skew_term = fi_skew - 1 / d * p
-Pi_fi = (
+Pi_R = (
     beta_1 / 2  * ufl.dot(skew_term, skew_term) + beta_2 / 2 * ufl.inner(ufl.grad(p), ufl.grad(p))
 ) * dxThird
 
@@ -192,7 +194,7 @@ bc_sphere_z = dolfinx.fem.dirichletbc(applied_z, sphere_top_z_dof, V.sub(2))
 
 bcs = [bc_bottom, bc_x_symm, bc_y_symm, bc_sphere_z]
 
-residual = ufl.derivative(Pi + Pi_third + Pi_indenter + Pi_fi, m, δm)
+residual = ufl.derivative(Pi + Pi_indenter + Pi_third + Pi_R, m, δm)
 forms = ufl.extract_blocks(residual)
 
 # problem = dolfiny.snesproblem.SNESProblem(
@@ -233,7 +235,8 @@ problem = NonlinearProblem(
         "snes_converged_reason": None,
         # "snes_error_if_not_converged": True,
         "ksp_type": "preonly",
-        "pc_type": "lu",
+        # "pc_type": "lu",
+        "pc_type": "cholesky",
         "pc_factor_mat_solver_type": "mumps",
     },
 )
@@ -245,7 +248,7 @@ u_prev = u.x.array.copy()
 tm_prev = tm_func.x.array.copy()
 
 # output file for storing results
-ofile = VTXWriter(comm, f"{name}.bp", [u, tm_func])
+ofile = VTXWriter(comm, f"{name}/{name}.bp", [u, tm_func])
 ofile.write(0.0) # write initial state
 
 # Adaptive loading
@@ -271,12 +274,12 @@ pprint("------------------------------------")
 # Store start time 
 startTime = datetime.now()
 
-while load <= 1:
+while load <= (1.0 + 1e-6):
     
     # Update boundary condition values
     applied_z.value = full_disp * load
     
-    pprint(f"\nStep {ii}/{loading_steps}: u_z = {applied_z.value:.3f}", flush=True)
+    pprint(f"\n Load step {ii}: u_z = {applied_z.value:.3f}", flush=True)
 
     # Solve the problem
     problem.solve()
@@ -304,9 +307,9 @@ while load <= 1:
         ii += 1
         
         load += dl
-        if adaptive_load:
-        #     # load += NUM_SUCCESSIVE_SOLVES * dl
-            load += 2 * dl # double load increment after successful solve
+        # if adaptive_load:
+        # #     # load += NUM_SUCCESSIVE_SOLVES * dl
+        #     load += 2 * dl # double load increment after successful solve
         
         u_prev[:] = u.x.array.copy()
         tm_prev[:] = tm_func.x.array.copy()
