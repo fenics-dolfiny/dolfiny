@@ -70,7 +70,7 @@ ft = dolfinx.mesh.meshtags(
 ft.name = "facet_markers"
 
 # Export mesh and markers for inspection
-with dolfinx.io.XDMFFile(comm, f"{name}_mesh.xdmf", "w") as xdmf:
+with dolfinx.io.XDMFFile(comm, f"{name}/{name}_mesh.xdmf", "w") as xdmf:
     xdmf.write_mesh(mesh)
     xdmf.write_meshtags(ft, mesh.geometry)
 
@@ -80,7 +80,7 @@ num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
 num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
 
 pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
-pprint(f"Mesh saved to {name}_mesh.xdmf")
+pprint(f"Mesh saved to {name}/{name}_mesh.xdmf")
 
 # Integration measures
 metadata = {"quadrature_degree": 1} # one quadrature point for TET1 elements
@@ -174,7 +174,7 @@ problem = NonlinearProblem(
 )
 
 # output file for storing results
-ofile = VTXWriter(comm, f"{name}.bp", [u])
+ofile = VTXWriter(comm, f"{name}/{name}.bp", [u])
 ofile.write(0.0) # write initial state
 
 # Adaptive loading
@@ -201,12 +201,12 @@ pprint("------------------------------------")
 # Store start time 
 startTime = datetime.now()
 
-while load <= 1:
+while load <= (1.0 + 1e-6):
     
     # Update boundary condition values
     applied_disp.value = full_disp * load
     
-    pprint(f"\nStep {ii}/{loading_steps}: u_z = {applied_disp.value:.3f}", flush=True)
+    pprint(f"\nLoad step {ii}: u_z = {applied_disp.value:.3f}", flush=True)
 
     # Solve the problem
     problem.solve()
@@ -233,9 +233,9 @@ while load <= 1:
         ii += 1
 
         load += dl
-        if adaptive_load:
-        #     # load += NUM_SUCCESSIVE_SOLVES * dl
-            load += 2 * dl # double load increment after successful solve
+        # if adaptive_load:
+        # #     # load += NUM_SUCCESSIVE_SOLVES * dl
+        #     load += 2 * dl # double load increment after successful solve
         
         u_prev[:] = u.x.array.copy()
     

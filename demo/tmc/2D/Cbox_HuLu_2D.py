@@ -24,10 +24,12 @@ name = "cbox_HuLu_2D"
 comm = MPI.COMM_WORLD
 
 # Dimensions
-L = 4.0
-H = 2.0
-T = 0.4
-dL = L / 40 # element size 
+L = 1.0
+H = L/2
+T = L/10
+Nx = 40
+Ny = 20
+dL = L / Nx # element size 
 
 tol = 1.0e-6
 
@@ -50,7 +52,7 @@ quad = dolfinx.mesh.CellType.quadrilateral
 mesh = dolfinx.mesh.create_rectangle(
     comm,
     [[0, 0], [L+dL, H]],
-    [41, 20],
+    [Nx+1, Ny],
     cell_type=quad,
     ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
 )
@@ -107,7 +109,7 @@ ft = dolfinx.mesh.meshtags(
 ft.name = "facet_tags"
 
 # Export mesh and markers for inspection
-with dolfinx.io.XDMFFile(comm, f"{name}_mesh.xdmf", "w") as xdmf:
+with dolfinx.io.XDMFFile(comm, f"{name}/{name}_mesh.xdmf", "w") as xdmf:
     xdmf.write_mesh(mesh)
     xdmf.write_meshtags(ct, mesh.geometry)
     xdmf.write_meshtags(ft, mesh.geometry)
@@ -118,7 +120,7 @@ num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
 num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
 
 pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
-pprint(f"Mesh saved to {name}_mesh.xdmf")
+pprint(f"Mesh saved to {name}/{name}_mesh.xdmf")
 
 # Integration measures
 metadata = {"quadrature_rule": "GLL", "quadrature_degree": 3}
@@ -155,8 +157,8 @@ I1 = ufl.tr(C_2D) + 1 # add 1 to account for plane strain out-of-plane component
 # Body
 E = 1.0
 nu = 0.4
-K = E / (3 * (1 - 2 * nu))
-mu = E / (2 * (1 + nu))
+K = E / (3 * (1 - 2 * nu))  # 5/3
+mu = E / (2 * (1 + nu))     # 5/14
 K_body = fem.Constant(mesh, K)
 mu_body = fem.Constant(mesh, mu)
 Psi_body = K_body / 2 * ufl.ln(J) ** 2 + mu_body / 2 * (J ** (-2/3) * I1 - 3)
@@ -174,8 +176,10 @@ Pi = (
 )
 
 # Third medium
-gamma0 = fem.Constant(mesh, 1.0e-7)
-Pi_third = gamma0 * Psi_body * dxThird
+gamma0 = fem.Constant(mesh, 1.0e-6)
+# Pi_third = gamma0 * Psi_body * dxThird
+Psi_third = mu_body / 2 * (J ** (-2/3) * I1 - 3) 
+Pi_third = gamma0 * Psi_third * dxThird
 
 # regularization
 L_i = np.zeros(tdim)
@@ -193,7 +197,7 @@ Lu = ufl.div(ufl.grad(u)) # Laplacian of displacement
 HuHu = ufl.inner(Hu, Hu)
 LuLu = ufl.inner(Lu, Lu) / ufl.tr(I)
 
-Pi_HuLu = k_r / 2 * (HuHu - LuLu) * dxThird
+Pi_HuLu = k_r / 2 * (HuHu - LuLu) * dxThird  # without exp(-5|F|) to preserve symmetry of tangent problem
 
 
 # BCs
@@ -230,7 +234,8 @@ problem = dolfinx.fem.petsc.NonlinearProblem(
         "snes_converged_reason": None,
         #"snes_error_if_not_converged": True,
         "ksp_type": "preonly",
-        "pc_type": "lu",
+        # "pc_type": "lu",
+        "pc_type": "cholesky",
         "pc_factor_mat_solver_type": "mumps",
     },
 )
@@ -242,11 +247,11 @@ u_prev = u.x.array.copy()
 tm_prev = tm_func.x.array.copy()
 
 # output file for storing results
-ofile = VTXWriter(comm, f"{name}_P{element_deg}.bp", [u, tm_func])
+ofile = VTXWriter(comm, f"{name}/{name}_Q{element_deg}.bp", [u, tm_func])
 ofile.write(0.0) # write initial state
 
 # Adaptive loading
-adaptive_load = True
+adaptive_load = False
 MAX_FAILURE = 5
 NUM_SUCCESSIVE_SOLVES = 0
 
@@ -255,10 +260,11 @@ v_bar = -0.6*L  # final applied vertical displacement
 
 num_iterations = 0 # store total number of iterations across all loading steps
 loading_steps = 20
-load = 1. / loading_steps # load increment
-dl = load
-n = 0 # used to adaptively increase/decrease load increment 
+dl = 1. / loading_steps # load increment
+load = dl
 last_load = load
+n = 0 # used to adaptively increase/decrease load increment 
+ii = 1 # load step counter
 
 # print a message for simulation startup
 pprint("------------------------------------")
@@ -267,12 +273,12 @@ pprint("------------------------------------")
 # Store start time 
 startTime = datetime.now()
 
-while load <= (1.1):
+while load <= (1.0 + tol):
     
     # Update boundary condition value
     applied_y.value = v_bar * load
     
-    pprint(f"\nLoading step: {load:.3f}, u_y: {applied_y.value:.3f}", flush=True)
+    pprint(f"\nLoad step {ii}, u_y: {applied_y.value:.3f}", flush=True)
 
     # Solve the problem
     problem.solve()
@@ -296,6 +302,7 @@ while load <= (1.1):
         last_load = load
         NUM_SUCCESSIVE_SOLVES += 1
         ofile.write(load)
+        ii += 1
         
         load += dl
         # if adaptive_load:
