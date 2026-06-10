@@ -1,0 +1,370 @@
+"""
+Third medium contact example from DOI: https://doi.org/10.1007/s00466-025-02628-y
+C-Box in 2D plane-strain.
+"""
+
+from mpi4py import MPI
+import dolfinx
+import dolfinx.fem.petsc
+import ufl
+import numpy as np
+from dolfinx.io import VTXWriter, XDMFFile
+from dolfinx import fem
+
+from dolfinx import fem
+import dolfiny
+from dolfiny.utils import pprint
+from petsc4py import PETSc
+
+# For timing the code
+from datetime import datetime
+
+# Basic settings
+name = "cbox_W_2D"
+comm = MPI.COMM_WORLD
+
+# Dimensions
+L = 1.0
+H = 0.5
+T = 0.1
+Nx = 40
+Ny = 20
+dL = L / Nx # element size
+
+tol = 1.0e-6
+
+def thirdmedium(x):
+    return (x[0] >= T - tol) & (x[1] >= T - tol) & (x[1] <= H - T + tol)
+
+def thirdmedium_layer(x):
+    return (x[0] >= L - tol)
+
+def top(x):
+    return np.isclose(x[1], H)
+
+def left(x):
+    return np.isclose(x[0], 0.0)
+
+# Element type
+tri = dolfinx.mesh.CellType.triangle
+quad = dolfinx.mesh.CellType.quadrilateral
+
+# Create mesh
+layer = False # set to True to include layer of third medium elements on the right boundary
+if layer:
+    name += "_layer"
+    mesh = dolfinx.mesh.create_rectangle(
+        comm,
+        [[0, 0], [L+dL, H]],
+        [Nx+1, Ny],
+        cell_type=tri,
+        ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
+    )
+else:
+    mesh = dolfinx.mesh.create_rectangle(
+        comm,
+        [[0, 0], [L, H]],
+        [Nx, Ny],
+        cell_type=tri,
+        ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
+    )
+
+tdim = mesh.topology.dim # 2 for 2D
+fdim = tdim - 1 # 1 for facets in 2D
+
+# Mark cells
+BODY_marker = 1
+TM_marker = 2
+
+num_cells_local = (
+    mesh.topology.index_map(tdim).size_local
+    + mesh.topology.index_map(tdim).num_ghosts
+)
+markers = np.full(num_cells_local, BODY_marker, dtype=np.int32)
+markers[dolfinx.mesh.locate_entities(mesh, tdim, thirdmedium)] = TM_marker
+if layer:
+    markers[dolfinx.mesh.locate_entities(mesh, tdim, thirdmedium_layer)] = TM_marker
+ct = dolfinx.mesh.meshtags(mesh, tdim, np.arange(num_cells_local), markers)
+ct.name = "cell_tags"
+
+# Mark facets
+LEFT_marker = 2
+NO_TRACTION_marker = 3
+POTENTIAL_CONTACT_marker = 4
+
+mesh.topology.create_connectivity(fdim, tdim) # facets-to-cells connectivity
+num_facets_local = (
+    mesh.topology.index_map(fdim).size_local
+    + mesh.topology.index_map(fdim).num_ghosts
+)
+all_body_facets = dolfinx.mesh.compute_incident_entities(
+    mesh.topology, ct.find(BODY_marker), tdim, fdim
+)
+all_air_facets = dolfinx.mesh.compute_incident_entities(
+    mesh.topology, ct.find(TM_marker), tdim, fdim
+)
+interface_facets = np.intersect1d(all_body_facets, all_air_facets)
+all_exterior_facets = dolfinx.mesh.exterior_facet_indices(mesh.topology)
+
+facet_markers = np.zeros(num_facets_local, dtype=np.int32)
+facet_markers[np.intersect1d(all_exterior_facets, all_body_facets)] = NO_TRACTION_marker
+facet_markers[dolfinx.mesh.locate_entities(mesh, fdim, left)] = (
+    LEFT_marker
+)
+facet_markers[interface_facets] = POTENTIAL_CONTACT_marker
+f_to_c = mesh.topology.connectivity(fdim, tdim)
+
+ft_indices = np.flatnonzero(facet_markers)
+
+ft = dolfinx.mesh.meshtags(
+    mesh, fdim, ft_indices, facet_markers[ft_indices]
+)
+ft.name = "facet_tags"
+
+# Export mesh and markers for inspection
+with dolfinx.io.XDMFFile(comm, f"{name}/{name}_mesh.xdmf", "w") as xdmf:
+    xdmf.write_mesh(mesh)
+    xdmf.write_meshtags(ct, mesh.geometry)
+    xdmf.write_meshtags(ft, mesh.geometry)
+
+num_cells_owned = mesh.topology.index_map(tdim).size_local
+num_nodes_owned = mesh.topology.index_map(0).size_local
+num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
+num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
+
+pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
+pprint(f"Mesh saved to {name}/{name}_mesh.xdmf")
+
+# Integration measures
+metadata = {"quadrature_degree": 2} 
+dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct, metadata=metadata)
+dxVol = dx(BODY_marker)
+dxThird = dx(TM_marker)
+ds = ufl.Measure("ds", domain=mesh, subdomain_data=ft)
+
+# Create function spaces and functions 
+third_medium_mesh, medium_map = dolfinx.mesh.create_submesh(
+    mesh, tdim, ct.find(TM_marker)
+)[0:2]
+
+element_deg = 1
+V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
+P = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
+W = ufl.MixedFunctionSpace(V, P)
+V_tm = fem.functionspace(mesh, ("DG", 0)) 
+
+# Functions
+u = fem.Function(V, name="displacement")
+p1 = fem.Function(P)
+
+# Define state and test functions
+if layer:
+    # If including layer of third medium elements, need to include additional variable (q) 
+    # to regularize volumetric response of those elements (see paper for details)
+    Q = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
+    W = ufl.MixedFunctionSpace(V, P, Q)
+    q = fem.Function(Q)
+    m = [u, p1, q]
+    δm = ufl.TestFunctions(W)
+else:   
+    m = [u, p1]
+    δm = ufl.TestFunctions(W)
+
+
+# Kinematics (2D plane strain)
+X = ufl.SpatialCoordinate(mesh)
+phi = X + u
+I = ufl.Identity(tdim)
+F_2D = I + ufl.grad(u)
+trF = ufl.tr(F_2D)
+skF = F_2D[0,1] - F_2D[1,0]
+J = ufl.det(F_2D)
+C_2D = F_2D.T * F_2D
+I1 = ufl.tr(C_2D) + 1 # add 1 to account for plane strain out-of-plane component
+
+# Material Properties
+# body
+K = 5/3
+mu = 5/14
+K_body = dolfinx.fem.Constant(mesh, K)
+mu_body = dolfinx.fem.Constant(mesh, mu)
+Psi_body = K_body / 2 * ufl.ln(J) ** 2 + mu_body / 2 * (J ** (-2/3) * I1 - 3)
+
+b = dolfinx.fem.Constant(
+    mesh, np.zeros(mesh.geometry.dim, dtype=dolfinx.default_scalar_type)
+)
+t = dolfinx.fem.Constant(
+    mesh, np.zeros(mesh.geometry.dim, dtype=dolfinx.default_scalar_type)
+)
+Pi = (
+    Psi_body * dxVol
+    - ufl.inner(b, phi) * dxVol
+    - ufl.inner(t, phi) * ds((NO_TRACTION_marker))
+)
+
+# Third medium
+gamma = dolfinx.fem.Constant(mesh, 1.0e-6)
+Psi_third = mu_body / 2 * (J ** (-2/3) * I1 - 3) # in 2D plane strain, no need for volumetric term
+Pi_third = gamma * Psi_third * dxThird
+
+# regularization
+beta_1 = dolfinx.fem.Constant(mesh, 1.0)  # beta1 = gamma * alpha1 
+beta_2 = dolfinx.fem.Constant(mesh, 1e-3) # beta2 = gamma * alpha2
+
+L_i = np.zeros(tdim)
+for dim in range(mesh.geometry.dim):
+    x_i_max = mesh.comm.allreduce(mesh.geometry.x[:, dim].max(), op=MPI.MAX)
+    x_i_min = mesh.comm.allreduce(mesh.geometry.x[:, dim].min(), op=MPI.MIN)
+    L_i[dim] = x_i_max - x_i_min
+d = dolfinx.fem.Constant(mesh, np.max(L_i))
+
+skew_term = (skF / trF) - 1 / d * p1
+Pi_R = (
+    beta_1 / 2  * ufl.dot(skew_term, skew_term) + beta_2 / 2 * ufl.inner(ufl.grad(p1), ufl.grad(p1))
+) * dxThird
+
+if layer:
+    alpha1 = dolfinx.fem.Constant(mesh, 1.0e4)
+    alpha2 = dolfinx.fem.Constant(mesh, 10.)
+    alpha_r = dolfinx.fem.Constant(mesh, 1.0)
+
+    Pi_grad = (
+        alpha1 * ufl.dot(skew_term, skew_term) + alpha_r * ufl.inner(ufl.grad(p1), ufl.grad(p1))
+        ) * dxThird
+    Pi_J = (
+        alpha2 * (J - q)**2 + alpha_r * ufl.inner(ufl.grad(q), ufl.grad(q))
+        ) * dxThird
+    
+    Pi_R = gamma/2 * (Pi_grad + Pi_J)
+    
+
+
+# BCs
+left_dofs = dolfinx.fem.locate_dofs_topological(
+    V, fdim, ft.find(LEFT_marker)
+)
+bc_left = dolfinx.fem.dirichletbc(
+    np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V
+)
+mesh.topology.create_connectivity(0, tdim) # nodes-to-cells connectivity
+node = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H))
+dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node)
+applied_y = dolfinx.fem.Constant(mesh, 0.0)
+bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
+bcs = [bc_left, bc_point_y]
+
+# Nonlinear problem and solver
+residual = ufl.derivative(Pi + Pi_third + Pi_R, m, δm)
+forms = ufl.extract_blocks(residual)
+
+problem = dolfinx.fem.petsc.NonlinearProblem(
+    forms,
+    m,
+    bcs=bcs,
+    entity_maps=[medium_map],
+    petsc_options_prefix=name,
+    petsc_options={
+        "snes_type": "newtonls",
+        "snes_linesearch_type": "bt",
+        # "snes_linesearch_type": "basic",
+        "snes_atol": 1e-6,
+        "snes_rtol": 1e-6,
+        "snes_max_it": 50,
+        "snes_monitor": None,
+        "snes_converged_reason": None,
+        #"snes_error_if_not_converged": True,
+        "ksp_type": "preonly",
+        #"pc_type": "lu",
+        "pc_type": "cholesky",
+        "pc_factor_mat_solver_type": "mumps",
+    },
+)
+
+tm_func = fem.Function(V_tm, name="cell_markers")
+tm_func.x.array[:] = ct.values
+
+u_prev = u.x.array.copy()
+tm_prev = tm_func.x.array.copy()
+
+# output file for storing results
+ofile = VTXWriter(comm, f"{name}/{name}_P{element_deg}.bp", [u, tm_func])
+ofile.write(0.0) # write initial state
+
+# Adaptive loading
+adaptive_load = False
+MAX_FAILURE = 5
+NUM_SUCCESSIVE_SOLVES = 0
+
+
+v_bar = -0.6*L  # final applied vertical displacement
+
+num_iterations = 0 # store total number of iterations across all loading steps
+loading_steps = 20
+dl = 1. / loading_steps # load increment
+load = dl
+last_load = load
+n = 0 # used to adaptively increase/decrease load increment 
+ii = 1 # load step counter
+
+# print a message for simulation startup
+pprint("------------------------------------")
+pprint("Simulation Start")
+pprint("------------------------------------")
+# Store start time 
+startTime = datetime.now()
+
+while load <= (1.0 + tol):
+    
+    # Update boundary condition value
+    applied_y.value = v_bar * load
+    
+    pprint(f"\nLoad step {ii}, u_y: {applied_y.value:.3f}", flush=True)
+
+    # Solve the problem
+    problem.solve()
+    reason = problem.solver.getConvergedReason()
+    
+    num_iterations += problem.solver.getIterationNumber()
+    n += 1
+    
+    if reason < 0:
+        if adaptive_load:
+            load = last_load + dl/(n+1) 
+            #load = last_load + dl/2 # half load increment
+            u.x.array[:] = u_prev.copy()
+            tm_func.x.array[:] = tm_prev.copy()
+            NUM_SUCCESSIVE_SOLVES = 0
+        else:
+            pprint("Solver failed to converge, aborting.")
+            break
+    
+    else:
+        n = 0
+        last_load = load
+        NUM_SUCCESSIVE_SOLVES += 1
+        ofile.write(load)
+        ii += 1
+        
+        load += dl
+        # if adaptive_load:
+        #    # load += NUM_SUCCESSIVE_SOLVES * dl
+        #     load += 2 * dl # double load increment after successful solve
+        
+        u_prev[:] = u.x.array.copy()
+        tm_prev[:] = tm_func.x.array.copy()
+    
+    if adaptive_load and n > MAX_FAILURE:
+        pprint("Too many failures, aborting.")
+        break
+
+ofile.close() # close output file
+
+# Store end time and compute elapsed time
+endTime = datetime.now()
+elapsedTime = endTime - startTime
+
+pprint("-----------------------------------------")
+pprint("End computation") 
+pprint(f"Elapsed time: {elapsedTime}")
+pprint(f"Total number of iterations: {num_iterations}")
+
