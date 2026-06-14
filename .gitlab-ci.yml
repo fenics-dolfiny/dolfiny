@@ -89,6 +89,13 @@ clang-format:
     - pip install clang-format
     - find . -type f \( -name "*.cpp" -o -name "*.hpp" \) | xargs clang-format --dry-run --Werror
 
+gersemi:
+  stage: lint
+  image: python:3.14-slim
+  script:
+    - pip install gersemi
+    - gersemi --check .
+
 image build:
   stage: image
   needs: []
