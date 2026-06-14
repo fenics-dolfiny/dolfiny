@@ -81,6 +81,14 @@ prettier:
     - npm install prettier prettier-plugin-toml
     - npx prettier . --check --plugin prettier-plugin-toml
 
+clang-format:
+  stage: lint
+  image: python:3.14-slim
+  rules:
+  script:
+    - pip install clang-format
+    - find . -type f \( -name "*.cpp" -o -name "*.hpp" \) | xargs clang-format --dry-run --Werror
+
 image build:
   stage: image
   needs: []
