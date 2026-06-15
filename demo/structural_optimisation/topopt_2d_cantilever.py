@@ -177,6 +177,7 @@ elas_prob = dolfinx.fem.petsc.LinearProblem(
             "ksp_type": "preonly",
             "pc_type": "cholesky",
             "pc_factor_mat_solver_type": "mumps",
+            "mat_mumps_icntl_14": "200",  # % estimated working space
         }
         if tdim == 2
         else {
