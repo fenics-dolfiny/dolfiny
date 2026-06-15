@@ -7,7 +7,15 @@ import pytest
 import sympy as sy
 import sympy.physics.units as syu
 
-from dolfiny.units import Quantity, buckingham_pi_analysis, factorize, normalize, transform
+import dolfiny
+from dolfiny.units import (
+    Quantity,
+    buckingham_pi_analysis,
+    factorize,
+    get_dimension,
+    normalize,
+    transform,
+)
 
 
 @pytest.fixture(scope="module")
@@ -156,3 +164,77 @@ def test_normalize_expr_multiplies_by_factor_ratio(mesh):
     normalized_higher = factorize(normalized["higher"], [ell])
     assert normalized_higher.factor is not None
     assert normalized_higher.factor[0] == pytest.approx(1.0)
+
+
+def test_poisson(mesh) -> None:
+    """
+    +--------------------------------------------+
+    | Poisson dimensional demo                   |
+    +--------------------------------------------+
+
+    PDE
+    ---
+
+        -∇ · (κ ∇u) = f
+
+    Units
+    -----
+
+        [x]     = l_ref = L
+        [u]     = u_ref = Θ
+        [κ]     = κ_ref = W / (m K)
+        [f]     = f_ref = W / m³
+
+    Dimensional relation
+    --------------------
+
+        [f] = [κ] [u] / [x]²
+
+    or equivalently
+
+        f_ref = κ_ref u_ref / l_ref²
+
+    Dimensionless group
+    -------------------
+
+        Π = κ_ref u_ref / (f_ref l_ref²)
+
+    or its inverse, depending on normalization.
+    """
+    V = dolfinx.fem.functionspace(mesh, ("P", 1))
+
+    T = dolfinx.fem.Function(V, name="T")
+    f = dolfinx.fem.Function(V, name="source")
+    v = ufl.TestFunction(V)
+
+    kappa = Quantity(mesh, 1.0, syu.W / (syu.K * syu.m), "kappa")
+    l_ref = Quantity(mesh, 1.0, syu.m, "l_ref")
+    T_ref = Quantity(mesh, 1.0, syu.K, "T_ref")
+    f_ref = Quantity(mesh, 1.0, syu.W / syu.m**3, "f_ref")
+
+    terms = {
+        "source": f * v * ufl.dx,
+        "diss": ufl.inner(kappa * ufl.grad(T), ufl.grad(v)) * ufl.dx,
+    }
+    mapping = {
+        mesh.ufl_domain(): l_ref,
+        T: T_ref * T,
+        f: f_ref * f,
+        v: T_ref * v,
+    }
+
+    quantities = dolfiny.units.collect_quantities(
+        sum(terms.values(), ufl.form.Zero()), mapping=mapping
+    )
+    assert set(quantities) == {T_ref, f_ref, l_ref, kappa}
+
+    _, _, pi_groups = dolfiny.units.buckingham_pi_analysis(quantities)
+    assert len(pi_groups) == 1
+
+    # Dimensional consistency using mapping
+    diffusion_dim = get_dimension(terms["diss"], quantities, mapping=mapping)
+    rhs_dim = get_dimension(terms["source"], quantities, mapping=mapping)
+    assert syu.si.SI.get_dimension_system().equivalent_dims(diffusion_dim, rhs_dim)
+
+    factorized = factorize(terms, quantities, mode="factorize", mapping=mapping)
+    normalize(factorized, "source", quantities)
