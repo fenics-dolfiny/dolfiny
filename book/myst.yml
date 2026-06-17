@@ -10,6 +10,7 @@ project:
   license: LGPL-3.0-or-later
   authors:
     - name: Andreas Zilian
+      id: az
       email: andreas.zilian@uni.lu
       corresponding: true
       url: https://www.uni.lu/fstm-en/people/andreas-zilian/
@@ -19,6 +20,7 @@ project:
           department: Department of Engineering
           url: https://www.uni.lu/fstm-en/research-departments/department-of-engineering/
     - name: Michal Habera
+      id: mh
       email: michal.habera@gmail.com
       corresponding: true
       url: https://www.uni.lu/fstm-en/people/michal-habera/
@@ -28,6 +30,7 @@ project:
           institution: Rafinex
           url: https://rafinex.com
     - name: Paul T. Kühner
+      id: ptk
       email: paul.kuehner@uni.lu
       corresponding: true
       url: https://www.uni.lu/fstm-en/people/paul-theodor-kuehner/
@@ -54,6 +57,7 @@ project:
         - file: plasticity/rankine.ipynb
     - file: units/navier_stokes.ipynb
     - file: continuation/tdc_shell_naghdi_cylindrical_roof.ipynb
+    - file: running_error/neo_hooke_2d.ipynb
     - file: getting-involved.md
 site:
   template: book-theme

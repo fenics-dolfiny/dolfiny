@@ -1,6 +1,7 @@
 from dolfiny import (
     continuation,
     expression,
+    fem,
     function,
     gmsh,
     interpolation,
@@ -25,6 +26,7 @@ from dolfiny import (
 __all__ = [
     "continuation",
     "expression",
+    "fem",
     "function",
     "gmsh",
     "interpolation",

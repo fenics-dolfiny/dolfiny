@@ -10,12 +10,14 @@ demo_files = [  # relative from demo/
     "obstacle/montreal.py",
     "plasticity/J2_monolithic.py",
     "plasticity/rankine.py",
+    "running_error/neo_hooke_2d.py",
     "spectral/solid_elasticity.py",
     "structural_optimisation/truss_sizing.py",
     "structural_optimisation/topopt_2d_cantilever.py",
     "structural_optimisation/topopt_3d_ge_bracket.py",
     "units/navier_stokes.py",
     "continuation/tdc_shell_naghdi_cylindrical_roof.py",
+    "running_error/neo_hooke_2d.py",
     "vsolid/solid_disp_tda.py",
 ]
 
@@ -67,7 +69,15 @@ for demo in demo_files:
 
     print(f"♻️  Converting script to notebook: {script} → {notebook}", flush=True)
     subprocess.run(
-        ["jupytext", str(script), "--to", "ipynb", "--quiet", "--output", str(notebook)],
+        [
+            "jupytext",
+            str(script),
+            "--to",
+            "ipynb",
+            "--quiet",
+            "--output",
+            str(notebook),
+        ],
         check=True,
     )
 

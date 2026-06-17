@@ -41,8 +41,9 @@ mypy:
   stage: lint
   image: dolfinx/dolfinx:nightly
   script:
+    - apt-get -y update && xargs -a apt-requirements.txt apt-get -y install
     - pip install --group lint-typing
-    - pip install .
+    - pip install . --no-build-isolation
     - mypy -p dolfiny
     - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
     - mypy test/ demo/ --explicit-package-bases
@@ -52,8 +53,9 @@ ty:
   allow_failure: true # mypy is blocking
   image: dolfinx/dolfinx:nightly
   script:
+    - apt-get -y update && xargs -a apt-requirements.txt apt-get -y install
     - pip install --group lint-typing
-    - pip install .
+    - pip install . --no-build-isolation
     - pip uninstall -y pyvista # https://github.com/astral-sh/ty/issues/350
     - ty check --color always src/dolfiny
     - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
@@ -443,6 +445,7 @@ bookstrap:
           - units/navier_stokes.py
           - continuation/tdc_shell_naghdi_cylindrical_roof.py
           - vsolid/solid_disp_tda.py
+          - running_error/neo_hooke_2d.py
   variables:
     DOLFINY_LOG_PREFIX: "0"
 

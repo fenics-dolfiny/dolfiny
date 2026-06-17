@@ -10,7 +10,11 @@
         "ms-toolsai.jupyter",
         "tamasfe.even-better-toml",
         "Xrimson.bibtex-tidy",
-        "openai.chatgpt"
+        "openai.chatgpt",
+        "anthropic.claude-code",
+        "ms-vscode.cmake-tools",
+        "xaver.clang-format",
+        "loopj.vscode-gersemi"
       ],
       "settings": {
         "[json]": {
@@ -33,6 +37,20 @@
             "source.organizeImports.ruff": "explicit"
           }
         },
+        "C_Cpp.clang_format_style": "file",
+
+        "[cpp]": {
+          "editor.defaultFormatter": "xaver.clang-format",
+          "editor.formatOnSave": true
+        },
+        "[c]": {
+          "editor.defaultFormatter": "xaver.clang-format",
+          "editor.formatOnSave": true
+        },
+        "[cmake]": {
+          "editor.defaultFormatter": "loopj.vscode-gersemi",
+          "editor.formatOnSave": true
+        },
         "remote.autoForwardPorts": false,
         "ruff.nativeServer": true,
         "mypy-type-checker.preferDaemon": true,
@@ -48,7 +66,7 @@
     "options": ["--progress", "plain"]
   },
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {}
+    "ghcr.io/devcontainers/features/common-utils:2.5.9": {}
   },
-  "postCreateCommand": "pip install --group lint --group dev --group test && pip3 install --no-deps --editable ."
+  "postCreateCommand": "pip install --group lint --group dev --group test && pip3 install --no-deps --no-build-isolation --editable ."
 }
