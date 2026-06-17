@@ -2,6 +2,7 @@
 
 
 import logging
+from collections.abc import Sequence
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -9,6 +10,7 @@ from petsc4py import PETSc
 import dolfinx
 import dolfinx.fem.petsc
 import ufl
+from dolfinx.mesh import EntityMap
 
 import numpy as np
 
@@ -34,6 +36,7 @@ class SNESProblem:
         localsolver: LocalSolver | None = None,
         form_compiler_options: dict | None = None,
         jit_options: dict | None = None,
+        entity_maps: Sequence[EntityMap] | None = None,
     ):
         """SNES problem and solver wrapper.
 
@@ -62,6 +65,8 @@ class SNESProblem:
             Forwarded to FFCx
         jit_options
             Compiler flags to use for form compilation
+        entity_maps
+            Entity maps to pass to the form. Needs to be provided when submeshes are used.
 
         """
         self.u = u
@@ -94,10 +99,16 @@ class SNESProblem:
 
         # Compile all forms
         self.F_form_all_ufc = dolfinx.fem.form(
-            F_form, form_compiler_options=form_compiler_options, jit_options=jit_options
+            F_form,
+            form_compiler_options=form_compiler_options,
+            jit_options=jit_options,
+            entity_maps=entity_maps,
         )
         self.J_form_all_ufc = dolfinx.fem.form(
-            J_form, form_compiler_options=form_compiler_options, jit_options=jit_options
+            J_form,
+            form_compiler_options=form_compiler_options,
+            jit_options=jit_options,
+            entity_maps=entity_maps,
         )
 
         # By default, copy all forms as the forms used in assemblers
