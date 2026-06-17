@@ -11,13 +11,9 @@ ENV PYVISTA_JUPYTER_BACKEND="html"
 ENV LIBGL_ALWAYS_SOFTWARE=1
 
 # Install system dependencies
+COPY apt-requirements.txt /tmp/apt-requirements.txt
 RUN apt-get -y update && \
-    apt-get -y install \
-        curl \
-        libgl1-mesa-dev \
-        libgraphviz-dev \
-        libosmesa6 \
-    && \
+    xargs -a /tmp/apt-requirements.txt apt-get -y install && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -32,9 +28,10 @@ RUN pip install --no-cache-dir --index-url https://gitlab.com/api/v4/projects/59
 # Install python dependencies for efficient rebuilds
 RUN pip install --no-cache-dir -v \
     coverage \
+    git+https://github.com/fenics-dolfiny/ffcx-backends \
     imageio \
     jupyter \
-    jupyter-book>=2.0.0 \
+    "jupyter-book>=2.0.0" \
     jupytext \
     matplotlib \
     mypy \
@@ -49,7 +46,7 @@ RUN pip install --no-cache-dir -v \
     typos
 
 # Setup Dolfiny
-ADD . /src/dolfiny/
+COPY . /src/dolfiny/
 
 RUN cd /src/dolfiny && \
-    pip install "." -v --no-deps
+    pip install "." -v --no-build-isolation --no-deps

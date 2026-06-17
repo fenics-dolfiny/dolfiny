@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.10", "nanobind>=2.0.0"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "dolfiny"
@@ -16,19 +16,21 @@ requires-python = ">=3.10.0"
 dependencies = [
   "fenics-dolfinx>=0.11.0.dev0,<0.12.0",
   "matplotlib",
+  "pygraphviz",
   "pyvista[jupyter]>=0.45.0",
   "scipy",
+  "sympy",
   "imageio",
+  "ffcx-backends @ git+https://github.com/fenics-dolfiny/ffcx-backends",
 ]
 
 [project.optional-dependencies]
 jit = ["numba", "cppyy>=3.1.0"]
 book = ["jupytext", "jupyter-book>=2.0.0", "jupyter"]
-units = ["sympy", "pygraphviz"]
-all = ["dolfiny[book,units]"]
+all = ["dolfiny[book,jit]"]
 
 [dependency-groups]
-lint-format = ["ruff"]
+lint-format = ["ruff", "clang-format", "gersemi"]
 lint-typing = ["mypy", "ty"]
 lint-spell-check = ["typos"]
 lint = [
@@ -43,7 +45,12 @@ test = ["pytest-xdist", "coverage"]
 repository = "https://github.com/fenics-dolfiny/dolfiny"
 
 [tool.setuptools.package-data]
-dolfiny = ["localsolver.h"]
+dolfiny = ["localsolver.h", "running_error.h"]
+
+[tool.scikit-build]
+cmake.source-dir = "src/dolfiny/cpp"
+wheel.packages = ["src/dolfiny"]
+install.strip = false
 
 [tool.mypy]
 disallow_untyped_defs = false
@@ -82,6 +89,9 @@ ignore = [
   "D1",   # undocumented
   "D203", # incompatible with D203 `no-blank-line-before-class`
   "D213", # incomptabile with D212 `multi-line-summary-first-line`
+]
+unfixable = [
+  "F401", # skip removal of unused imports
 ]
 
 allowed-confusables = ["σ", "×"]

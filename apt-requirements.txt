@@ -1,0 +1,6 @@
+curl
+libgl1-mesa-dev
+libgraphviz-dev
+libosmesa6
+libmpfr-dev
+libgmp-dev
