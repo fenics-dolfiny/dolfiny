@@ -1,3 +1,5 @@
+from typing import Any
+
 from petsc4py import PETSc
 
 import basix
@@ -88,3 +90,45 @@ def test_block(V1, V2, squaremesh_5, nest):
     assert problem.snes.getConvergedReason() > 0
     assert np.isclose((sol[0].x.petsc_vec - np.arcsin(0.5)).norm(), 0.0)
     assert np.isclose((sol[1].x.petsc_vec - 4.0 * np.arcsin(0.5)).norm(), 0.0)
+
+
+def test_submesh(squaremesh_5) -> None:
+    mesh = squaremesh_5
+    tdim = mesh.topology.dim
+
+    V = dolfinx.fem.functionspace(mesh, ("P", 1))
+
+    boundary = dolfinx.mesh.locate_entities_boundary(
+        mesh, tdim - 1, lambda x: np.full(x[0].shape, True)
+    )
+    boundary_dof = dolfinx.fem.locate_dofs_topological(V, tdim - 1, boundary)
+    bcs = [dolfinx.fem.dirichletbc(np.float64(0.0), boundary_dof, V)]
+
+    def R(u: dolfinx.fem.Function, f: Any) -> ufl.classes.Expr:
+        dx = ufl.dx(mesh)
+        v = ufl.TestFunction(V)
+        return ufl.inner(ufl.grad(u), ufl.grad(v)) * dx - f * v * dx  # type: ignore
+
+    # ufl symbolic conditional
+    u = dolfinx.fem.Function(V)
+    x = ufl.SpatialCoordinate(mesh)
+    eps = 1e-12
+    f_symbolic = ufl.conditional(x[0] < 0.4 + eps, 1.0, 0)
+    problem = dolfiny.snesproblem.SNESProblem([R(u, f_symbolic)], [u], bcs)
+    (u,) = problem.solve()
+
+    left = dolfinx.mesh.locate_entities(mesh, tdim, lambda x: x[0] < 0.4 + eps)
+    mesh_left, entity_maps, _, _ = dolfinx.mesh.create_submesh(mesh, tdim, left)
+
+    # submesh solve
+    V_l = dolfinx.fem.functionspace(mesh_left, ("P", 1))
+    f = dolfinx.fem.Function(V_l)
+    f.interpolate(lambda x: np.full(x[0].shape, 1.0))
+
+    u_sub = dolfinx.fem.Function(V)
+    problem = dolfiny.snesproblem.SNESProblem(
+        [R(u_sub, f)], [u_sub], bcs, entity_maps=[entity_maps]
+    )
+    (u_sub,) = problem.solve()
+
+    assert np.allclose(u.x.array, u_sub.x.array)
