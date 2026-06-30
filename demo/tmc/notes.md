@@ -149,6 +149,28 @@ where $\kappa_{\bar{F}}$ is a penalty parameter. In this way there's no need to 
 
 ## Development status
 
+### Geometries
+- C-shape (2D, 3D)
+- Hertz contact (2D plane strain)
+- Punch problem (3D, see [7])
+- Soft bellow actuator (2D axisymm, 3D)
+
+### Regularizations
+- HuHu-LuLu [3]
+- Wriggers [5]
+
+### To do
+- ~~Implement Faltus et al. [6] regularization (for first-order elements compatibility)~~ ❌ (Need for custom kernels, too difficult for a demo)
+- Compare the different regularizations on C-shape benchmark problem (in 2D first) in terms of contact enforcement, convergence, robustness to parameter changes, speed -- ❓(could be considered as already done in the literature, but NOT in FEniCSx)
+- Identify most suitable formulation and apply to 3D contact problem involving _self-contact_. Some proposals:
+    - hyperelastic cylinder in torsion 
+    - compression of a spring/rubber seal 
+    - buckling and self-contact of constrained beam [6]
+- Possible extension in *dynamics*
+
+### Problems/Doubts
+- 3D configurations with TMC are quite heavy to run with ~140k elements (even in parallel), possibility to exploit axisymmetry and work in 2D (?)
+- Currently difficult/impossible to assess exactness/accuracy of TMC simulations only inside FEniCS ecosystem (no standard contact enforcement strategies implemented in large defs), need for external FEA softwares (i.e. Abaqus "General Contact")
 
 
 ## References
