@@ -16,7 +16,6 @@ from dolfinx.fem.forms import _ufl_to_dolfinx_domain, get_integration_domains
 from ffcx.compiler import compile_ufl_objects
 from ffcx.options import get_options
 
-import cppyy
 import numpy as np
 import numpy.typing as npt
 
@@ -38,7 +37,7 @@ alias_type_map = {np.float64: np.complex128}
 # Cache is used to avoid re-compiling the same form multiple times,
 # since cppyy does not recognize that two identical declarations are
 # the same and will raise a redefinition error.
-_cppyy_form_cache: dict[str, cppyy._cpython_cppyy.Template] = {}
+_cppyy_form_cache: dict[str, typing.Any] = {}
 
 
 def assemble_scalar(M: Form) -> typing.Any:
@@ -310,6 +309,8 @@ def jit(form, form_compiler_options: dict | None = None):
 
     if cache_key in _cppyy_form_cache:
         return _cppyy_form_cache[cache_key]
+
+    import cppyy
 
     decl = compile_ufl_objects([form], opts)[0][0]
 
