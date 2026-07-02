@@ -1,5 +1,5 @@
 """
-Third medium contact example from DOI: https://doi.org/10.1007/s00466-025-02628-y
+Third medium contact example from DOI: https://doi.org/10.1016/j.cma.2025.117740
 C-Box in 2D plane-strain.
 """
 
@@ -31,6 +31,11 @@ Nx = 40
 Ny = 20
 dL = L / Nx # element size
 
+## finer mesh
+# dL = 0.01
+# Nx = int(L/dL)
+# Ny = int(H/dL)
+
 tol = 1.0e-6
 
 def thirdmedium(x):
@@ -49,15 +54,17 @@ def left(x):
 tri = dolfinx.mesh.CellType.triangle
 quad = dolfinx.mesh.CellType.quadrilateral
 
+cell_type = quad
+
 # Create mesh
-layer = False # set to True to include layer of third medium elements on the right boundary
+layer = True # set to True to include layer of third medium elements on the right boundary
 if layer:
     name += "_layer"
     mesh = dolfinx.mesh.create_rectangle(
         comm,
         [[0, 0], [L+dL, H]],
         [Nx+1, Ny],
-        cell_type=tri,
+        cell_type=cell_type,
         ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
     )
 else:
@@ -65,7 +72,7 @@ else:
         comm,
         [[0, 0], [L, H]],
         [Nx, Ny],
-        cell_type=tri,
+        cell_type=cell_type,
         ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
     )
 
@@ -121,11 +128,13 @@ ft = dolfinx.mesh.meshtags(
 )
 ft.name = "facet_tags"
 
-# Export mesh and markers for inspection
-with dolfinx.io.XDMFFile(comm, f"{name}/{name}_mesh.xdmf", "w") as xdmf:
-    xdmf.write_mesh(mesh)
-    xdmf.write_meshtags(ct, mesh.geometry)
-    xdmf.write_meshtags(ft, mesh.geometry)
+# # # Export mesh and markers for inspection
+# # with dolfinx.io.XDMFFile(comm, f"{name}/{name}_mesh.xdmf", "w") as xdmf:
+# #     xdmf.write_mesh(mesh)
+# #     xdmf.write_meshtags(ct, mesh.geometry)
+# #     xdmf.write_meshtags(ft, mesh.geometry)
+# # pprint(f"Mesh saved to {name}/{name}_mesh.xdmf")
+
 
 num_cells_owned = mesh.topology.index_map(tdim).size_local
 num_nodes_owned = mesh.topology.index_map(0).size_local
@@ -133,11 +142,11 @@ num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
 num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
 
 pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
-pprint(f"Mesh saved to {name}/{name}_mesh.xdmf")
 
 # Integration measures
 metadata = {"quadrature_degree": 2} 
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct, metadata=metadata)
+# dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct)
 dxVol = dx(BODY_marker)
 dxThird = dx(TM_marker)
 ds = ufl.Measure("ds", domain=mesh, subdomain_data=ft)
@@ -150,32 +159,24 @@ third_medium_mesh, medium_map = dolfinx.mesh.create_submesh(
 element_deg = 1
 V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
 P = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
-W = ufl.MixedFunctionSpace(V, P)
+Q = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
+W = ufl.MixedFunctionSpace(V, P, Q)
+# W = ufl.MixedFunctionSpace(V, P)
 V_tm = fem.functionspace(mesh, ("DG", 0)) 
 
 # Functions
 u = fem.Function(V, name="displacement")
 p1 = fem.Function(P)
-
-# Define state and test functions
-if layer:
-    # If including layer of third medium elements, need to include additional variable (q) 
-    # to regularize volumetric response of those elements (see paper for details)
-    Q = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
-    W = ufl.MixedFunctionSpace(V, P, Q)
-    q = fem.Function(Q)
-    m = [u, p1, q]
-    δm = ufl.TestFunctions(W)
-else:   
-    m = [u, p1]
-    δm = ufl.TestFunctions(W)
-
-
+q = fem.Function(Q)
+m = [u, p1, q]
+# m = [u, p1]
+δm = ufl.TestFunctions(W)
+ 
 # Kinematics (2D plane strain)
 X = ufl.SpatialCoordinate(mesh)
 phi = X + u
 I = ufl.Identity(tdim)
-F_2D = I + ufl.grad(u)
+F_2D = ufl.variable(I + ufl.grad(u))
 trF = ufl.tr(F_2D)
 skF = F_2D[0,1] - F_2D[1,0]
 J = ufl.det(F_2D)
@@ -208,8 +209,9 @@ Psi_third = mu_body / 2 * (J ** (-2/3) * I1 - 3) # in 2D plane strain, no need f
 Pi_third = gamma * Psi_third * dxThird
 
 # regularization
-beta_1 = dolfinx.fem.Constant(mesh, 1.0)  # beta1 = gamma * alpha1 
-beta_2 = dolfinx.fem.Constant(mesh, 1e-3) # beta2 = gamma * alpha2
+beta_1 = dolfinx.fem.Constant(mesh, 1.0e4)  
+beta_2 = dolfinx.fem.Constant(mesh, 10.) 
+alpha_r = dolfinx.fem.Constant(mesh, 100.)
 
 L_i = np.zeros(tdim)
 for dim in range(mesh.geometry.dim):
@@ -218,26 +220,18 @@ for dim in range(mesh.geometry.dim):
     L_i[dim] = x_i_max - x_i_min
 d = dolfinx.fem.Constant(mesh, np.max(L_i))
 
-skew_term = (skF / trF) - 1 / d * p1
-Pi_R = (
-    beta_1 / 2  * ufl.dot(skew_term, skew_term) + beta_2 / 2 * ufl.inner(ufl.grad(p1), ufl.grad(p1))
-) * dxThird
+skew_term = (skF / trF) - 1/d * p1
 
-if layer:
-    alpha1 = dolfinx.fem.Constant(mesh, 1.0e4)
-    alpha2 = dolfinx.fem.Constant(mesh, 10.)
-    alpha_r = dolfinx.fem.Constant(mesh, 1.0)
+Pi_grad = (
+    beta_1 * skew_term**2 + alpha_r * ufl.inner(ufl.grad(p1), ufl.grad(p1))
+    ) * dxThird
 
-    Pi_grad = (
-        alpha1 * ufl.dot(skew_term, skew_term) + alpha_r * ufl.inner(ufl.grad(p1), ufl.grad(p1))
-        ) * dxThird
-    Pi_J = (
-        alpha2 * (J - q)**2 + alpha_r * ufl.inner(ufl.grad(q), ufl.grad(q))
-        ) * dxThird
-    
-    Pi_R = gamma/2 * (Pi_grad + Pi_J)
-    
+Pi_J = (
+    beta_2 * (J - q)**2 + alpha_r * ufl.inner(ufl.grad(q), ufl.grad(q))
+    ) * dxThird
 
+Pi_R = gamma/2 * (Pi_grad + Pi_J)    
+# Pi_R = gamma/2 * (Pi_grad)    
 
 # BCs
 left_dofs = dolfinx.fem.locate_dofs_topological(
@@ -257,6 +251,9 @@ bcs = [bc_left, bc_point_y]
 residual = ufl.derivative(Pi + Pi_third + Pi_R, m, δm)
 forms = ufl.extract_blocks(residual)
 
+disp_residual = ufl.derivative(Pi, u)
+
+
 problem = dolfinx.fem.petsc.NonlinearProblem(
     forms,
     m,
@@ -266,8 +263,9 @@ problem = dolfinx.fem.petsc.NonlinearProblem(
     petsc_options={
         "snes_type": "newtonls",
         "snes_linesearch_type": "bt",
+        "snes_linesearch_order": 1,
         # "snes_linesearch_type": "basic",
-        "snes_atol": 1e-6,
+        # "snes_atol": 1e-6,
         "snes_rtol": 1e-6,
         "snes_max_it": 50,
         "snes_monitor": None,
@@ -287,7 +285,8 @@ u_prev = u.x.array.copy()
 tm_prev = tm_func.x.array.copy()
 
 # output file for storing results
-ofile = VTXWriter(comm, f"{name}/{name}_P{element_deg}.bp", [u, tm_func])
+filename = f"{name}_Q{element_deg}.bp" if cell_type == quad else f"{name}_P{element_deg}.bp"
+ofile = VTXWriter(comm, f"{name}/{filename}", [u, tm_func])
 ofile.write(0.0) # write initial state
 
 # Adaptive loading
@@ -295,8 +294,8 @@ adaptive_load = False
 MAX_FAILURE = 5
 NUM_SUCCESSIVE_SOLVES = 0
 
-
-v_bar = -0.6*L  # final applied vertical displacement
+lmbda = 2.0
+v_bar = -0.5*lmbda  # final applied vertical displacement
 
 num_iterations = 0 # store total number of iterations across all loading steps
 loading_steps = 20
@@ -304,7 +303,10 @@ dl = 1. / loading_steps # load increment
 load = dl
 last_load = load
 n = 0 # used to adaptively increase/decrease load increment 
-ii = 1 # load step counter
+ii = 1 # load step countee
+
+force_array = [] # store reaction force at the top right corner for each load step
+loading_array = [] # store applied load for each load step
 
 # print a message for simulation startup
 pprint("------------------------------------")
@@ -344,7 +346,13 @@ while load <= (1.0 + tol):
         NUM_SUCCESSIVE_SOLVES += 1
         ofile.write(load)
         ii += 1
-        
+
+        # compile the residual for the solution to compute the reaction force at the top right corner
+        force_vector = fem.assemble_vector(fem.form(disp_residual))
+        force_array.append(abs(force_vector.array[dofs_point_y]))
+        loading_array.append(abs(applied_y.value))
+        print(f"lambda = {applied_y.value:.3f}, reaction force = {force_vector.array[dofs_point_y][0]:.6f}")
+
         load += dl
         # if adaptive_load:
         #    # load += NUM_SUCCESSIVE_SOLVES * dl
@@ -368,3 +376,19 @@ pprint("End computation")
 pprint(f"Elapsed time: {elapsedTime}")
 pprint(f"Total number of iterations: {num_iterations}")
 
+# post-processing: plot the reaction force vs applied displacement
+# compare with the Wriggers' paper results 
+
+curves = np.loadtxt("paper_res.csv", delimiter=";")
+p_x = curves[:,0] * 2
+p_y = curves[:,1] * 0.002
+
+import matplotlib.pyplot as plt
+plt.figure()
+plt.plot(np.array(loading_array)/H, np.array(force_array), 'ko--', linewidth=2, markersize=3, label=rf'$\gamma=10^{{-6}}$ pq')
+plt.plot(p_x, p_y, 'r', markersize=3, label="Wriggers' paper")
+plt.xlabel(r"$\lambda$")
+plt.ylabel("Force")
+plt.legend()
+plt.savefig(f"{name}/{filename.replace('.bp', '_force_displacement.png')}", dpi=300)
+plt.close()

@@ -155,10 +155,12 @@ I1 = ufl.tr(C_2D) + 1 # add 1 to account for plane strain out-of-plane component
 
 ## Material Properties
 # Body
-E = 1.0
-nu = 0.4
-K = E / (3 * (1 - 2 * nu))  # 5/3
-mu = E / (2 * (1 + nu))     # 5/14
+# E = 1.0
+# nu = 0.4
+# K = E / (3 * (1 - 2 * nu))  # 5/3
+# mu = E / (2 * (1 + nu))     # 5/14
+K = 5/3
+mu = 5/14
 K_body = fem.Constant(mesh, K)
 mu_body = fem.Constant(mesh, mu)
 Psi_body = K_body / 2 * ufl.ln(J) ** 2 + mu_body / 2 * (J ** (-2/3) * I1 - 3)
@@ -218,6 +220,8 @@ bcs = [bc_left, bc_point_y]
 residual = ufl.derivative(Pi + Pi_third + Pi_HuLu, u, δu)
 # forms = ufl.extract_blocks(residual)
 
+disp_residual = ufl.derivative(Pi, u)
+
 problem = dolfinx.fem.petsc.NonlinearProblem(
     residual,
     u,
@@ -227,7 +231,8 @@ problem = dolfinx.fem.petsc.NonlinearProblem(
     petsc_options={
         "snes_type": "newtonls",
         "snes_linesearch_type": "bt",
-        "snes_atol": 1e-6,
+        "snes_linesearch_order": 1,
+        # "snes_atol": 1e-6,
         "snes_rtol": 1e-6,
         "snes_max_it": 50,
         "snes_monitor": None,
@@ -256,7 +261,8 @@ MAX_FAILURE = 5
 NUM_SUCCESSIVE_SOLVES = 0
 
 
-v_bar = -0.6*L  # final applied vertical displacement
+lmbda = 1.0
+v_bar = -0.5*lmbda  # final applied vertical displacement
 
 num_iterations = 0 # store total number of iterations across all loading steps
 loading_steps = 20
@@ -317,6 +323,11 @@ while load <= (1.0 + tol):
         break
 
 ofile.close() # close output file
+
+force_vector = fem.assemble_vector(fem.form(disp_residual))
+force_y = force_vector.array[dofs_point_y] 
+print(f"Reaction force at top right corner: {force_y}")
+
 
 # Store end time and compute elapsed time
 endTime = datetime.now()
