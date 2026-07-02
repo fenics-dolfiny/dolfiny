@@ -18,6 +18,7 @@ dist
 *.coverage*
 *.DS_Store
 *.bp
+*.log
 
 # tool caches
 .gitlab-ci-local
