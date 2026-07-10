@@ -55,7 +55,7 @@ endif()
 
 target_include_directories(_cpp PRIVATE ${DOLFINX_PY_INCLUDE_DIRS})
 target_compile_features(_cpp PRIVATE cxx_std_20)
-target_link_libraries(_cpp PRIVATE dolfinx ${MPFR_LIBRARY})
+target_link_libraries(_cpp PRIVATE dolfinx::dolfinx ${MPFR_LIBRARY})
 target_include_directories(
     _cpp
     PRIVATE ${DOLFINX_INCLUDE_DIRS} ${MPFR_INCLUDE_DIR}
