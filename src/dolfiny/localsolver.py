@@ -60,7 +60,7 @@ class UserKernel(NamedTuple):
     required_J: set[tuple[int, int]] | list[tuple[int, int]] | None
 
 
-@numba.cfunc(c_signature, nopython=True)
+@numba.cfunc(c_signature, nopython=True)  # type: ignore
 def do_nothing(A_, w_, c_, coords_, entity_local_index, permutation=ffi.NULL, custom_data=ffi.NULL):
     pass
 
