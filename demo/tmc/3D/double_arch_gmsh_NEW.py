@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+#
+# Variant of double_arch_gmsh.py in which the third medium (tm) is present ONLY
+# in the EXTERNAL gap, between the outer ring (arch2) and the block top edge.
+# The INTERNAL third-medium "cap" that filled the concavity of the inner ring
+# (sectors s1/s2/s3 + central rectangle in the original) has been removed, so
+# the ring interior is now an empty void (as in the physical reference problem).
+#
+# Everything else (bodies, facet groups, transfinite/recombined structured mesh,
+# 2D/3D switch, physical-group tags) is identical to double_arch_gmsh.py.
 
 import sys
 import os
@@ -31,8 +40,9 @@ def mesh_double_arch_gmsh(
     comm=MPI.COMM_WORLD,
 ):
     """
-    Create mesh of 3d double arch problem using the Python API of Gmsh.
-    For details of the geometry, see http://dx.doi.org/10.1016/j.compstruc.2015.02.027
+    Create mesh of the double-arch problem (external-only third medium) using the
+    Python API of Gmsh. For details of the geometry, see
+    http://dx.doi.org/10.1016/j.compstruc.2015.02.027
     """
 
     gmsh.initialize() # Initialize Gmsh instace
@@ -72,7 +82,6 @@ def mesh_double_arch_gmsh(
         p1_left = gmsh.model.occ.addPoint(-Di/2, center[1], 0.)
         p1_middle = gmsh.model.occ.addPoint(0., center[1]-(Di/2), 0.)
         p1_right = gmsh.model.occ.addPoint(Di/2, center[1], 0.)
-        # arch1 = gmsh.model.occ.addCircleArc(p1_left, p1_middle, p1_right, center=False)
         arch1_l = gmsh.model.occ.addCircleArc(p1_left, center_point, x3_p)
         arch1_m = gmsh.model.occ.addCircleArc(x3_p, center_point, x4_p)
         arch1_r = gmsh.model.occ.addCircleArc(x4_p, center_point, p1_right)
@@ -84,7 +93,6 @@ def mesh_double_arch_gmsh(
         p2_left = gmsh.model.occ.addPoint(-Di/2-2*t, center[1], 0.)
         p2_middle = gmsh.model.occ.addPoint(0., center[1]-(Di/2+2*t), 0.)
         p2_right = gmsh.model.occ.addPoint(Di/2+2*t, center[1], 0.)
-        # arch2 = gmsh.model.occ.addCircleArc(p2_left, p2_middle, p2_right, center=False)
         arch2_l = gmsh.model.occ.addCircleArc(p2_left, center_point, x5_p)
         arch2_m = gmsh.model.occ.addCircleArc(x5_p, center_point, x6_p)
         arch2_r = gmsh.model.occ.addCircleArc(x6_p, center_point, p2_right)
@@ -97,7 +105,6 @@ def mesh_double_arch_gmsh(
         pm_left = gmsh.model.occ.addPoint(-Di/2-t, center[1], 0.)
         pm_middle = gmsh.model.occ.addPoint(0., center[1]-(Di/2+t), 0.)
         pm_right = gmsh.model.occ.addPoint(Di/2+t, center[1], 0.)
-        # archm = gmsh.model.occ.addCircleArc(pm_left, pm_middle, pm_right, center=False)
         archm_l = gmsh.model.occ.addCircleArc(pm_left, center_point, xm_l)
         archm_m = gmsh.model.occ.addCircleArc(xm_l, center_point, xm_r)
         archm_r = gmsh.model.occ.addCircleArc(xm_r, center_point, pm_right)
@@ -111,12 +118,8 @@ def mesh_double_arch_gmsh(
         origin = gmsh.model.occ.addPoint(0., 0., 0.)
         ptm_3 = gmsh.model.occ.addPoint(Lx/2, 0., 0.)
         ptm_4 = gmsh.model.occ.addPoint(Lx/2, center[1], 0.)
-        # internal (above arches)
-        # rectangle for structured mesh
-        ptm_r1 = gmsh.model.occ.addPoint(-lR, center[1], 0.)
-        ptm_r2 = gmsh.model.occ.addPoint(-lR, center[1]-2*lR, 0.)
-        ptm_r3 = gmsh.model.occ.addPoint(lR, center[1]-2*lR, 0.)
-        ptm_r4 = gmsh.model.occ.addPoint(lR, center[1], 0.)
+        # NOTE: the INTERNAL third-medium cap (points ptm_r1..ptm_r4 and its
+        # sector/rectangle surfaces) is intentionally omitted in this variant.
 
         # add curve loops and surfaces for each subdomain
         # DOUBLE ARCH
@@ -130,8 +133,7 @@ def mesh_double_arch_gmsh(
         a2_cl = gmsh.model.occ.addCurveLoop([*archm_plus, l2_t_r, *arch2_min, l2_t_l])
         a2_surf = gmsh.model.occ.addPlaneSurface([a2_cl])
 
-        # THIRD-MEDIUM
-        # EXTERNAL portion
+        # THIRD-MEDIUM -- EXTERNAL portion only
         # left portion
         tm_l1 = gmsh.model.occ.addLine(ptm_1, p2_left)
         tm_l2 = arch2_l
@@ -153,34 +155,6 @@ def mesh_double_arch_gmsh(
         tm_r3 = gmsh.model.occ.addLine(ptm_4, ptm_3)
         tm_cl_r = gmsh.model.occ.addCurveLoop([tm_r1, tm_r2, tm_r3, -tm_c2])
         tm_surf_R = gmsh.model.occ.addPlaneSurface([tm_cl_r])
-
-        # INTERNAL portion
-        # sector 1
-        tm_i1 = gmsh.model.occ.addLine(p1_left, ptm_r1)
-        tm_i2 = gmsh.model.occ.addLine(ptm_r1, ptm_r2)
-        tm_i3 = gmsh.model.occ.addLine(ptm_r2, x3_p)
-        tm_i4 = - arch1_l
-        tm_cl_i1 = gmsh.model.occ.addCurveLoop([tm_i1, tm_i2, tm_i3, tm_i4])
-        tm_surf_s1 = gmsh.model.occ.addPlaneSurface([tm_cl_i1])
-
-        # sector 2
-        tm_i5 = gmsh.model.occ.addLine(ptm_r2, ptm_r3)
-        tm_i6 = gmsh.model.occ.addLine(ptm_r3, x4_p)
-        tm_i7 = - arch1_m
-        tm_cl_i2 = gmsh.model.occ.addCurveLoop([tm_i5, tm_i6, tm_i7, -tm_i3])
-        tm_surf_s2 = gmsh.model.occ.addPlaneSurface([tm_cl_i2])
-
-        # sector 3
-        tm_i8 = gmsh.model.occ.addLine(ptm_r3, ptm_r4)
-        tm_i9 = gmsh.model.occ.addLine(ptm_r4, p1_right)
-        tm_i10 = - arch1_r
-        tm_cl_i3 = gmsh.model.occ.addCurveLoop([tm_i8, tm_i9, tm_i10, -tm_i6])
-        tm_surf_s3 = gmsh.model.occ.addPlaneSurface([tm_cl_i3])
-
-        # sector - rectangle
-        tm_r4_line = gmsh.model.occ.addLine(ptm_r1, ptm_r4)
-        tm_cl_r = gmsh.model.occ.addCurveLoop([-tm_i2, tm_r4_line, -tm_i8, -tm_i5])
-        tm_surf_r = gmsh.model.occ.addPlaneSurface([tm_cl_r])
 
         # BLOCK
         b_l1 = gmsh.model.occ.addLine(pb_1, ptm_2)
@@ -209,7 +183,6 @@ def mesh_double_arch_gmsh(
 
         # double arch
         gmsh.model.mesh.setTransfiniteCurve(tm_c1, N_L)
-        gmsh.model.mesh.setTransfiniteCurve(tm_i7, N_L)
         gmsh.model.mesh.setTransfiniteCurve(archm_m, N_L)
         gmsh.model.mesh.setTransfiniteCurve(arch1_m, N_L)
         gmsh.model.mesh.setTransfiniteCurve(arch2_m, N_L)
@@ -217,14 +190,12 @@ def mesh_double_arch_gmsh(
 
         gmsh.model.mesh.setTransfiniteCurve(tm_l2, N_Di)
         gmsh.model.mesh.setTransfiniteCurve(tm_r1, N_Di)
-        gmsh.model.mesh.setTransfiniteCurve(tm_i4, N_Di)
-        gmsh.model.mesh.setTransfiniteCurve(tm_i10, N_Di)
         gmsh.model.mesh.setTransfiniteCurve(archm_l, N_Di)
         gmsh.model.mesh.setTransfiniteCurve(archm_r, N_Di)
-        gmsh.model.mesh.setTransfiniteCurve(arch1_l, N_Di) 
+        gmsh.model.mesh.setTransfiniteCurve(arch1_l, N_Di)
         gmsh.model.mesh.setTransfiniteCurve(arch1_r, N_Di)
-        gmsh.model.mesh.setTransfiniteCurve(arch2_l, N_Di) 
-        gmsh.model.mesh.setTransfiniteCurve(arch2_r, N_Di) 
+        gmsh.model.mesh.setTransfiniteCurve(arch2_l, N_Di)
+        gmsh.model.mesh.setTransfiniteCurve(arch2_r, N_Di)
 
 
         gmsh.model.mesh.setTransfiniteCurve(l1_t_l, N_t)
@@ -232,8 +203,7 @@ def mesh_double_arch_gmsh(
         gmsh.model.mesh.setTransfiniteCurve(l2_t_l, N_t)
         gmsh.model.mesh.setTransfiniteCurve(l2_t_r, N_t)
 
-        # third medium
-        # external part
+        # third medium -- external part only
         gmsh.model.mesh.setTransfiniteCurve(tm_l1, N_TM)
         gmsh.model.mesh.setTransfiniteCurve(tm_l3, N_TM)
         gmsh.model.mesh.setTransfiniteCurve(tm_l4, N_Di)
@@ -242,36 +212,24 @@ def mesh_double_arch_gmsh(
         gmsh.model.mesh.setTransfiniteCurve(tm_r2, N_TM)
         gmsh.model.mesh.setTransfiniteCurve(tm_r3, N_Di)
         gmsh.model.mesh.setTransfiniteCurve(tm_c2, N_TM)
-        # internal part
-        gmsh.model.mesh.setTransfiniteCurve(tm_i1, N_TM)
-        gmsh.model.mesh.setTransfiniteCurve(tm_i3, N_TM)
-        gmsh.model.mesh.setTransfiniteCurve(tm_i6, N_TM)
-        gmsh.model.mesh.setTransfiniteCurve(tm_i9, N_TM) 
-
-        gmsh.model.mesh.setTransfiniteCurve(tm_i2, N_Di)   
-        gmsh.model.mesh.setTransfiniteCurve(tm_i8, N_Di)
-
-        gmsh.model.mesh.setTransfiniteCurve(tm_i5, N_L)
-        gmsh.model.mesh.setTransfiniteCurve(tm_r4_line, N_L)
 
 
         ###
-        surfaces = [b_surf, tm_surf_L, tm_surf_C, tm_surf_R, tm_surf_s1, tm_surf_s2, tm_surf_s3, tm_surf_r]
+        surfaces = [b_surf, tm_surf_L, tm_surf_C, tm_surf_R]
         for s in surfaces:
             gmsh.model.mesh.setTransfiniteSurface(s)
             gmsh.model.mesh.setRecombine(2, s)  # recombine triangles into quads
 
         gmsh.model.mesh.setTransfiniteSurface(a1_surf, cornerTags=[p1_left, p1_right, pm_right, pm_left])
         gmsh.model.mesh.setTransfiniteSurface(a2_surf, cornerTags=[pm_left, pm_right, p2_right, p2_left])
-        gmsh.model.mesh.setRecombine(2, a1_surf)  
-        gmsh.model.mesh.setRecombine(2, a2_surf)  
-        
+        gmsh.model.mesh.setRecombine(2, a1_surf)
+        gmsh.model.mesh.setRecombine(2, a2_surf)
+
 
     eps = 1e-6  # tolerance for bounding box
 
     if tdim == 3:
-        surfaces = [a1_surf, a2_surf, b_surf, tm_surf_L, tm_surf_C, tm_surf_R,
-                    tm_surf_s1, tm_surf_s2, tm_surf_s3, tm_surf_r]
+        surfaces = [a1_surf, a2_surf, b_surf, tm_surf_L, tm_surf_C, tm_surf_R]
         surface_entities = [(2, s) for s in surfaces]
 
         volumes_entities = gmsh.model.occ.extrude(
@@ -300,8 +258,7 @@ def mesh_double_arch_gmsh(
             "block": [b_surf],
             "arch1": [a1_surf],
             "arch2": [a2_surf],
-            "tm":    [tm_surf_L, tm_surf_C, tm_surf_R,
-                    tm_surf_s1, tm_surf_s2, tm_surf_s3, tm_surf_r],
+            "tm":    [tm_surf_L, tm_surf_C, tm_surf_R],
         }
         cell_dim, facet_dim = 2, 1
         z_min, z_max = -eps, eps  # geometry lives at z = 0 only
@@ -343,14 +300,4 @@ def mesh_double_arch_gmsh(
         gmsh.write(f"{name}/{name}.vtk")
         print(f"Mesh saved to {name}/{name}.vtk")
 
-    # if '-nopopup' not in sys.argv:
-    #     gmsh.fltk.run()
-
     return gmsh.model if comm.rank == 0 else None
-
-
-# if __name__ == "__main__":
-#     cell_tags = {"block": 1, "arch1": 2, "arch2": 3, "tm": 4}
-#     facet_tags = {"bottom": 1, "top_arches": 2}
-#     mesh_double_arch_gmsh(cell_tags=cell_tags, facet_tags=facet_tags, nt=2)
-

@@ -9,7 +9,8 @@ from dolfinx.fem.petsc import NonlinearProblem
 import ufl
 import numpy as np
 from dolfinx.io import VTXWriter
-from double_arch_gmsh import mesh_double_arch_gmsh
+from double_arch_gmsh_NEW import mesh_double_arch_gmsh  # external-only full-box TM 
+# from double_arch_gmsh import mesh_double_arch_gmsh
 
 from dolfinx import fem
 import dolfiny
@@ -18,20 +19,44 @@ from petsc4py import PETSc
 
 # For timing the code
 from datetime import datetime
+import argparse
+import os
 
 # Basic settings
 name = "double_arch_W"
 comm = MPI.COMM_WORLD
+
+# User parameters (argparse)
+parser = argparse.ArgumentParser(
+    description="Double-arch third-medium contact, Wriggers first-order regularization."
+)
+parser.add_argument("--gamma", type=float, default=1.0e-4,
+                    help="relative contact stiffness gamma multiplying the TM energy")
+parser.add_argument("--beta1", type=float, default=1.0e5,
+                    help="penalty enforcing skew(F)/tr(F) ~ p/reg_len")
+parser.add_argument("--beta2", type=float, default=10.0,
+                    help="penalty enforcing J ~ q (strength of the grad(J) control)")
+parser.add_argument("--alpha_r", type=float, default=100.0,
+                    help="regularization scaling on grad(p), grad(q)")
+parser.add_argument("--nTM", type=int, default=10,
+                    help="number of elements across the third medium")
+parser.add_argument("--full_disp", type=float, default=-90.0,
+                    help="full prescribed vertical displacement [mm] on top of arches")
+parser.add_argument("--quad_degree", type=int, default=3,
+                    help="quadrature degree (standard Gauss)")
+parser.add_argument("--exp_tag", type=str, default="",
+                    help="optional tag appended to the output folder name")
+args, _ = parser.parse_known_args() # allow unknown args to be passed without throwing an error 
 
 # Geometry and mesh parameters
 Lx, H, Lz = 260., 50., 50. # block dimensions
 Di, t = 90., 5. # inner diameter and thickness of arches
 g0 = 20. # initial vertical gap between arches and block
 
-# define number of elements 
+# define number of elements
 nL, nH, nt = 24, 10, 2
 nDi = 12
-nTM = 10
+nTM = args.nTM
 
 # arch1: INNER, arch2: OUTER
 cell_tags = {"block": 1, "arch1": 2, "arch2": 3, "tm": 4}
@@ -42,6 +67,9 @@ vtk_file = True # export mesh to Paraview for visualization
 
 dim = 2 # solve 3D problem or 2D plane-strain problem
 name = f"{name}_{dim}D"
+if args.exp_tag:
+    name = f"{name}_{args.exp_tag}"
+os.makedirs(name, exist_ok=True) # ensure output folder exists (needed for tagged experiments)
 
 model = mesh_double_arch_gmsh(
     tdim=dim, cell_tags=cell_tags, facet_tags=facet_tags, Lx=Lx, Lz=Lz, H=H, Di=Di, t=t, g0=g0,
@@ -77,7 +105,7 @@ num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
 pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
 
 # Integration measures
-metadata = {"quadrature_degree": 3} 
+metadata = {"quadrature_degree": args.quad_degree}  # standard Gauss quadrature
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct, metadata=metadata)
 # dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct)
 dxA1 = dx(cell_tags["arch1"])  # integration measure for arch1
@@ -168,14 +196,16 @@ Pi = (
 K_TM = E_block / (3 * (1 - 2 * nu))
 K_tm = fem.Constant(mesh, K_TM)
 mu_tm = mu_block
+TM_VOLUMETRIC = True
 if dim == 3:
     Psi_tm = K_tm / 2 * ufl.ln(J) ** 2 + mu_tm / 2 * (J ** (-2/3) * I1 - 3)
-else:
+else: # in 2D plane-strain, the deviatoric contribution is sufficient to guarantee third-medium stiffnening under compression
     Psi_tm = mu_tm / 2 * (J ** (-2/3) * I1 - 3)
+    if TM_VOLUMETRIC: # restore the ln(J)^2 volumetric barrier 
+        Psi_tm = Psi_tm + K_tm / 2 * ufl.ln(J) ** 2
 
-gamma = fem.Constant(mesh, 1.0e-5)
+gamma = fem.Constant(mesh, args.gamma)
 Pi_third = gamma * Psi_tm * dxThird
-
 
 # regularization
 L_i = np.zeros(tdim)
@@ -185,9 +215,9 @@ for dim in range(mesh.geometry.dim):
     L_i[dim] = x_i_max - x_i_min
 Ell = dolfinx.fem.Constant(mesh, np.max(L_i))
 
-beta_1 = dolfinx.fem.Constant(mesh, 1.0e5)  
-beta_2 = dolfinx.fem.Constant(mesh, 10.) 
-alpha_r = dolfinx.fem.Constant(mesh, 100.)
+beta_1 = dolfinx.fem.Constant(mesh, args.beta1)
+beta_2 = dolfinx.fem.Constant(mesh, args.beta2)
+alpha_r = dolfinx.fem.Constant(mesh, args.alpha_r)
 
 skew_term = (skF / trF) - 1/Ell * p
 
@@ -254,9 +284,10 @@ problem = dolfinx.fem.petsc.NonlinearProblem(
     petsc_options={
         "snes_type": "newtonls",
         "snes_linesearch_type": "bt",
-        # "snes_linesearch_order": 1,
-        "snes_rtol": 1.0e-06,
-        "snes_atol": 1.0e-09,
+        "snes_linesearch_order": 1,
+        # "snes_linesearch_monitor": None,
+        "snes_rtol": 1.0e-08,
+        "snes_atol": 1.0e-08,
         "snes_max_it": 50,
         "snes_monitor": None,
         "snes_converged_reason": None,
@@ -269,12 +300,38 @@ problem = dolfinx.fem.petsc.NonlinearProblem(
 tm_func = fem.Function(V_tm, name="cell_markers")
 tm_func.x.array[:] = ct.values
 
+# J = det(F) diagnostic on a DG-0 space (Linear elements + standard Gauss quadrature): one value per cell 
+# (element-wise averaged det(F) at the interpolation point). 
+# per-cell J the natural monitor of the third-medium volume collapse (min(J) -> 0).
+V_J = fem.functionspace(mesh, ("DG", 0))
+J_func = fem.Function(V_J, name="J_det")
+J_expr = fem.Expression(J, V_J.element.interpolation_points)
+tm_cells = ct.find(cell_tags["tm"])
+tm_J_dofs = np.unique(V_J.dofmap.list[tm_cells].reshape(-1))
+
+
+def report_min_J():
+    """Interpolate J, report min over TM and how many TM cells are near/below collapse."""
+    J_func.interpolate(J_expr)
+    J_tm = J_func.x.array[tm_J_dofs]
+    min_J = float(J_tm.min())
+    n_low = int((J_tm < 0.1).sum())
+    n_neg = int((J_tm <= 0.0).sum())
+    pprint(
+        f"    min(J)|TM = {min_J:+.4e}   #cells J<0.1 = {n_low}/{len(tm_J_dofs)}   #cells J<=0 = {n_neg}",
+        flush=True,
+    )
+    return min_J
+
 u_prev = u.x.array.copy()
 tm_prev = tm_func.x.array.copy()
 
 # output file for storing results
 ofile = VTXWriter(comm, f"{name}/{name}.bp", [u, tm_func])
 ofile.write(0.0) # write initial state
+# separate writer for J (DG-0): VTX requires one element type per file
+ofile_J = VTXWriter(comm, f"{name}/{name}_J.bp", [J_func])
+ofile_J.write(0.0)
 
 # identify half-ring middle node 
 mesh.topology.create_connectivity(0, tdim) # nodes-to-cells connectivity
@@ -286,7 +343,7 @@ adaptive_load = False
 MAX_FAILURE = 2
 NUM_SUCCESSIVE_SOLVES = 0
 
-full_disp = -90.0 # [mm] full displacement applied to top of arches
+full_disp = args.full_disp # [mm] full displacement applied to top of arches
 pre_contact_disp_step = 1.0
 contact_disp_step = 0.5
 threshold = 20.0 # up to this displacement, use larger load increment (even if contact is established)
@@ -330,7 +387,9 @@ while load <= (1.0 + 1e-6):
     # Solve the problem
     problem.solve()
     reason = problem.solver.getConvergedReason()
-    
+
+    report_min_J()  # diagnostic: min(J) over TM (on the final iterate, converged or not)
+
     num_iterations += problem.solver.getIterationNumber()
     n += 1
     
@@ -351,8 +410,9 @@ while load <= (1.0 + 1e-6):
         last_load = load
         NUM_SUCCESSIVE_SOLVES += 1
         ofile.write(load)
+        ofile_J.write(load)
 
-        
+
         current_disp = abs(full_disp) * load
         if current_disp < threshold:
             dl = dl_free
@@ -376,6 +436,7 @@ while load <= (1.0 + 1e-6):
         break
 
 ofile.close() # close output file
+ofile_J.close()
 
 # # persist the last converged state for post-processing
 save_loading_history()
