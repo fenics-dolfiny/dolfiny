@@ -155,7 +155,7 @@ def wrap_objective_callbacks(
 
         dolfinx.fem.petsc.set_bc(
             J_vec,
-            bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(J_form), bcs),  # type: ignore
+            bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(J_form), bcs),
             x0=x,
             alpha=-1.0,
         )
@@ -311,7 +311,9 @@ def wrap_constraint_callbacks(
                 raise RuntimeError()
         c.assemble()
 
-    Jg_vec = dolfinx.fem.petsc.create_vector(dolfinx.fem.extract_function_spaces(Jg_forms[0][0]))
+    spaces = dolfinx.fem.extract_function_spaces(Jg_forms[0][0])
+    assert spaces is not None
+    Jg_vec = dolfinx.fem.petsc.create_vector(spaces)
 
     @sync_functions(u)
     def _Jg_callback(tao, x, J, P) -> None:
