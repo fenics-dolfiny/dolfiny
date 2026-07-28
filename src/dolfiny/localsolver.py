@@ -9,7 +9,7 @@ from typing import Any, NamedTuple
 from petsc4py import PETSc
 
 import dolfinx
-from ffcx.codegeneration.utils import empty_void_pointer
+from ffcx.codegeneration.numba.utils import empty_void_pointer
 
 import cffi
 import numba
