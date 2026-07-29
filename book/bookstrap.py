@@ -19,6 +19,7 @@ demo_files = [  # relative from demo/
     "continuation/tdc_shell_naghdi_cylindrical_roof.py",
     "running_error/neo_hooke_2d.py",
     "vsolid/solid_disp_tda.py",
+    "tmc/third_medium_cbox.py",
 ]
 
 parser = argparse.ArgumentParser("bookstrap")
