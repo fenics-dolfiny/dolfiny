@@ -32,14 +32,15 @@ struct dolfinx::scalar_value<re_worst_double_t> {
 };
 
 template <>
-struct dolfinx::MPI::mpi_type_mapping<re_worst_double_t> {
-  static inline MPI_Datatype type = []() {
+MPI_Datatype dolfinx::MPI::mpi_datatype<re_worst_double_t>() {
+  static MPI_Datatype dt = []() {
     MPI_Datatype dt;
     MPI_Type_contiguous(2, MPI_DOUBLE, &dt);
     MPI_Type_commit(&dt);
     return dt;
   }();
-};
+  return dt;
+}
 
 namespace nanobind::detail {
 // Overcome DLPack limitations for custom scalar types.
@@ -69,14 +70,15 @@ struct dolfinx::scalar_value<re_exact_double_t> {
 };
 
 template <>
-struct dolfinx::MPI::mpi_type_mapping<re_exact_double_t> {
-  static inline MPI_Datatype type = []() {
+MPI_Datatype dolfinx::MPI::mpi_datatype<re_exact_double_t>() {
+  static MPI_Datatype dt = []() {
     MPI_Datatype dt;
     MPI_Type_contiguous(2, MPI_DOUBLE, &dt);
     MPI_Type_commit(&dt);
     return dt;
   }();
-};
+  return dt;
+}
 
 namespace nanobind::detail {
 template <>
