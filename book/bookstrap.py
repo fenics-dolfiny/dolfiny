@@ -35,6 +35,7 @@ parser.add_argument(
     type=int,
     help="Number of parallel jobs to run when executing notebooks.",
 )
+parser.add_argument("-w", "--watch", action="store_true")
 
 args = parser.parse_args()
 filter = args.filter
@@ -44,95 +45,110 @@ if os.getcwd() != os.path.dirname(os.path.abspath(__file__)):
     raise RuntimeError("setup.py expects to be executed from the book/ directory.")
 
 
-# Step 1: Copy entire demo directories to book structure
-# Collect unique directories to avoid copying the same directory multiple times
-demo_dirs = set(pathlib.Path(demo).parent for demo in demo_files if re.match(filter, demo))
+def run():
+    # Step 1: Copy entire demo directories to book structure
+    # Collect unique directories to avoid copying the same directory multiple times
+    demo_dirs = set(pathlib.Path(demo).parent for demo in demo_files if re.match(filter, demo))
 
-for book_dir in sorted(demo_dirs):
-    demo_dir = pathlib.Path(f"../demo/{book_dir}")
+    for book_dir in sorted(demo_dirs):
+        demo_dir = pathlib.Path(f"../demo/{book_dir}")
 
-    print(f"📁 Copying directory: {demo_dir} → {book_dir}", flush=True)
-    subprocess.run(["cp", "-rf", demo_dir, book_dir.parent], check=True)
+        print(f"📁 Copying directory: {demo_dir} → {book_dir}", flush=True)
+        subprocess.run(["cp", "-rf", demo_dir, book_dir.parent], check=True)
 
-# Step 2: Convert Python scripts to notebooks
-for demo in demo_files:
-    script = pathlib.Path(demo)
-    notebook = script.with_suffix(".ipynb")
+    # Step 2: Convert Python scripts to notebooks
+    for demo in demo_files:
+        script = pathlib.Path(demo)
+        notebook = script.with_suffix(".ipynb")
 
-    if not re.match(filter, demo):
-        print(f"♻️  Converting script (Skipped): {script} → {notebook}", flush=True)
-        continue
+        if not re.match(filter, demo):
+            print(f"♻️  Converting script (Skipped): {script} → {notebook}", flush=True)
+            continue
 
-    if not script.exists():
-        print(f"♻️  Converting script (Not found): {script} → {notebook}", flush=True)
-        continue
+        if not script.exists():
+            print(f"♻️  Converting script (Not found): {script} → {notebook}", flush=True)
+            continue
 
-    print(f"♻️  Converting script to notebook: {script} → {notebook}", flush=True)
-    subprocess.run(
-        [
-            "jupytext",
-            str(script),
-            "--to",
-            "ipynb",
-            "--quiet",
-            "--output",
-            str(notebook),
-        ],
-        check=True,
-    )
+        print(f"♻️  Converting script to notebook: {script} → {notebook}", flush=True)
+        subprocess.run(
+            [
+                "jupytext",
+                str(script),
+                "--to",
+                "ipynb",
+                "--quiet",
+                "--output",
+                str(notebook),
+            ],
+            check=True,
+        )
+
+    def poll_jobs(running_jobs: list[subprocess.Popen], num: int) -> None:
+        """Wait until the number of running jobs is less than or equal to num."""
+        polling_interval = 0.5
+
+        while len(running_jobs) > num:
+            time.sleep(polling_interval)
+
+            # check any crashed
+            if any(p for p in running_jobs if p.poll() is not None and p.returncode < 0):
+                for _p in running_jobs:
+                    _p.kill()
+
+                raise RuntimeError(f"Job crashed (PID: {p.pid})")
+
+            # Check for completed jobs and remove them from the list
+            running_jobs = [p for p in running_jobs if p.poll() is None]
+
+    running_jobs = []
+
+    # Step 3: Execute notebooks
+    for demo in demo_files:
+        notebook = pathlib.Path(demo).with_suffix(".ipynb")
+
+        if not re.match(filter, demo):
+            print(f"🚧 Executing notebook (Skipped): {notebook}", flush=True)
+            continue
+
+        if not notebook.exists():
+            print(f"🚧 Executing notebook (Not found): {notebook}", flush=True)
+            continue
+
+        poll_jobs(running_jobs, njobs - 1)
+
+        p = subprocess.Popen(
+            [
+                "jupyter",
+                "nbconvert",
+                "--execute",
+                "--to",
+                "notebook",
+                "--inplace",
+                "--clear-output",
+                "--log-level=WARN",
+                str(notebook),
+            ]
+        )
+        running_jobs.append(p)
+        print(f"🚧 Executing notebook: {notebook} (PID: {p.pid})", flush=True)
+
+    poll_jobs(running_jobs, 0)  # Wait for all remaining jobs to finish
 
 
-def poll_jobs(running_jobs: list[subprocess.Popen], num: int) -> None:
-    """Wait until the number of running jobs is less than or equal to num."""
-    polling_interval = 0.5
+run()
 
-    while len(running_jobs) > num:
-        time.sleep(polling_interval)
+if args.watch:
+    last = time.time_ns()
 
-        # check any crashed
-        if any(p for p in running_jobs if p.poll() is not None and p.returncode < 0):
-            for _p in running_jobs:
-                _p.kill()
-
-            raise RuntimeError(f"Job crashed (PID: {p.pid})")
-
-        # Check for completed jobs and remove them from the list
-        running_jobs = [p for p in running_jobs if p.poll() is None]
-
-
-running_jobs = []
-
-# Step 3: Execute notebooks
-for demo in demo_files:
-    notebook = pathlib.Path(demo).with_suffix(".ipynb")
-
-    if not re.match(filter, demo):
-        print(f"🚧 Executing notebook (Skipped): {notebook}", flush=True)
-        continue
-
-    if not notebook.exists():
-        print(f"🚧 Executing notebook (Not found): {notebook}", flush=True)
-        continue
-
-    poll_jobs(running_jobs, njobs - 1)
-
-    p = subprocess.Popen(
-        [
-            "jupyter",
-            "nbconvert",
-            "--execute",
-            "--to",
-            "notebook",
-            "--inplace",
-            "--clear-output",
-            "--log-level=WARN",
-            str(notebook),
-        ]
-    )
-    running_jobs.append(p)
-    print(f"🚧 Executing notebook: {notebook} (PID: {p.pid})", flush=True)
-
-poll_jobs(running_jobs, 0)  # Wait for all remaining jobs to finish
+    while True:
+        time.sleep(2)
+        if any(
+            pathlib.Path("../demo/" + demo).stat().st_mtime_ns >= last
+            for demo in demo_files
+            if re.match(filter, demo)
+        ):
+            run()
+            last = time.time_ns()
 
 print("📖 ready!")
 print(" > jupyter book start")
