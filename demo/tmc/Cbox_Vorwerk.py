@@ -1,6 +1,6 @@
 """
-Third medium contact example from DOI: https://doi.org/10.1016/j.cma.2025.117740
-C-Box in 2D plane-strain with Wriggers first-order regularization
+Third medium contact example from DOI: https://arxiv.org/abs/2606.28036
+C-Box in 2D plane-strain with "deformation-gradient-based" regularization
 """
 
 from mpi4py import MPI
@@ -22,12 +22,12 @@ import argparse
 from datetime import datetime
 
 # Basic settings
-name = "cbox_Wriggers"
+name = "cbox_Vorwerk"
 comm = MPI.COMM_WORLD
 
 # User parameters (argparse)
 parser = argparse.ArgumentParser(
-    description="C-Box benchmark, Wriggers regularization."
+    description="C-Box benchmark, Vorwerk regularization."
 )
 parser.add_argument("--ct", choices=("quad", "tri"), default="quad",
                     help="Element type: quad (quadrilateral) or tri (triangle)")
@@ -76,7 +76,6 @@ mesh = dolfinx.mesh.create_rectangle(
     ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
 )
 
-
 tdim = mesh.topology.dim # 2 for 2D
 fdim = tdim - 1 # 1 for facets in 2D
 
@@ -104,6 +103,7 @@ num_facets_local = (
 )
 
 facet_markers = np.zeros(num_facets_local, dtype=np.int32)
+
 facet_markers[dolfinx.mesh.locate_entities(mesh, fdim, left)] = (
     LEFT_marker
 )
@@ -123,6 +123,7 @@ ft.name = "facet_tags"
 # #     xdmf.write_meshtags(ft, mesh.geometry)
 # # pprint(f"Mesh saved to {name}/{name}_mesh.xdmf")
 
+
 num_cells_owned = mesh.topology.index_map(tdim).size_local
 num_nodes_owned = mesh.topology.index_map(0).size_local
 num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
@@ -133,7 +134,7 @@ pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
 # Integration measures
 QRULE_BODY, QDEG_BODY = "default", 2  # 2x2 Gauss-Legendre (standard)
 if cell_type == quad:
-    QRULE_TM, QDEG_TM = "GLL", 1 # Gauss-Lobatto degree 1 = the four cell vertices
+    QRULE_TM, QDEG_TM = "GLL", 1
 else:
     QRULE_TM, QDEG_TM = "default", 2
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct)
@@ -146,33 +147,28 @@ third_medium_mesh, medium_map = dolfinx.mesh.create_submesh(
     mesh, tdim, ct.find(TM_marker)
 )[0:2]
 
-element_deg = 1
-V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
-P = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
-Q = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
-W = ufl.MixedFunctionSpace(V, P, Q)
-# W = ufl.MixedFunctionSpace(V, P)
+element_deg_u = 1
+element_deg_theta = 1
+V = fem.functionspace(mesh, ("Lagrange", element_deg_u, (tdim,)))
+V_theta = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg_theta, (tdim, tdim)))
+W = ufl.MixedFunctionSpace(V, V_theta)
 V_tm = fem.functionspace(mesh, ("DG", 0)) 
 
 # Functions
 u = fem.Function(V, name="displacement")
-p1 = fem.Function(P)
-q = fem.Function(Q)
+theta = fem.Function(V_theta, name="theta")
 
 tm_func = fem.Function(V_tm, name="cell_markers")
 tm_func.x.array[:] = ct.values
 
 # State and variations
-m = [u, p1, q]
-# m = [u, p1]
+m = [u, theta]
 δm = ufl.TestFunctions(W)
  
 # Kinematics (2D plane strain)
 X = ufl.SpatialCoordinate(mesh)
 I = ufl.Identity(tdim)
 F_2D = ufl.variable(I + ufl.grad(u))
-trF = ufl.tr(F_2D)
-skF = F_2D[0,1] - F_2D[1,0]
 J = ufl.det(F_2D)
 C_2D = F_2D.T * F_2D
 I1 = ufl.tr(C_2D) + 1 # add 1 to account for plane strain out-of-plane component
@@ -197,29 +193,20 @@ Psi_third = mu_body / 2 * (J ** (-2/3) * I1 - 3) # in 2D plane strain, no need f
 Pi_third = gamma * Psi_third * dxThird
 
 # regularization
-beta_1 = dolfinx.fem.Constant(mesh, 1.0e4)  
-beta_2 = dolfinx.fem.Constant(mesh, 10.) 
-alpha_r = dolfinx.fem.Constant(mesh, 100.)
+p_theta = dolfinx.fem.Constant(mesh, 5.0e-2)  # TEST: can be smaller, e.g., 1.0e-2  
+alpha_r = dolfinx.fem.Constant(mesh, 1.0e-2)
 
-L_i = np.zeros(tdim)
-for dim in range(mesh.geometry.dim):
-    x_i_max = mesh.comm.allreduce(mesh.geometry.x[:, dim].max(), op=MPI.MAX)
-    x_i_min = mesh.comm.allreduce(mesh.geometry.x[:, dim].min(), op=MPI.MIN)
-    L_i[dim] = x_i_max - x_i_min
-d = dolfinx.fem.Constant(mesh, np.max(L_i))
-
-skew_term = (skF / trF) - 1/d * p1
-
-Pi_grad = (
-    beta_1 * skew_term**2 + alpha_r * ufl.inner(ufl.grad(p1), ufl.grad(p1))
+penalty_term = theta - F_2D
+Pi_penalty = (
+    p_theta / 2 * ufl.inner(penalty_term, penalty_term) 
     ) * dxThird
 
-Pi_J = (
-    beta_2 * (J - q)**2 + alpha_r * ufl.inner(ufl.grad(q), ufl.grad(q))
+Pi_reg = (
+    gamma * alpha_r / 2 * ufl.inner(ufl.grad(theta), ufl.grad(theta))
     ) * dxThird
 
-Pi_R = gamma/2 * (Pi_grad + Pi_J)    
-# Pi_R = gamma/2 * (Pi_grad)    
+Pi_R =  (Pi_penalty + Pi_reg)    
+   
 
 # BCs
 left_dofs = dolfinx.fem.locate_dofs_topological(
@@ -258,6 +245,7 @@ problem = dolfiny.snesproblem.SNESProblem(
     prefix=name,
     entity_maps=[medium_map],
 )
+
 
 # # problem = dolfinx.fem.petsc.NonlinearProblem(
 # #     forms,
@@ -310,13 +298,13 @@ u_prev = u.x.array.copy()
 tm_prev = tm_func.x.array.copy()
 
 # output file for storing results
-filename = f"{name}_Q{element_deg}.bp" if cell_type == quad else f"{name}_P{element_deg}.bp"
+filename = f"{name}_Q{element_deg_u}.bp" if cell_type == quad else f"{name}_P{element_deg_u}.bp"
 ofile = VTXWriter(comm, f"{name}/{filename}", [u, tm_func])
 ofile.write(0.0) # write initial state
 
-# Adaptive loading strategy -- setup parameters
+# Adaptive loading
 adaptive_load = True
-MAX_FAILURES = 2
+MAX_FAILURE = 2
 dl = 0.05 # initial load increment
 dl_min = dl / 16
 
@@ -381,7 +369,7 @@ while load <= (abs(v_bar) + tol):
         loading_array.append(abs(applied_y.value))
         # Reporting min(J)
         Jmin = third_medium_min_J()
-
+        
         print(f"lambda = {applied_y.value:.3f}, reaction force = {force_vector.array[dofs_point_y][0]:.6f}, min(J) = {Jmin:.3e}")
 
         if Jmin <= 0.0:
@@ -391,11 +379,12 @@ while load <= (abs(v_bar) + tol):
             )
             break
 
-        load += dl        
+        load += dl
+        
         u_prev[:] = u.x.array
         tm_prev[:] = tm_func.x.array
     
-    if adaptive_load and n > MAX_FAILURES:
+    if adaptive_load and n > MAX_FAILURE:
         pprint("Too many failures, aborting.")
         break
 
