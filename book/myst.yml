@@ -58,6 +58,7 @@ project:
     - file: units/navier_stokes.ipynb
     - file: continuation/tdc_shell_naghdi_cylindrical_roof.ipynb
     - file: running_error/neo_hooke_2d.ipynb
+    - file: tmc/third_medium_cbox.ipynb
     - file: getting-involved.md
 site:
   template: book-theme
