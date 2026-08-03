@@ -146,7 +146,7 @@ def wrap_objective_callbacks(
         dolfinx.fem.petsc.apply_lifting(
             J_vec,
             a=H_form,
-            bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(H_form, 1), bcs),  # type: ignore
+            bcs=dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(H_form, 1), bcs),
             x0=x,  # type: ignore
             alpha=-1.0,
         )

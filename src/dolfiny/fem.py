@@ -116,7 +116,7 @@ def _assemble_matrix_csr(
     coeffs: dict[tuple[IntegralType, int], npt.NDArray] | None = None,
 ) -> dolfiny.cpp._cpp.MatrixCSR_re_worst_double | dolfiny.cpp._cpp.MatrixCSR_re_exact_double:
     """Assemble bilinear form into a matrix."""
-    bcs = [] if bcs is None else [bc._cpp_object for bc in bcs]
+    bcs = [] if bcs is None else [bc._cpp_object for bc in bcs]  # type: ignore
 
     if constants is None:
         constants = _pack_constants(a._cpp_object)

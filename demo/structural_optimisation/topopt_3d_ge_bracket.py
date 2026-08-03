@@ -508,7 +508,7 @@ if comm.size == 1:
 
 # %% tags=["hide-input"]
 num_cells = mesh.topology.index_map(tdim).size_local
-h = mesh.h(tdim, np.arange(0, num_cells))
+h = mesh.h(tdim, np.arange(0, num_cells, dtype=np.int32))
 hmax = comm.allreduce(h.max(), MPI.MAX)
 
 r = 0.5 * hmax
