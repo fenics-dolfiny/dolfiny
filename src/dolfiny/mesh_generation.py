@@ -60,7 +60,7 @@ def create_truss_x_braced_mesh(
 
     # baseline are all edges of input mesh
     new_x = geo.x[:, :-1] if gdim == 2 else geo.x
-    cells = e_to_v.array.reshape(-1, 2)
+    cells = e_to_v.array.reshape(-1, 2).astype(np.int64)
 
     if cell_type is dolfinx.mesh.CellType.quadrilateral:
         # 2----3
@@ -106,8 +106,6 @@ def create_truss_x_braced_mesh(
         cells = np.append(cells, np.stack([v[:, 2], v[:, 5]], axis=1), axis=0)
         # remove duplicate edges (only exist for hexahedron)
         cells = np.unique(cells, axis=0)
-
-    cells = cells.astype(np.int64)  # promote to global indices
 
     element = ufl.Mesh(basix.ufl.element("Lagrange", "interval", 1, shape=(gdim,)))
     comm.bcast((gdim, max_facet_to_cell_links), root=0)
