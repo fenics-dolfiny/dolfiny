@@ -329,7 +329,12 @@ last_load = 0.0 # load of the last converged step, i.e. the state stored in u_pr
 n = 0 # used to track the number of successive failures for adaptive loading
 ii = 1 # load step counter
 
+# Setting up the reaction force computation (parallel compatible)
 disp_residual = ufl.derivative(Pi, u)
+reaction_form = fem.form(disp_residual)
+reaction_vector = dolfinx.fem.petsc.create_vector(V)
+owned_size = V.dofmap.index_map.size_local * V.dofmap.index_map_bs
+dofs_point_y_owned = dofs_point_y[dofs_point_y < owned_size]
 force_array = [] # store reaction force at the top right corner for each load step
 loading_array = [] # store applied load for each load step
 
@@ -375,14 +380,18 @@ while load <= (abs(v_bar) + tol):
         ii += 1
         n = 0 # reset the number of successive failures for adaptive loading
 
-        # compile the residual for the solution to compute the reaction force at the top right corner
-        force_vector = fem.assemble_vector(fem.form(disp_residual))
-        force_array.append(abs(force_vector.array[dofs_point_y]))
+        # reaction force at the top right corner
+        with reaction_vector.localForm() as reaction_local:
+            reaction_local.set(0.0)
+        dolfinx.fem.petsc.assemble_vector(reaction_vector, reaction_form)
+        reaction_vector.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        force_y = comm.allreduce(reaction_vector.array[dofs_point_y_owned].sum(), op=MPI.SUM)
+        force_array.append(abs(force_y))
         loading_array.append(abs(applied_y.value))
         # Reporting min(J)
         Jmin = third_medium_min_J()
 
-        print(f"lambda = {applied_y.value:.3f}, reaction force = {force_vector.array[dofs_point_y][0]:.6f}, min(J) = {Jmin:.3e}")
+        pprint(f"lambda = {applied_y.value:.3f}, reaction force = {force_y:.6f}, min(J) = {Jmin:.3e}")
 
         if Jmin <= 0.0:
             pprint(
