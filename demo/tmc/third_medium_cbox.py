@@ -2,23 +2,23 @@
 # # Third medium contact 
 #
 # This demo solves the C-shape benchmark problem with the Third Medium 
-# Contact (TMC) method, using different regularization techniques. 
-# In TMC, the region between potential contact surfaces is filled with a fictitious hyperelastic continuum, 
-# the third medium, that is highly compliant in the pre-contact phase and stiffens sharply as it is compressed, 
-# so that contact is enforced implicitly through the medium's own constitutive response 
-# rather than through explicit surface detection.
-#
+# Contact (TMC) method, using different regularization techniques proposed in the literature.
+
 # In particular, this demo emphasizes:
 # - setting up and solving large-deformation contact problems with the TMC method
 # - effect of different regularization strategies on convergence behavior and third medium deformation 
 # - multi-domain formulation for the body and third medium regions requiring the use of submeshes and entity maps
-# - displacement-controlled continuation with adaptive step rejection for highly nonlinear problems
+# - adaptive load step strategy for highly nonlinear problems
 # 
 # ## Geometry
 # 
-# The C-shape configuration, first introduced by [Bluhm et al.](https://doi.org/10.1007/s00466-021-01974-x), 
-# consists of a C-shaped elastic body, clamped on the left side and loaded by a vertical displacement at its 
-# top-right corner node, with the third medium filling the gap between the two beams. 
+# The C-shape configuration, first introduced by {cite:t}`Bluhm2021`,
+# consists of a C-shaped elastic body of length $L$, height $H = 0.5 L$ and thickness $T = 0.1 L$, clamped on the left side and 
+# loaded by a vertical displacement at the top-right corner node of the upper arm. 
+# The third medium fills the gap between the two beams and is further extended by an additional column of elements
+# from $x = L$ to $x = L + dL$ to completely embed the potential contact region.
+# The geometry is discretized with quadrilateral elements to maintain mesh uniformity across different regularization strategies, 
+# although first-order regularizations allow the use of triangular elements as well. 
 #
 # %% tags=["hide-input"]
 import warnings
@@ -46,7 +46,7 @@ warnings.filterwarnings("error")
 name = "tmc_cbox"
 comm = MPI.COMM_WORLD
 
-# Dimensions [m]
+# Dimensions 
 L = 1.0  # length of the C-shape
 H = 0.5  # height of the C-shape
 T = 0.1  # thickness of the two beams
@@ -115,6 +115,7 @@ num_cells_owned = mesh.topology.index_map(tdim).size_local
 num_nodes_owned = mesh.topology.index_map(0).size_local
 num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
 num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
+pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
 
 # Create third medium submesh 
 third_medium_mesh, medium_map = dolfinx.mesh.create_submesh(
@@ -125,17 +126,9 @@ third_medium_mesh, medium_map = dolfinx.mesh.create_submesh(
 V_tm = fem.functionspace(mesh, ("DG", 0))
 tm_func = fem.Function(V_tm, name="cell_markers")
 
-cell_to_dof = V_tm.dofmap.list.array
-tm_func.x.array[cell_to_dof[ct.indices]] = ct.values
-
-## Material Properties
-E = 1.0  # Young's modulus of the body [MPa]
-nu = 0.4  # Poisson ratio of the body
-K = E / (3 * (1 - 2 * nu))  # bulk modulus [MPa] 
-mu = E / (2 * (1 + nu))  # shear modulus [MPa]   
-
-K_body = fem.Constant(mesh, K)
-mu_body = fem.Constant(mesh, mu)
+cell_dofs = V_tm.dofmap.list[ct.indices].flatten()
+tm_func.x.array[cell_dofs] = ct.values
+tm_func.x.scatter_forward()
 
 def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm):
     """PyVista plotter for the deformed configurations (works in serial only)."""
@@ -226,16 +219,54 @@ def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm
 # %% [markdown]
 # ## TMC formulation
 
-# equations here..
+# TMC approach allows to solve large-deformations contact problems between deformable bodies 
+# by introducing a fictitious hyperelastic continuum, the third medium, between the contacting surfaces. 
+# The constitutive response of the third medium is designed to be highly compliant in the pre-contact phase 
+# while rapidly stiffnening when compressed to near-zero volume, allowing the transfer of contact tractions. 
+# In this way, the contact problem reduces to a standard hyperelasticity problem, 
+# thus avoiding explicit contact search and imposition of inequality constraints as in classical contact algorithms. 
+
+# Generally, the body and third medium are modeled with the same compressible Neo-Hookean strain energy density in the form:
+
+# $$
+# \Psi_{body}(\boldsymbol{u}) = \frac{\mu}{2}\left(J^{-2/3}\operatorname{tr}\boldsymbol{C} - 3\right) + \frac{K}{2}\left(\ln J\right)^{2},
+# $$
+
+# with $\boldsymbol{F} = \boldsymbol{I} + \nabla\boldsymbol{u}$ the deformation gradient, $J = \det\boldsymbol{F}$ its determinant 
+# and $\boldsymbol{C} = \boldsymbol{F}^{T}\boldsymbol{F}$ the right Cauchy-Green deformation tensor. 
+# $K$ and $\mu$ are, respectively, the initial bulk and shear modulus of the body. 
+# To keep the influence of the third medium negligible before contact, its strain energy density is scaled by a small parameter $\gamma$, 
+# with the stiffening contribution coming from the $\ln J$ volumetric term as $J \rightarrow 0$. 
+# However, as discussed in {cite:t}`Faltus2024`, in 2D plane-strain conditions this term can be omitted,
+#  since the increase of stiffness coming from the isochoric term as $J \rightarrow 0$, together with the plane strain constraint $F_{33} = 1$, 
+# generate an increase of stiffness sufficient to prevent penetration. Therefore, the strain energy density for the third medium reduces to:
+
+# $$
+# \Psi_{tm}^{2D}(\boldsymbol{u}) = \gamma \left[\frac{\mu}{2}\left(J^{-2/3}\operatorname{tr}\boldsymbol{C} - 3\right)\right].
+# $$
+
+# When large deformations occur in the pre-contact phase, the third medium elements become severely distorted, 
+# preventing convergence in the nonlinear solution process. A way to mitigate this issue is to introduce a 
+# regularization contribution $\Psi_r$ to the third medium strain energy density that should provide sufficient stabilization 
+# while minimally influencing the third medium deformation. 
+# Several forms of $\Psi_r$ have been proposed in the literature, mainly differing in the deformation modes they penalize.
 
 
-# %% [markdown]
-# ## HuHu-LuLu regularization
+# The material parameters for the body are set from the Young's modulus $E = 1.0$ MPa and Poisson ratio $\nu = 0.4$, 
+# leading to $K = 5/3$ and $\mu = 5/14$, while the relative contact stiffness is set to $\gamma = 10^{-6}$.
 
-# equations here..
+# %% tags=["hide-input"]
 
+## Material Properties
+E = 1.0  # Young's modulus of the body
+nu = 0.4  # Poisson ratio of the body
+K = E / (3 * (1 - 2 * nu))  # bulk modulus 
+mu = E / (2 * (1 + nu))  # shear modulus    
 
-# %% tags=["hide-input", "hide-output"]
+K_body = fem.Constant(mesh, K)
+mu_body = fem.Constant(mesh, mu)
+
+gamma = fem.Constant(mesh, 1.0e-6)  # relative contact stiffness of the third medium
 
 def kinematics(u):
     """Deformation gradient, its determinant and the plane-strain first invariant."""
@@ -250,6 +281,39 @@ def psi_body(J, I1):
 def psi_third(J, I1):
     return mu_body / 2 * (J ** (-2 / 3) * I1 - 3)  # isochoric part only, no volumetric term
 
+
+# %% [markdown]
+# ## HuHu-LuLu regularization
+#
+# The first regularization was proposed in {cite:t}`Bluhm2021` and
+# penalizes higher-order deformation modes through the Hessian of the displacement field $\mathbb{H}\boldsymbol{u}$, 
+# thus the name "HuHu regularization":
+#
+# $$
+# \Psi_r^{Hu}(\boldsymbol{u}) = \frac{k_r}{2} \mathbb{H}\boldsymbol{u} \cdot \mathbb{H}\boldsymbol{u},
+# $$
+#
+# where $k_r = \alpha L^2 K$, $L$ is a characteristic length of the problem and $\alpha$ a dimensionless constant 
+# to be chosen as small as possible while still stabilizing the third medium. A value of $\alpha = 10^{-6}$ is adopted in the following.
+#
+# To reduce the penalization on bending and quadratic compression modes, {cite:t}`Frederiksen2025`
+# proposed to subtract a term in the Laplacian of the displacement field $\mathbb{H}\boldsymbol{u}$ from the HuHu regularization:
+#
+# $$
+# \Psi_r^{HuLu} = \frac{k_r}{2} (\mathbb{H} \boldsymbol{u} \cdot \mathbb{H} \boldsymbol{u}
+# - \frac{1}{\operatorname{tr} {\boldsymbol{I}}} \mathbb{L} \boldsymbol{u} \cdot \mathbb{L} \boldsymbol{u}),
+# $$
+#
+# leading to the so-called "HuHu-LuLu regularization". Both regularizations rely on second derivatives of the displacement field, 
+# hence at least quadratic elements are required to obtain a non-trivial Hessian and Laplacian within each cell. 
+# Moreover, for the C-shape benchmark considered here the third medium is dominated by shear, skew and linear compression 
+# deformation modes that HuHu and HuHu-LuLu penalize equivalently. 
+# The two regularizations are therefore expected to produce almost identical results, 
+# as already observed in {cite:t}`Frederiksen2025`.
+# A Gauss-Lobatto quadrature rule is employed for third medium elements to mitigate elements inversion, 
+# increasing robustness under severe skew deformations.
+#
+# %% tags=["hide-input"]
 # Define function spaces and functions
 element_deg = 2
 V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
@@ -274,8 +338,6 @@ dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
 bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
 bcs = [bc_left, bc_point_y]
-
-gamma = fem.Constant(mesh, 1.0e-6)  # relative contact stiffness of the third medium
 
 F, J, I1 = kinematics(u)
 
@@ -316,6 +378,27 @@ Pi_HuLu = k_r / 2 * (HuHu - LuLu) * dxThird
 
 Pi_r = Pi_HuLu
 
+# %% [markdown]
+# ### Solution strategy
+#
+# Solving this contact problem with the TMC method amounts to finding the stationary point of the total
+# potential energy of the system,
+#
+# $$
+# \Pi(\boldsymbol{u}) =
+# \int_{\Omega_{b}} \Psi_{body}(\boldsymbol{u}) \, \mathrm{d}\Omega
+# + \int_{\Omega_{tm}} \Psi_{tm}^{2D}(\boldsymbol{u}) \, \mathrm{d}\Omega
+# + \int_{\Omega_{tm}} \Psi_{r}^{HuLu}(\boldsymbol{u}) \, \mathrm{d}\Omega ,
+# $$
+#
+# with $\Omega_{b}$ and $\Omega_{tm}$ the body and third medium subdomains. The load is applied through
+# prescribed displacements only, so no external work term appears. 
+# The nonlinear system is solved using PETSc Newton solver with backtracking line search,
+# coupled with an adaptive load stepping strategy to improve robustness and convergence:
+# on failure the state is reset to the last converged one and the increment is halved, until the target displacement
+# $\bar{v}$ is reached or the increment falls below $\Delta l_{min}$.
+
+# %% tags=["hide-input", "hide-output"]
 # Define the residual and forms for the nonlinear problem
 residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
 forms = ufl.extract_blocks(residual)
@@ -357,9 +440,8 @@ problem = dolfiny.snesproblem.SNESProblem(
 )
 
 adaptive_load = True
-MAX_FAILURES = 2
 dl = 0.05  # initial load increment
-dl_min = dl / 16
+dl_min = dl / 16 # minimum load increment
 
 v_bar = -0.7  # final applied vertical displacement
 
@@ -438,10 +520,6 @@ def run_adaptive_loading(
 
             load += dl
             state_snapshots = [s.x.array.copy() for s in state_functions]
-
-        if adaptive_load and n_failures > MAX_FAILURES:
-            pprint("Too many failures, aborting.")
-            break
 
     ofile.close()
     if plotter is not None:
