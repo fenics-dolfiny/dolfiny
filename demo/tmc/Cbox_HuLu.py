@@ -16,7 +16,6 @@ from dolfinx import fem
 import dolfiny
 from dolfiny.utils import pprint
 from petsc4py import PETSc
-import pyvista as pv
 import argparse
 
 # For timing the code
@@ -312,7 +311,12 @@ last_load = 0.0 # load of the last converged step, i.e. the state stored in u_pr
 n = 0 # used to track the number of successive failures for adaptive loading
 ii = 1 # load step counter
 
+# Setting up the reaction force computation (parallel compatible)
 disp_residual = ufl.derivative(Pi, u)
+reaction_form = fem.form(disp_residual)
+reaction_vector = dolfinx.fem.petsc.create_vector(V)
+owned_size = V.dofmap.index_map.size_local * V.dofmap.index_map_bs
+dofs_point_y_owned = dofs_point_y[dofs_point_y < owned_size]
 force_array = [] # store reaction force at the top right corner for each load step
 loading_array = [] # store applied load for each load step
 pointA_array = [] # store the vertical displacement of point A for each load step
@@ -330,6 +334,7 @@ nodeA = dolfinx.mesh.locate_entities(
     mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], 0.0)
 )
 dofA_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, nodeA)
+dofA_y_owned = dofA_y[dofA_y < owned_size]
 
 # print a message for simulation startup
 pprint("------------------------------------")
@@ -373,17 +378,25 @@ while load <= (abs(v_bar) + tol):
         ii += 1
         n = 0  # reset the failure counter for adaptive loading
 
-        # Reporting min(J) 
-        minJ = comm.allreduce(J_third.eval(mesh, tm_cells).min(), op=MPI.MIN)
+        # Reporting min(J)
+        Jc = J_third.eval(mesh, tm_cells)
+        minJ = comm.allreduce(float(Jc.min()) if Jc.size else np.inf, op=MPI.MIN)
 
-        # compile the residual for the solution to compute the reaction force at the top right corner
-        force_vector = fem.assemble_vector(fem.form(disp_residual))
-        force_array.append(abs(force_vector.array[dofs_point_y]))
+        # reaction force at the top right corner
+        with reaction_vector.localForm() as reaction_local:
+            reaction_local.set(0.0)
+        dolfinx.fem.petsc.assemble_vector(reaction_vector, reaction_form)
+        reaction_vector.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        force_y = comm.allreduce(reaction_vector.array[dofs_point_y_owned].sum(), op=MPI.SUM)
+        force_array.append(abs(force_y))
         loading_array.append(abs(applied_y.value))
-        pointA_array.append(u.x.array[dofA_y][0] if dofA_y.size else 0.0)
-        print(
+
+        # vertical displacement of point A
+        pointA_array.append(comm.allreduce(u.x.array[dofA_y_owned].sum(), op=MPI.SUM))
+
+        pprint(
             f"lambda = {applied_y.value:.4f}, reaction force = "
-            f"{force_vector.array[dofs_point_y][0]:.6f}, min(J) third medium = {minJ:.3e}"
+            f"{force_y:.6f}, min(J) third medium = {minJ:.3e}"
         )
 
         load += dl
