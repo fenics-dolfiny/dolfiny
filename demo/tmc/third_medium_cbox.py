@@ -54,16 +54,13 @@ T = 0.1  # thickness of the two beams
 Nx, Ny = 40, 20  # cells along x and y within the C-shape
 dL = L / Nx  # characteristic cell size
 
-# Element type
-quad = dolfinx.mesh.CellType.quadrilateral
-
 # Create mesh
 mesh = dolfinx.mesh.create_rectangle(
     comm,
     [[0, 0], [L+dL, H]],
     [Nx+1, Ny],
-    cell_type=quad,
-    ghost_mode=dolfinx.mesh.GhostMode.shared_facet,
+    cell_type=dolfinx.mesh.CellType.quadrilateral,
+    ghost_mode=dolfinx.mesh.GhostMode.none,
 )
 
 tdim = mesh.topology.dim 
@@ -73,10 +70,7 @@ fdim = tdim - 1
 tol = 1.0e-6
 
 def thirdmedium(x):
-    return (x[0] >= T - tol) & (x[1] >= T - tol) & (x[1] <= H - T + tol)
-
-def thirdmedium_layer(x):
-    return (x[0] >= L - tol)
+    return (x[0] >= L - tol) | ((x[0] >= T - tol) & (x[1] >= T - tol) & (x[1] <= H - T + tol))
 
 def left(x):
     return np.isclose(x[0], 0.0)
@@ -85,33 +79,33 @@ def left(x):
 BODY_marker = 1
 TM_marker = 2
 
+mesh.topology.create_connectivity(fdim, tdim)
+mesh.topology.create_connectivity(0, tdim) 
+
+im_c = mesh.topology.index_map(tdim)
 num_cells_local = (
-    mesh.topology.index_map(tdim).size_local
-    + mesh.topology.index_map(tdim).num_ghosts
+    im_c.size_local
+    + im_c.num_ghosts
 )
 markers = np.full(num_cells_local, BODY_marker, dtype=np.int32)
 markers[dolfinx.mesh.locate_entities(mesh, tdim, thirdmedium)] = TM_marker
-markers[dolfinx.mesh.locate_entities(mesh, tdim, thirdmedium_layer)] = TM_marker
 ct = dolfinx.mesh.meshtags(mesh, tdim, np.arange(num_cells_local), markers)
 ct.name = "cell_tags"
 
 # Mark facets
 LEFT_marker = 2
 
-mesh.topology.create_connectivity(fdim, tdim) # facets-to-cells connectivity
+im_f = mesh.topology.index_map(fdim)
 num_facets_local = (
-    mesh.topology.index_map(fdim).size_local
-    + mesh.topology.index_map(fdim).num_ghosts
+    im_f.size_local
+    + im_f.num_ghosts
 )
 
 facet_markers = np.zeros(num_facets_local, dtype=np.int32)
 facet_markers[dolfinx.mesh.locate_entities(mesh, fdim, left)] = (
     LEFT_marker
 )
-f_to_c = mesh.topology.connectivity(fdim, tdim)
-
 ft_indices = np.flatnonzero(facet_markers)
-
 ft = dolfinx.mesh.meshtags(
     mesh, fdim, ft_indices, facet_markers[ft_indices]
 )
@@ -128,8 +122,11 @@ third_medium_mesh, medium_map = dolfinx.mesh.create_submesh(
 )[0:2]
 
 # DG0 field carrying the region tags, used to identify body and third medium cells
-tm_func = fem.Function(fem.functionspace(mesh, ("DG", 0)), name="cell_markers")
-tm_func.x.array[:] = ct.values
+V_tm = fem.functionspace(mesh, ("DG", 0))
+tm_func = fem.Function(V_tm, name="cell_markers")
+
+cell_to_dof = V_tm.dofmap.list.array
+tm_func.x.array[cell_to_dof[ct.indices]] = ct.values
 
 ## Material Properties
 E = 1.0  # Young's modulus of the body [MPa]
@@ -141,8 +138,9 @@ K_body = fem.Constant(mesh, K)
 mu_body = fem.Constant(mesh, mu)
 
 def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm):
-    """PyVista plotter for the deformed configurations"""
-    if comm.rank > 0:
+    """PyVista plotter for the deformed configurations (works in serial only)."""
+
+    if comm.size > 1:
         return None, None
 
     grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u.function_space))
@@ -201,7 +199,6 @@ def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm
         line_width=dolfiny.pyvista.pixels // 1000,
     )
     # Counter showing the applied vertical displacement of the current frame.
-    load_text = plotter.add_text("")
     load_text = plotter.add_text("", position=(0.5, 0.85), viewport=True)
     load_text.prop.justification_horizontal = "center"
     plotter.show_axes()
@@ -225,100 +222,6 @@ def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm
         plotter.write_frame()
 
     return plotter, plot_step
-
-def run_adaptive_loading(
-    name,
-    problem,
-    state_functions,
-    displacement,
-    applied_y,
-    output_file,
-    plotter,
-    plot_step,
-    reaction_form,
-    dofs_point_y,
-    target_displacement,
-    initial_increment,
-    min_increment,
-    adaptive_load,
-    max_failure=2,
-    tolerance=1e-6,
-):
-    """Run the load stepping loop for one regularization case."""
-    state_snapshots = [state.x.array.copy() for state in state_functions]
-    force_history = []
-    load_history = []
-
-    dl = initial_increment
-    load = dl
-    last_load = load
-    n_failures = 0
-    load_step = 1
-    num_iterations = 0
-
-    pprint("------------------------------------")
-    pprint(f"Simulation Start ({name})")
-    pprint("------------------------------------")
-    start_time = datetime.now()
-
-    while load <= (target_displacement + tolerance):
-        applied_y.value = -load
-
-        pprint(f"\nLoad step {load_step}, u_y: {applied_y.value:.3f}", flush=True)
-
-        problem.solve(u_init=state_functions)
-
-        reason = problem.status(verbose=True)
-        num_iterations += problem.snes.getIterationNumber()
-
-        if reason < 0:
-            if adaptive_load and dl / 2 >= min_increment:
-                n_failures += 1
-                dl = dl / 2
-                load = last_load + dl
-                for state, snapshot in zip(state_functions, state_snapshots):
-                    state.x.array[:] = snapshot
-                    state.x.scatter_forward()
-                pprint(f"  step rejected ({reason}); retrying with dl = {dl:.5f}")
-            else:
-                pprint("Solver failed to converge, aborting.")
-                break
-        else:
-            last_load = load
-            output_file.write(load)
-            if plot_step is not None:
-                plot_step(displacement, applied_y.value)
-            load_step += 1
-            n_failures = 0
-
-            force_vector = fem.assemble_vector(fem.form(reaction_form))
-            force_history.append(abs(force_vector.array[dofs_point_y]))
-            load_history.append(abs(applied_y.value))
-            print(
-                f"lambda = {applied_y.value:.3f}, reaction force = {force_vector.array[dofs_point_y][0]:.6f}"
-            )
-
-            load += dl
-            state_snapshots = [state.x.array.copy() for state in state_functions]
-
-        if adaptive_load and n_failures > max_failure:
-            pprint("Too many failures, aborting.")
-            break
-
-    output_file.close()
-    if plotter is not None:
-        plotter.close()
-        plotter.deep_clean()
-
-    end_time = datetime.now()
-    elapsed_time = end_time - start_time
-
-    pprint("-----------------------------------------")
-    pprint(f"End computation ({name})")
-    pprint(f"Elapsed time: {elapsed_time}")
-    pprint(f"Total number of iterations: {num_iterations}\n")
-
-    return force_history, load_history, num_iterations, elapsed_time
 
 # %% [markdown]
 # ## TMC formulation
@@ -347,7 +250,7 @@ def psi_body(J, I1):
 def psi_third(J, I1):
     return mu_body / 2 * (J ** (-2 / 3) * I1 - 3)  # isochoric part only, no volumetric term
 
-# Define function spaces and functions 
+# Define function spaces and functions
 element_deg = 2
 V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
 
@@ -366,7 +269,6 @@ left_dofs = dolfinx.fem.locate_dofs_topological(
 bc_left = dolfinx.fem.dirichletbc(
     np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V
 )
-mesh.topology.create_connectivity(0, tdim) # nodes-to-cells connectivity
 node = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H))
 dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
@@ -418,6 +320,13 @@ Pi_r = Pi_HuLu
 residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
 forms = ufl.extract_blocks(residual)
 
+# Prepare vertical reaction force at the loaded corner node 
+disp_residual = ufl.derivative(Pi_body, u)
+reaction_form = fem.form(disp_residual)
+reaction_vector = dolfinx.fem.petsc.create_vector(V)
+owned_size = V.dofmap.index_map.size_local * V.dofmap.index_map_bs
+dofs_point_y_owned = dofs_point_y[dofs_point_y < owned_size]
+
 # Instantiate the nonlinear problem and solver
 opts = PETSc.Options(name)
 opts["snes_type"] = "newtonls"
@@ -448,27 +357,119 @@ problem = dolfiny.snesproblem.SNESProblem(
 )
 
 adaptive_load = True
+MAX_FAILURES = 2
 dl = 0.05  # initial load increment
 dl_min = dl / 16
+
 v_bar = -0.7  # final applied vertical displacement
 
-disp_residual = ufl.derivative(Pi_body, u)
+def run_adaptive_loading(
+    name,
+    problem,
+    state_functions,
+    displacement,
+    target_displacement,
+    adaptive_load,
+    initial_increment,
+    min_increment,
+    plotter,
+    plot_step,
+):
+    """Run the load stepping loop for one regularization case."""
+    state_snapshots = [s.x.array.copy() for s in state_functions]
+    force_history = []
+    load_history = []
+
+    dl = initial_increment
+    load = dl
+    last_load = load
+    n_failures = 0
+    load_step = 1
+    num_iterations = 0
+
+    pprint("------------------------------------")
+    pprint(f"Simulation Start ({name})")
+    pprint("------------------------------------")
+    start_time = datetime.now()
+
+    while load <= (target_displacement + 1e-6):
+        applied_y.value = -load
+
+        pprint(f"\nLoad step {load_step}, u_y: {applied_y.value:.3f}", flush=True)
+
+        problem.solve(u_init=state_functions)
+
+        reason = problem.status(verbose=True)
+        num_iterations += problem.snes.getIterationNumber()
+
+        if reason < 0:
+            if adaptive_load and dl / 2 >= min_increment:
+                n_failures += 1
+                dl = dl / 2
+                load = last_load + dl
+                for state, snapshot in zip(state_functions, state_snapshots):
+                    state.x.array[:] = snapshot
+                    state.x.scatter_forward()
+                pprint(f"  step rejected ({reason}); retrying with dl = {dl:.5f}")
+            else:
+                pprint("Solver failed to converge, aborting.")
+                break
+
+        else:
+            last_load = load
+            ofile.write(load)
+            if plot_step is not None:
+                plot_step(displacement, applied_y.value)
+            load_step += 1
+            n_failures = 0
+
+            with reaction_vector.localForm() as reaction_local:
+                reaction_local.set(0.0)
+            dolfinx.fem.petsc.assemble_vector(reaction_vector, reaction_form)
+            reaction_vector.ghostUpdate(
+                addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE
+            )
+            force_y = abs(
+                comm.allreduce(reaction_vector.array[dofs_point_y_owned].sum(), op=MPI.SUM)
+            )
+            force_history.append(force_y)
+            load_history.append(abs(applied_y.value))
+            pprint(f"lambda = {applied_y.value:.3f}, reaction force = {force_y:.6e}")
+
+            load += dl
+            state_snapshots = [s.x.array.copy() for s in state_functions]
+
+        if adaptive_load and n_failures > MAX_FAILURES:
+            pprint("Too many failures, aborting.")
+            break
+
+    ofile.close()
+    if plotter is not None:
+        plotter.close()
+        plotter.deep_clean()
+
+    end_time = datetime.now()
+    elapsed_time = end_time - start_time
+
+    pprint("-----------------------------------------")
+    pprint(f"End computation ({name})")
+    pprint(f"Elapsed time: {elapsed_time}")
+    pprint(f"Total number of iterations: {num_iterations}\n")
+
+    return force_history, load_history, num_iterations, elapsed_time
+
 
 force_array_HL, loading_array_HL, num_iterations, elapsedTime = run_adaptive_loading(
     name="HuLu",
     problem=problem,
     state_functions=m,
     displacement=u,
-    applied_y=applied_y,
-    output_file=ofile,
-    plotter=plotter,
-    plot_step=plot_step,
-    reaction_form=disp_residual,
-    dofs_point_y=dofs_point_y,
     target_displacement=abs(v_bar),
+    adaptive_load=adaptive_load,
     initial_increment=dl,
     min_increment=dl_min,
-    adaptive_load=adaptive_load,
+    plotter=plotter,
+    plot_step=plot_step,
 )
 
 
@@ -508,7 +509,6 @@ left_dofs = dolfinx.fem.locate_dofs_topological(
 bc_left = dolfinx.fem.dirichletbc(
     np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V
 )
-mesh.topology.create_connectivity(0, tdim) # nodes-to-cells connectivity
 node = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H))
 dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
@@ -556,6 +556,12 @@ Pi_r = gamma/2 * (Pi_grad + Pi_J)
 residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
 forms = ufl.extract_blocks(residual)
 
+disp_residual = ufl.derivative(Pi_body, u)
+reaction_form = fem.form(disp_residual)
+reaction_vector = dolfinx.fem.petsc.create_vector(V)
+owned_size = V.dofmap.index_map.size_local * V.dofmap.index_map_bs
+dofs_point_y_owned = dofs_point_y[dofs_point_y < owned_size]
+
 # output file for storing results
 name_W = f"{name}_Wriggers"
 ofile = VTXWriter(comm, f"{name_W}.bp", [u, tm_func])
@@ -573,26 +579,21 @@ problem = dolfiny.snesproblem.SNESProblem(
     entity_maps=[medium_map],
 )
 
-adaptive_load = True
+
 v_bar = -1.0  # final applied vertical displacement
 
-disp_residual = ufl.derivative(Pi_body, u)
 
 force_array_W, loading_array_W, num_iterations, elapsedTime = run_adaptive_loading(
     name="Wriggers",
     problem=problem,
     state_functions=m,
     displacement=u,
-    applied_y=applied_y,
-    output_file=ofile,
-    plotter=plotter,
-    plot_step=plot_step,
-    reaction_form=disp_residual,
-    dofs_point_y=dofs_point_y,
     target_displacement=abs(v_bar),
+    adaptive_load=True,
     initial_increment=dl,
     min_increment=dl_min,
-    adaptive_load=adaptive_load,
+    plotter=plotter,
+    plot_step=plot_step,
 )
 
 # %% [markdown]
@@ -629,13 +630,11 @@ left_dofs = dolfinx.fem.locate_dofs_topological(
 bc_left = dolfinx.fem.dirichletbc(
     np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V
 )
-mesh.topology.create_connectivity(0, tdim) # nodes-to-cells connectivity
 node = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H))
 dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
 bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
 bcs = [bc_left, bc_point_y]
-
 
 F, J, I1 = kinematics(u)
 
@@ -667,6 +666,12 @@ Pi_r =  (Pi_penalty + Pi_reg)
 residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
 forms = ufl.extract_blocks(residual)
 
+disp_residual = ufl.derivative(Pi_body, u)
+reaction_form = fem.form(disp_residual)
+reaction_vector = dolfinx.fem.petsc.create_vector(V)
+owned_size = V.dofmap.index_map.size_local * V.dofmap.index_map_bs
+dofs_point_y_owned = dofs_point_y[dofs_point_y < owned_size]
+
 # output file for storing results
 name_V = f"{name}_Vorwerk"
 ofile = VTXWriter(comm, f"{name_V}.bp", [u, tm_func])
@@ -681,26 +686,20 @@ problem = dolfiny.snesproblem.SNESProblem(
     entity_maps=[medium_map],
 )
 
-adaptive_load = True
-v_bar = -1.0  # final applied vertical displacement
 
-disp_residual = ufl.derivative(Pi_body, u)
+v_bar = -1.0  # final applied vertical displacement
 
 force_array_V, loading_array_V, num_iterations, elapsedTime = run_adaptive_loading(
     name="Vorwerk",
     problem=problem,
     state_functions=m,
     displacement=u,
-    applied_y=applied_y,
-    output_file=ofile,
-    plotter=None,
-    plot_step=None,
-    reaction_form=disp_residual,
-    dofs_point_y=dofs_point_y,
     target_displacement=abs(v_bar),
+    adaptive_load=True,
     initial_increment=dl,
     min_increment=dl_min,
-    adaptive_load=adaptive_load,
+    plotter=None,
+    plot_step=None,
 )
 
 
