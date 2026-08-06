@@ -1,4 +1,15 @@
 # %% [markdown]
+# ---
+# authors:
+#   - az
+#   - mh
+#   - ptk
+#   - name: Andrea Antonelli
+#     email: aantonelli@student.ethz.ch
+#     affiliation: ETH Zürich 
+# ---
+
+# %% [markdown]
 # # Third medium contact 
 #
 # This demo solves the C-shape benchmark problem with the Third Medium 
@@ -255,8 +266,7 @@ def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm
 # The material parameters for the body are set from the Young's modulus $E = 1.0$ MPa and Poisson ratio $\nu = 0.4$, 
 # leading to $K = 5/3$ and $\mu = 5/14$, while the relative contact stiffness is set to $\gamma = 10^{-6}$.
 
-# %% tags=["hide-input"]
-
+# %% 
 ## Material Properties
 E = 1.0  # Young's modulus of the body
 nu = 0.4  # Poisson ratio of the body
@@ -313,7 +323,7 @@ def psi_third(J, I1):
 # A Gauss-Lobatto quadrature rule is employed for third medium elements to mitigate elements inversion, 
 # increasing robustness under severe skew deformations.
 #
-# %% tags=["hide-input"]
+# %% 
 # Define function spaces and functions
 element_deg = 2
 V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
