@@ -17,9 +17,9 @@
 
 # In particular, this demo emphasizes:
 # - setting up and solving large-deformation contact problems with the TMC method
-# - effect of different regularization strategies on convergence behavior and third medium deformation 
+# - the effect of different regularization strategies on convergence behavior and third medium deformation 
 # - multi-domain formulation for the body and third medium regions requiring the use of submeshes and entity maps
-# - adaptive load step strategy for highly nonlinear problems
+# - adaptive load-stepping strategy for highly nonlinear problems
 # 
 # ## Geometry
 # 
@@ -27,7 +27,7 @@
 # consists of a C-shaped elastic body of length $L$, height $H = 0.5 L$ and thickness $T = 0.1 L$, clamped on the left side and 
 # loaded by a vertical displacement at the top-right corner node of the upper arm. 
 # The third medium fills the gap between the two beams and is further extended by an additional column of elements
-# from $x = L$ to $x = L + dL$ to completely embed the potential contact region.
+# from $x = L$ to $x = L + \Delta L$ to completely embed the potential contact region.
 # The geometry is discretized with quadrilateral elements to maintain mesh uniformity across different regularization strategies, 
 # although first-order regularizations allow the use of triangular elements as well. 
 #
@@ -230,12 +230,12 @@ def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm
 # %% [markdown]
 # ## TMC formulation
 
-# TMC approach allows to solve large-deformations contact problems between deformable bodies 
+# The TMC approach allows to solve large-deformations contact problems between deformable bodies 
 # by introducing a fictitious hyperelastic continuum, the third medium, between the contacting surfaces. 
 # The constitutive response of the third medium is designed to be highly compliant in the pre-contact phase 
-# while rapidly stiffnening when compressed to near-zero volume, allowing the transfer of contact tractions. 
+# while rapidly stiffening when compressed to near-zero volume, allowing the transfer of contact tractions. 
 # In this way, the contact problem reduces to a standard hyperelasticity problem, 
-# thus avoiding explicit contact search and imposition of inequality constraints as in classical contact algorithms. 
+# thus avoiding the explicit contact search and the imposition of inequality constraints as in classical contact algorithms. 
 
 # Generally, the body and third medium are modeled with the same compressible Neo-Hookean strain energy density in the form:
 
@@ -245,12 +245,12 @@ def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm
 
 # with $\boldsymbol{F} = \boldsymbol{I} + \nabla\boldsymbol{u}$ the deformation gradient, $J = \det\boldsymbol{F}$ its determinant 
 # and $\boldsymbol{C} = \boldsymbol{F}^{T}\boldsymbol{F}$ the right Cauchy-Green deformation tensor. 
-# $K$ and $\mu$ are, respectively, the initial bulk and shear modulus of the body. 
+# $K$ and $\mu$ are, respectively, the initial bulk and shear moduli of the body. 
 # To keep the influence of the third medium negligible before contact, its strain energy density is scaled by a small parameter $\gamma$, 
 # with the stiffening contribution coming from the $\ln J$ volumetric term as $J \rightarrow 0$. 
 # However, as discussed in {cite:t}`Faltus2024`, in 2D plane-strain conditions this term can be omitted,
-#  since the increase of stiffness coming from the isochoric term as $J \rightarrow 0$, together with the plane strain constraint $F_{33} = 1$, 
-# generate an increase of stiffness sufficient to prevent penetration. Therefore, the strain energy density for the third medium reduces to:
+# since the isochoric term stiffens as $J \rightarrow 0$, combined with the plane strain constraint $F_{33} = 1$, 
+# is sufficient to prevent penetration. Therefore, the strain energy density for the third medium reduces to:
 
 # $$
 # \Psi_{tm}^{2D}(\boldsymbol{u}) = \gamma \left[\frac{\mu}{2}\left(J^{-2/3}\operatorname{tr}\boldsymbol{C} - 3\right)\right].
@@ -263,7 +263,7 @@ def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm
 # Several forms of $\Psi_r$ have been proposed in the literature, mainly differing in the deformation modes they penalize.
 
 
-# The material parameters for the body are set from the Young's modulus $E = 1.0$ MPa and Poisson ratio $\nu = 0.4$, 
+# The material parameters for the body are set from the Young's modulus $E = 1.0$ and Poisson's ratio $\nu = 0.4$, 
 # leading to $K = 5/3$ and $\mu = 5/14$, while the relative contact stiffness is set to $\gamma = 10^{-6}$.
 
 # %% 
@@ -295,9 +295,9 @@ def psi_third(J, I1):
 # %% [markdown]
 # ## HuHu-LuLu regularization
 #
-# The first regularization was proposed in {cite:t}`Bluhm2021` and
+# The first regularization was proposed by {cite:t}`Bluhm2021` and
 # penalizes higher-order deformation modes through the Hessian of the displacement field $\mathbb{H}\boldsymbol{u}$, 
-# thus the name "HuHu regularization":
+# hence the name "HuHu regularization":
 #
 # $$
 # \Psi_r^{Hu}(\boldsymbol{u}) = \frac{k_r}{2} \mathbb{H}\boldsymbol{u} \cdot \mathbb{H}\boldsymbol{u},
@@ -307,7 +307,7 @@ def psi_third(J, I1):
 # to be chosen as small as possible while still stabilizing the third medium. A value of $\alpha = 10^{-6}$ is adopted in the following.
 #
 # To reduce the penalization on bending and quadratic compression modes, {cite:t}`Frederiksen2025`
-# proposed to subtract a term in the Laplacian of the displacement field $\mathbb{H}\boldsymbol{u}$ from the HuHu regularization:
+# proposed to subtract a term in the Laplacian of the displacement field $\mathbb{L}\boldsymbol{u}$ from the HuHu regularization:
 #
 # $$
 # \Psi_r^{HuLu} = \frac{k_r}{2} (\mathbb{H} \boldsymbol{u} \cdot \mathbb{H} \boldsymbol{u}
@@ -315,12 +315,12 @@ def psi_third(J, I1):
 # $$
 #
 # leading to the so-called "HuHu-LuLu regularization". Both regularizations rely on second derivatives of the displacement field, 
-# hence at least quadratic elements are required to obtain a non-trivial Hessian and Laplacian within each cell. 
+# hence at least quadratic elements are required to obtain an effective, spatially varying Hessian and Laplacian within each cell. 
 # Moreover, for the C-shape benchmark considered here the third medium is dominated by shear, skew and linear compression 
 # deformation modes that HuHu and HuHu-LuLu penalize equivalently. 
 # The two regularizations are therefore expected to produce almost identical results, 
 # as already observed in {cite:t}`Frederiksen2025`.
-# A Gauss-Lobatto quadrature rule is employed for third medium elements to mitigate elements inversion, 
+# A Gauss-Lobatto quadrature rule is employed for third medium elements to mitigate element inversion, 
 # increasing robustness under severe skew deformations.
 #
 # %% 
@@ -373,9 +373,9 @@ for dim in range(mesh.geometry.dim):
     x_i_max = mesh.comm.allreduce(mesh.geometry.x[:, dim].max(), op=MPI.MAX)
     x_i_min = mesh.comm.allreduce(mesh.geometry.x[:, dim].min(), op=MPI.MIN)
     L_i[dim] = x_i_max - x_i_min
-Ell = dolfinx.fem.Constant(mesh, np.max(L_i))  # 1.0
+L_char = dolfinx.fem.Constant(mesh, np.max(L_i))  
 alpha = fem.Constant(mesh, 1.0e-06)
-k_r = fem.Constant(mesh, alpha.value * Ell.value**2 * K)
+k_r = fem.Constant(mesh, alpha.value * L_char.value**2 * K)
 
 Hu = ufl.grad(ufl.grad(u)) # Hessian of displacement
 Lu = ufl.div(ufl.grad(u)) # Laplacian of displacement
@@ -383,9 +383,9 @@ Lu = ufl.div(ufl.grad(u)) # Laplacian of displacement
 HuHu = ufl.inner(Hu, Hu)
 LuLu = ufl.inner(Lu, Lu) / ufl.tr(ufl.Identity(tdim))
 
-Pi_Hu = k_r / 2 * (HuHu) * dxThird
-Pi_HuLu = k_r / 2 * (HuHu - LuLu) * dxThird
+# Pi_Hu = k_r / 2 * (HuHu) * dxThird
 
+Pi_HuLu = k_r / 2 * (HuHu - LuLu) * dxThird
 Pi_r = Pi_HuLu
 
 # %% [markdown]
@@ -402,11 +402,11 @@ Pi_r = Pi_HuLu
 # $$
 #
 # with $\Omega_{b}$ and $\Omega_{tm}$ the body and third medium subdomains. The load is applied through
-# prescribed displacements only, so no external work term appears. 
-# The nonlinear system is solved using PETSc Newton solver with backtracking line search,
+# prescribed displacement only, so no external work term appears. 
+# The nonlinear system is solved using the PETSc Newton solver with backtracking line search,
 # coupled with an adaptive load stepping strategy to improve robustness and convergence:
 # on failure the state is reset to the last converged one and the increment is halved, until the target displacement
-# $\bar{v}$ is reached or the increment falls below $\Delta l_{min}$.
+# $\bar{v}$ is reached or the increment falls below $\Delta l_{\min}$.
 
 # %% tags=["hide-input", "hide-output"]
 # Define the residual and forms for the nonlinear problem
@@ -424,7 +424,6 @@ dofs_point_y_owned = dofs_point_y[dofs_point_y < owned_size]
 opts = PETSc.Options(name)
 opts["snes_type"] = "newtonls"
 opts["snes_linesearch_type"] = "bt"
-# opts["snes_linesearch_order"] = 1
 opts["snes_atol"] = 1.0e-08
 opts["snes_rtol"] = 1.0e-08
 opts["snes_max_it"] = 50
@@ -453,7 +452,7 @@ adaptive_load = True
 dl = 0.05  # initial load increment
 dl_min = dl / 16 # minimum load increment
 
-v_bar = -0.7  # final applied vertical displacement
+v_bar = -1.0  # final applied vertical displacement
 
 def run_adaptive_loading(
     name,
@@ -573,8 +572,52 @@ force_array_HL, loading_array_HL, num_iterations, elapsedTime = run_adaptive_loa
 
 # %% [markdown]
 # ## Wriggers regularization
+#
+# Both regularizations above act on second derivatives of the displacement field, preventing
+# the use of linear elements. {cite:t}`Wriggers2025` propose a regularization that removes
+# this restriction and allows the third medium to be discretized with first-order elements.
+#
+# The underlying idea, initially proposed by {cite:t}`Faltus2024`, is to consider curvature at the element level 
+# as the primary problem of an unregularized medium, whereas stretch and volume-change gradients are desired behaviors 
+# during the compliant pre-contact phase. Penalizing curvature alone, expressed as the gradient of the
+# rotation tensor $\boldsymbol{R}$ from the polar decomposition $\boldsymbol{F} = \boldsymbol{R}\boldsymbol{U}$, 
+# thus yields a more compliant medium than the Hessian-based forms above.
+# In 2D the rotation tensor can be expressed in terms of a single angle $\varphi$, and the
+# symmetry of $\boldsymbol{U}$ yields the explicit relation:
+#
+# $$ \tan\varphi = \frac{F_{12} - F_{21}}{F_{11} + F_{22}}, $$
+#
+# so that penalizing $\nabla\boldsymbol{R}$ reduces to penalizing $\nabla\varphi$. 
+# Penalizing the tangent instead of the angle itself expresses the regularization directly through 
+# the components of $\boldsymbol{F}$, avoiding the arctangent, and leads to:
+#
+# $$ \Psi_r^{\tan}(\boldsymbol{u}) = \frac{\gamma}{2}\alpha_r\left(\left\|\nabla\left[\frac{F_{12} - F_{21}}{F_{11} + F_{22}}\right]\right\|^2 + \|\nabla J\|^2\right). $$
+#
+# As only rotations are penalized, stretch deformations remain unconstrained and elements may approach a
+# locally vanishing volume; the second term, involving $\nabla J$, restores control over the volumetric modes. 
+# This form still involves second derivatives of $\boldsymbol{u}$. They are eliminated by introducing
+# two auxiliary scalar fields $p$ and $q$ which approximate $\tan\varphi$ and $J$ in a penalty-like fashion, 
+# so that the gradient penalization acts on the auxiliary fields alone:
+#
+# $$ \Psi_r(\boldsymbol{u}, p, q) = \frac{\gamma}{2}\left[\beta_1\left(\frac{F_{12} - F_{21}}{F_{11} + F_{22}} - p\right)^2 + \alpha_r\|\nabla p\|^2\right] + \frac{\gamma}{2}\left[\beta_2\left(J - q\right)^2 + \alpha_r\|\nabla q\|^2\right]. $$
+#
+# Only first derivatives remain, so $\boldsymbol{u}$, $p$ and $q$ can all be interpolated with linear
+# shape functions. The solution is then the stationary point of the total potential energy, which now
+# depends on the auxiliary fields as well:
+#
+# $$ \Pi(\boldsymbol{u}, p, q) = \int_{\Omega_{b}} \Psi_{body}(\boldsymbol{u}) \, \mathrm{d}\Omega + \int_{\Omega_{tm}} \Psi_{tm}^{2D}(\boldsymbol{u}) \, \mathrm{d}\Omega + \int_{\Omega_{tm}} \Psi_{r}(\boldsymbol{u}, p, q) \, \mathrm{d}\Omega , $$
+#
+# solved with the same Newton solver and adaptive load-stepping strategy as above. 
+# The displacement uses $Q_1$ elements on the full mesh, while $p$ and $q$ are $Q_1$ fields on the third medium 
+# submesh only, so that the additional unknowns stay confined to $\Omega_{tm}$.
+# A Gauss-Lobatto rule of degree one is used here for third medium elements.
+#
+# The regularization parameters are taken as $\beta_1 = 10^{4}$, $\beta_2 = 10$ and $\alpha_r = 100$.
+# The $\nabla J$ contribution is retained here, although
+# {cite:t}`Wriggers2025` observe on this same benchmark (Section 4.2.3) that it can be dropped when
+# linear shape functions are used, since the $p$ and $(p,q)$ formulations give the same results.
 
-# %% tags=["hide-input", "hide-output"]
+# %% 
 element_deg = 1
 V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
 P = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
@@ -628,7 +671,7 @@ alpha_r = dolfinx.fem.Constant(mesh, 100.)
 trF = ufl.tr(F)
 skF = F[0,1] - F[1,0]
 
-skew_term = (skF / trF) - 1/Ell * p1
+skew_term = (skF / trF) - p1
 
 Pi_grad = (
     beta_1 * skew_term**2 + alpha_r * ufl.inner(ufl.grad(p1), ufl.grad(p1))
@@ -640,6 +683,7 @@ Pi_J = (
 
 Pi_r = gamma/2 * (Pi_grad + Pi_J) 
 
+# %% tags=["hide-input", "hide-output"]
 # Nonlinear problem and solver using new regularization term
 residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
 forms = ufl.extract_blocks(residual)
@@ -667,10 +711,6 @@ problem = dolfiny.snesproblem.SNESProblem(
     entity_maps=[medium_map],
 )
 
-
-v_bar = -1.0  # final applied vertical displacement
-
-
 force_array_W, loading_array_W, num_iterations, elapsedTime = run_adaptive_loading(
     name="Wriggers",
     problem=problem,
@@ -695,8 +735,40 @@ force_array_W, loading_array_W, num_iterations, elapsedTime = run_adaptive_loadi
 
 # %% [markdown]
 # ## Deformation-gradient-based regularization
-
-# %% tags=["hide-input", "hide-output"]
+#
+# Another low-order-compatible regularization strategy has recently been proposed by {cite:t}`Vorwerk2026`. 
+# Starting from the HuHu regularization, which penalizes spatial variations of $\boldsymbol{F}$, 
+# they introduce a deformation-gradient-like field $\boldsymbol{\Theta}$ in the third medium that is weakly 
+# coupled to the physical deformation gradient through a penalty term in the form:
+#
+# $$ 
+# \tilde{\Psi}_r(\boldsymbol{u}, \boldsymbol{\Theta}) = \frac{p_{\Theta}}{2}\left\|\boldsymbol{\Theta} - \boldsymbol{F}\right\|^{2},
+# $$
+#
+# with $p_{\Theta}$ the penalty parameter. The regularization is then applied directly to the gradient of $\boldsymbol{\Theta}$, 
+# leading to the final form of the regularization contribution:
+#
+# $$ 
+# \Psi_r(\boldsymbol{u}, \boldsymbol{\Theta}) = \frac{p_{\Theta}}{2}\left\|\boldsymbol{\Theta} - \boldsymbol{F}\right\|^{2} 
+# + \frac{\alpha_r}{2}\left\|\nabla\boldsymbol{\Theta}\right\|^{2}, 
+# $$
+#
+# where $\alpha_r$ is the regularization parameter. The new field is discretized independently
+# of the displacement, and since only first derivatives of $\boldsymbol{\Theta}$ appear, a gradient
+# control of $\boldsymbol{F}$ is recovered without evaluating second derivatives of
+# $\boldsymbol{u}$, so that first-order elements become admissible for both fields.
+# The potential energy of the system now takes the form:
+#
+# $$ \Pi(\boldsymbol{u}, \boldsymbol{\Theta}) = \int_{\Omega_{b}} \Psi_{body}(\boldsymbol{u}) \, \mathrm{d}\Omega + \int_{\Omega_{tm}} \Psi_{tm}^{2D}(\boldsymbol{u}) \, \mathrm{d}\Omega + \int_{\Omega_{tm}} \Psi_{r}(\boldsymbol{u}, \boldsymbol{\Theta}) \, \mathrm{d}\Omega , $$
+#
+# and the stationary conditions lead to a nonlinear system solved as above. 
+# The displacement uses $Q_1$ elements on the full mesh, while $\boldsymbol{\Theta}$ is a $Q_1$
+# tensor-valued field on the third medium submesh only. 
+#
+# The regularization parameters are taken as $p_{\Theta} = 5 \cdot 10^{-2}$ and
+# $\alpha_r = 10^{-8}$. 
+#
+# %% 
 element_deg_u = 1
 element_deg_theta = 1
 V = fem.functionspace(mesh, ("Lagrange", element_deg_u, (tdim,)))
@@ -737,7 +809,11 @@ Pi_third = gamma * psi_third(J, I1) * dxThird
 
 # Regularization
 p_theta = dolfinx.fem.Constant(mesh, 5.0e-2) 
-alpha_r = dolfinx.fem.Constant(mesh, 1.0e-2)
+alpha_r = dolfinx.fem.Constant(mesh, 1.0e-8)
+
+# initialize theta as the Identity tensor
+I_tm = fem.Constant(third_medium_mesh, np.eye(tdim, dtype=dolfinx.default_scalar_type))
+theta.interpolate(fem.Expression(I_tm, V_theta.element.interpolation_points)) 
 
 penalty_term = theta - F
 Pi_penalty = (
@@ -745,10 +821,12 @@ Pi_penalty = (
     ) * dxThird
 
 Pi_reg = (
-    gamma * alpha_r / 2 * ufl.inner(ufl.grad(theta), ufl.grad(theta))
+    alpha_r / 2 * ufl.inner(ufl.grad(theta), ufl.grad(theta))
     ) * dxThird
 
 Pi_r =  (Pi_penalty + Pi_reg)  
+
+# %% tags=["hide-input", "hide-output"]
 
 # Nonlinear problem and solver using new regularization term
 residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
@@ -765,6 +843,9 @@ name_V = f"{name}_Vorwerk"
 ofile = VTXWriter(comm, f"{name_V}.bp", [u, tm_func])
 ofile.write(0.0) # write initial state
 
+plotter, plot_step = plot_contact_evolution_pyvista(name_V, u, tm_func, num_cells_owned, tdim, comm)
+if plot_step is not None:
+    plot_step(u, 0.0)  # undeformed configuration as the first frame
 
 problem = dolfiny.snesproblem.SNESProblem(
     forms,
@@ -773,9 +854,6 @@ problem = dolfiny.snesproblem.SNESProblem(
     prefix=name,
     entity_maps=[medium_map],
 )
-
-
-v_bar = -1.0  # final applied vertical displacement
 
 force_array_V, loading_array_V, num_iterations, elapsedTime = run_adaptive_loading(
     name="Vorwerk",
@@ -786,10 +864,18 @@ force_array_V, loading_array_V, num_iterations, elapsedTime = run_adaptive_loadi
     adaptive_load=True,
     initial_increment=dl,
     min_increment=dl_min,
-    plotter=None,
-    plot_step=None,
+    plotter=plotter,
+    plot_step=plot_step,
 )
 
+# %% [markdown]
+# ```{figure} tmc_cbox_Vorwerk_disp.gif
+# :alt: Successive deformed configurations of the C-box with Vorwerk regularization.
+# :align: center
+# :label: fig-tmc-vorwerk
+#
+# Contact evolution for deformation-gradient-based regularization.
+# ```
 
 # %% [markdown]
 # ## Comparison
@@ -806,9 +892,14 @@ if comm.rank == 0:
         (loading_array_W, force_array_W, "Wriggers first-order"),
         (loading_array_V, force_array_V, "Deformation-gradient-based"),
     ):
-        plt.plot(
+        line, = plt.plot(
             loads, forces, linestyle="-", linewidth=1.0, marker=".", markersize=4.0,
             label=formulation,
+        )
+        # Mark the last reached displacement with a larger cross in the curve colour.
+        plt.plot(
+            loads[-1], forces[-1], linestyle="none", marker="x",
+            markersize=10.0, markeredgewidth=2.0, color=line.get_color(), zorder=5,
         )
     plt.legend(loc="upper left")
     plt.tight_layout()
@@ -817,11 +908,11 @@ if comm.rank == 0:
 
 # %% [markdown]
 # ```{figure} tmc_cbox_force_displacement.png
-# :alt: Reaction force against applied displacement for both regularizations.
+# :alt: Reaction force against applied displacement for all regularizations.
 # :align: center
 # :label: fig-tmc-force-displacement
 #
-# Reaction-displacement curves for different regularizations.
-# ```
+# Vertical reaction–displacement curves for the three regularizations, evaluated at the
+# loaded corner node. The cross marks the last converged step for each simulation.
 
 
