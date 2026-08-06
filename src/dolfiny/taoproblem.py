@@ -141,7 +141,7 @@ def wrap_objective_callbacks(
         J_vec.zeroEntries()
         J_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
 
-        dolfinx.fem.petsc.assemble_vector(J_vec, J_form)  # type: ignore
+        dolfinx.fem.petsc.assemble_vector(J_vec, J_form)
 
         dolfinx.fem.petsc.apply_lifting(
             J_vec,
@@ -165,7 +165,7 @@ def wrap_objective_callbacks(
         x.setAttr("_blocks", x0.getAttr("_blocks"))
         H_mat.zeroEntries()
 
-        dolfinx.fem.petsc.assemble_matrix(H_mat, a=H_form, bcs=bcs, diag=1.0)  # type: ignore
+        dolfinx.fem.petsc.assemble_matrix(H_mat, a=H_form, bcs=bcs, diag=1.0)
 
         H_mat.assemble()
 
@@ -328,7 +328,7 @@ def wrap_constraint_callbacks(
 
                 with Jg_vec.localForm() as lf:
                     lf.set(0.0)
-                dolfinx.fem.petsc.assemble_vector(Jg_vec, _Jg)  # type: ignore
+                dolfinx.fem.petsc.assemble_vector(Jg_vec, _Jg)
                 Jg_vec.ghostUpdate(PETSc.InsertMode.ADD, PETSc.ScatterMode.REVERSE)  # type: ignore
                 Jg_vec.scale(-1)
 
@@ -342,7 +342,7 @@ def wrap_constraint_callbacks(
                 JT.createTranspose(J)
             case 2:
                 J.zeroEntries()
-                dolfinx.fem.petsc.assemble_matrix(J, Jg_forms, bcs=bcs, diag=1.0)  # type: ignore
+                dolfinx.fem.petsc.assemble_matrix(J, Jg_forms, bcs=bcs, diag=1.0)
                 J.assemble()
                 J.scale(-1)
             case _:
