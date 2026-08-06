@@ -194,7 +194,11 @@ Pi_third = gamma * Psi_third * dxThird
 
 # regularization
 p_theta = dolfinx.fem.Constant(mesh, 5.0e-2)  # TEST: can be smaller, e.g., 1.0e-2  
-alpha_r = dolfinx.fem.Constant(mesh, 1.0e-2)
+alpha_r = dolfinx.fem.Constant(mesh, 1.0e-8)
+
+# initialize theta as the Identity tensor
+I_tm = fem.Constant(third_medium_mesh, np.eye(tdim, dtype=dolfinx.default_scalar_type))
+theta.interpolate(fem.Expression(I_tm, V_theta.element.interpolation_points))  
 
 penalty_term = theta - F_2D
 Pi_penalty = (
@@ -202,7 +206,7 @@ Pi_penalty = (
     ) * dxThird
 
 Pi_reg = (
-    gamma * alpha_r / 2 * ufl.inner(ufl.grad(theta), ufl.grad(theta))
+    alpha_r / 2 * ufl.inner(ufl.grad(theta), ufl.grad(theta))
     ) * dxThird
 
 Pi_R =  (Pi_penalty + Pi_reg)    
@@ -312,7 +316,7 @@ lmbda = 2.0
 v_bar = -0.5*lmbda  # final applied vertical displacement (u_y = -1.0)
 
 num_iterations = 0 # store total number of iterations across all loading steps
-load = dl
+load = 0.0
 last_load = 0.0 # load of the last converged step, i.e. the state stored in u_prev
 n = 0 # used to track the number of successive failures for adaptive loading
 ii = 1 # load step counter
