@@ -1,6 +1,3 @@
-# mypy: disable-error-code="attr-defined"
-
-
 import logging
 from collections.abc import Sequence
 
@@ -26,13 +23,13 @@ class SNESProblem:
 
     def __init__(
         self,
-        F_form: list,
-        u: list,
-        bcs=[],
-        J_form=None,
-        nest=False,
+        F_form: list[ufl.Form],
+        u: list[dolfinx.fem.Function],
+        bcs: list[dolfinx.fem.DirichletBC] = [],
+        J_form: list[list[ufl.Form | None]] | None = None,
+        nest: bool = False,
         restriction=None,
-        prefix=None,
+        prefix: str | None = None,
         localsolver: LocalSolver | None = None,
         form_compiler_options: dict | None = None,
         jit_options: dict | None = None,
@@ -92,7 +89,7 @@ class SNESProblem:
                     J_form[i][j] = ufl.derivative(F_form[i], uj, duj)
 
                     # If the form happens to be empty replace with None
-                    if J_form[i][j].empty():
+                    if J_form[i][j] is not None and J_form[i][j].empty():  # type: ignore[union-attr]
                         J_form[i][j] = None
         else:
             self.J_form = J_form
@@ -105,7 +102,7 @@ class SNESProblem:
             entity_maps=entity_maps,
         )
         self.J_form_all_ufc = dolfinx.fem.form(
-            J_form,
+            J_form,  # type: ignore
             form_compiler_options=form_compiler_options,
             jit_options=jit_options,
             entity_maps=entity_maps,
@@ -113,7 +110,7 @@ class SNESProblem:
 
         # By default, copy all forms as the forms used in assemblers
         self.F_form = self.F_form_all_ufc.copy()
-        self.J_form = self.J_form_all_ufc.copy()
+        self.J_form = self.J_form_all_ufc.copy()  # type: ignore[assignment]
         self.global_spaces_id = range(len(self.u))
 
         self.nest = nest
@@ -156,7 +153,7 @@ class SNESProblem:
             if self.localsolver is not None:
                 raise RuntimeError("LocalSolver for MATNEST not yet supported.")
 
-            self.J = dolfinx.fem.petsc.create_matrix(self.J_form, kind=PETSc.Mat.Type.NEST)
+            self.J = dolfinx.fem.petsc.create_matrix(self.J_form, kind=PETSc.Mat.Type.NEST)  # type: ignore
             self.F = dolfinx.fem.petsc.create_vector(
                 dolfinx.fem.extract_function_spaces(self.F_form), kind=PETSc.Vec.Type.NEST
             )
@@ -176,7 +173,7 @@ class SNESProblem:
                     kind=PETSc.Vec.Type.MPI,
                 )
 
-            self.J = dolfinx.fem.petsc.create_matrix(self.J_form)
+            self.J = dolfinx.fem.petsc.create_matrix(self.J_form)  # type: ignore
             # TODO: this might be a bug in dolfinx: doc claims None and MPI should have same
             #       behavior, None does not work atm.
             spaces = dolfinx.fem.extract_function_spaces(self.F_form)
@@ -189,7 +186,7 @@ class SNESProblem:
 
             if self.restriction is not None:
                 # Need to create new global matrix for the restriction
-                self._J = dolfinx.fem.petsc.create_matrix(self.J_form)
+                self._J = dolfinx.fem.petsc.create_matrix(self.J_form)  # type: ignore
                 self._J.assemble()
 
                 self._x = self.x.copy()
@@ -220,21 +217,21 @@ class SNESProblem:
         # Default monitoring verbosity
         self.verbose = dict(snes=True, ksp=True)
 
-    def _update_functions(self, x):
+    def _update_functions(self, x: PETSc.Vec) -> None:
         """Update solution functions from the stored vector x."""
         if self.restriction is not None:
             self.restriction.assign(x, [self.u[idx] for idx in self.global_spaces_id])
             dolfinx.fem.petsc.assign([self.u[idx] for idx in self.global_spaces_id], self.x)
         else:
-            dolfinx.fem.petsc.assign(x, [self.u[idx] for idx in self.global_spaces_id])
+            dolfinx.fem.petsc.assign(x, [self.u[idx] for idx in self.global_spaces_id])  # type: ignore
 
             for idx in self.global_spaces_id:
                 self.u[idx].x.scatter_forward()
 
             x.copy(self.x)
-            self.x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            self.x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
 
-    def _F_block(self, snes, x, F):
+    def _F_block(self, snes: PETSc.SNES, x: PETSc.Vec, F: PETSc.Vec) -> None:
         with self.F.localForm() as f_local:
             f_local.set(0.0)
 
@@ -249,14 +246,15 @@ class SNESProblem:
         )
         dolfinx.fem.petsc.apply_lifting(
             self.F,
-            self.J_form,
+            self.J_form,  # type: ignore
             bcs=dolfinx.fem.bcs_by_block(
-                dolfinx.fem.extract_function_spaces(self.J_form, 1), self.bcs
+                dolfinx.fem.extract_function_spaces(self.J_form, 1),  # type: ignore
+                self.bcs,
             ),
-            x0=self.x,
+            x0=self.x,  # type: ignore
             alpha=-1.0,
         )
-        self.F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        self.F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)  # type: ignore
         dolfinx.fem.petsc.set_bc(
             self.F,
             dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(self.F_form), self.bcs),
@@ -270,44 +268,46 @@ class SNESProblem:
         else:
             self.F.copy(F)
 
-    def _F_nest(self, snes, x, F):
-        dolfinx.fem.petsc.assign(x, self.u)
-        [u.x.scatter_forward() for u in self.u]
-        x = x.getNestSubVecs()
+    def _F_nest(self, snes: PETSc.SNES, x: PETSc.Vec, F: PETSc.Vec) -> None:
+        dolfinx.fem.petsc.assign(x, self.u)  # type: ignore
+        for u in self.u:
+            u.x.scatter_forward()
+        x_sub = x.getNestSubVecs()
 
         bcs1 = dolfinx.fem.bcs.bcs_by_block(
-            dolfinx.fem.forms.extract_function_spaces(self.J_form, 1), self.bcs
+            dolfinx.fem.forms.extract_function_spaces(self.J_form, 1),  # type: ignore
+            self.bcs,
         )
         for L, F_sub, a in zip(self.F_form, F.getNestSubVecs(), self.J_form):
             with F_sub.localForm() as F_sub_local:
                 F_sub_local.set(0.0)
             dolfinx.fem.petsc.assemble_vector(F_sub, L)
-            dolfinx.fem.petsc.apply_lifting(F_sub, a, bcs1, x0=x, alpha=-1.0)
-            F_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+            dolfinx.fem.petsc.apply_lifting(F_sub, a, bcs1, x0=x_sub, alpha=-1.0)  # type: ignore
+            F_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)  # type: ignore
 
         # Set bc value in RHS
         bcs0 = dolfinx.fem.bcs.bcs_by_block(
             dolfinx.fem.forms.extract_function_spaces(self.F_form), self.bcs
         )
-        for F_sub, bc, u_sub in zip(F.getNestSubVecs(), bcs0, x):
+        for F_sub, bc, u_sub in zip(F.getNestSubVecs(), bcs0, x_sub):
             dolfinx.fem.petsc.set_bc(F_sub, bc, u_sub, -1.0)
 
         # Must assemble F here in the case of nest matrices
         F.assemble()
 
-    def _J_block(self, snes, x, J, P):
+    def _J_block(self, snes: PETSc.SNES, x: PETSc.Vec, J: PETSc.Mat, P: PETSc.Mat) -> None:
         self.J.zeroEntries()
         self._update_functions(x)
 
-        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)
+        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)  # type: ignore
         self.J.assemble()
 
         if self.restriction is not None:
             self.restriction.restrict_matrix(self.J).copy(self.rJ)
 
-    def _J_nest(self, snes, x, J, P):
+    def _J_nest(self, snes: PETSc.SNES, x: PETSc.Vec, J: PETSc.Mat, P: PETSc.Mat):
         self.J.zeroEntries()
-        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)
+        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)  # type: ignore
         self.J.assemble()
 
     def _converged(self, snes, it, norms):
@@ -347,42 +347,42 @@ class SNESProblem:
         else:
             return PETSc.SNES.ConvergedReason.ITERATING
 
-    def _info_ksp(self, ksp):
+    def _info_ksp(self, ksp: PETSc.KSP) -> str:
         ksp_info = ""
 
-        if ksp.reason < 0:
+        if ksp.reason < 0:  # type: ignore[operator]
             ksp_info += ANSI.bright_red
             ksp_info += f"failure = {SNESProblem.reasons_ksp[ksp.reason]:s}"
             ksp_info += ANSI.reset
 
         return ksp_info
 
-    def _info_snes(self, snes):
-        if snes.reason < 0:
-            snes_info = ANSI.red
+    def _info_snes(self, snes: PETSc.SNES) -> str:
+        snes_info = ""
+
+        if snes.reason < 0:  # type: ignore[operator]
+            snes_info += ANSI.red
             snes_info += f"failure = {SNESProblem.reasons_snes[snes.reason]:s}"
             snes_info += ANSI.reset
-        elif snes.reason > 0:
+        elif snes.reason > 0:  # type: ignore[operator]
             snes_info = ANSI.green
             snes_info += f"success = {SNESProblem.reasons_snes[snes.reason]:s}"
             snes_info += ANSI.reset
-        else:
-            snes_info = ""
 
         return snes_info
 
-    def _monitor_ksp(self, ksp, ksp_it, ksp_norm):
+    def _monitor_ksp(self, ksp: PETSc.KSP, ksp_it: int, ksp_norm: float) -> None:
         ksp_info = self._info_ksp(ksp)
 
         snes_it = self.snes.getIterationNumber()
 
-        message = ANSI.bright_black
+        message = str(ANSI.bright_black)
         message += f"# SNES iteration {snes_it:2d}, KSP iteration {ksp_it:3d}       |r|={ksp_norm:9.3e} {ksp_info:s}"  # noqa: E501
         message += ANSI.reset
 
         logger.info(message) if self.verbose["ksp"] else None
 
-    def _monitor_snes(self, snes, snes_it, snes_norm):
+    def _monitor_snes(self, snes: PETSc.SNES, snes_it: int, snes_norm: float) -> None:
         snes_info = self._info_snes(snes)
 
         message = f"# SNES iteration {snes_it:2d} {snes_info:s}"
@@ -408,8 +408,10 @@ class SNESProblem:
         message = f"# all           |x|={x:9.3e} |dx|={dx:9.3e} |r|={r:9.3e}"
         logger.info(message) if self.verbose["snes"] else None
 
-    def status(self, verbose=False, error_on_failure=False):
-        if self.snes.getKSP().reason < 0:
+    def status(
+        self, verbose: bool = False, error_on_failure: bool = False
+    ) -> PETSc.SNES.ConvergedReason:
+        if self.snes.getKSP().reason < 0:  # type: ignore[operator]
             if verbose:
                 ksp_info = self._info_ksp(self.snes.getKSP())
                 message = f"# SNES -> KSP {ksp_info:s}"
@@ -418,7 +420,7 @@ class SNESProblem:
             if error_on_failure:
                 raise RuntimeError("Linear solver failed!")
 
-        if self.snes.reason < 0:
+        if self.snes.reason < 0:  # type: ignore[operator]
             if verbose:
                 snes_info = self._info_snes(self.snes)
                 message = f"# SNES {snes_info:s}"
@@ -429,8 +431,8 @@ class SNESProblem:
 
         return self.snes.reason
 
-    def compute_norms_block(self, snes):
-        r = snes.getFunction()[0].getArray(readonly=True)
+    def compute_norms_block(self, snes: PETSc.SNES) -> None:
+        r = snes.getFunction()[0].getArray(readonly=True)  # type: ignore[index]
         dx = snes.getSolutionUpdate().getArray(readonly=True)
         x = snes.getSolution().getArray(readonly=True)
 
@@ -472,8 +474,8 @@ class SNESProblem:
         self.norm_x[it] = ei_x
         self.size_x[it] = si_x
 
-    def compute_norms_nest(self, snes):
-        r = snes.getFunction()[0].getNestSubVecs()
+    def compute_norms_nest(self, snes: PETSc.SNES) -> None:
+        r = snes.getFunction()[0].getNestSubVecs()  # type: ignore
         dx = snes.getSolutionUpdate().getNestSubVecs()
         x = snes.getSolution().getNestSubVecs()
 
@@ -496,10 +498,10 @@ class SNESProblem:
         self.norm_x[it] = ei_x
         self.size_x[it] = si_x
 
-    def solve(self, u_init=None):
+    def solve(self, u_init: list[dolfinx.fem.Function] | None = None) -> list[dolfinx.fem.Function]:
         if u_init is not None:
             dolfinx.fem.petsc.assign(u_init, self.x0)
-            self.x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            self.x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore[arg-type]
 
         self.snes.getKSP().setMonitor(self._monitor_ksp)
 
@@ -508,7 +510,7 @@ class SNESProblem:
             self.restriction.assign(self.rx, [self.solution[idx] for idx in self.global_spaces_id])
         else:
             self.snes.solve(None, self.x0)
-            dolfinx.fem.petsc.assign(self.x0, [self.solution[idx] for idx in self.global_spaces_id])
+            dolfinx.fem.petsc.assign(self.x0, [self.solution[idx] for idx in self.global_spaces_id])  # type: ignore[arg-type]
 
             for idx in self.global_spaces_id:
                 self.solution[idx].x.scatter_forward()
@@ -518,7 +520,8 @@ class SNESProblem:
                 dx_local.set(0.0)  # converged solution (fix for single step solves)
             self.localsolver.local_update(self)  # ensure final local update
             dolfinx.fem.petsc.assign(
-                self.xloc, [self.solution[idx] for idx in self.localsolver.local_spaces_id]
+                self.xloc,  # type: ignore
+                [self.solution[idx] for idx in self.localsolver.local_spaces_id],  # type: ignore[arg-type]
             )
 
             for idx in self.localsolver.local_spaces_id:
