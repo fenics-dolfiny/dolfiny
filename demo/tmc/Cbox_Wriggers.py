@@ -150,8 +150,8 @@ element_deg = 1
 V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
 P = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
 Q = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
-W = ufl.MixedFunctionSpace(V, P, Q)
-# W = ufl.MixedFunctionSpace(V, P)
+# W = ufl.MixedFunctionSpace(V, P, Q)
+W = ufl.MixedFunctionSpace(V, P)
 V_tm = fem.functionspace(mesh, ("DG", 0)) 
 
 # Functions
@@ -163,8 +163,8 @@ tm_func = fem.Function(V_tm, name="cell_markers")
 tm_func.x.array[:] = ct.values
 
 # State and variations
-m = [u, p1, q]
-# m = [u, p1]
+# m = [u, p1, q]
+m = [u, p1]
 δm = ufl.TestFunctions(W)
  
 # Kinematics (2D plane strain)
@@ -208,7 +208,7 @@ for dim in range(mesh.geometry.dim):
     L_i[dim] = x_i_max - x_i_min
 d = dolfinx.fem.Constant(mesh, np.max(L_i))
 
-skew_term = (skF / trF) - 1/d * p1
+skew_term = (skF / trF) - p1
 
 Pi_grad = (
     beta_1 * skew_term**2 + alpha_r * ufl.inner(ufl.grad(p1), ufl.grad(p1))
@@ -218,8 +218,8 @@ Pi_J = (
     beta_2 * (J - q)**2 + alpha_r * ufl.inner(ufl.grad(q), ufl.grad(q))
     ) * dxThird
 
-Pi_R = gamma/2 * (Pi_grad + Pi_J)    
-# Pi_R = gamma/2 * (Pi_grad)    
+# Pi_R = gamma/2 * (Pi_grad + Pi_J)    
+Pi_R = gamma/2 * (Pi_grad)    
 
 # BCs
 left_dofs = dolfinx.fem.locate_dofs_topological(
@@ -316,7 +316,6 @@ ofile.write(0.0) # write initial state
 
 # Adaptive loading strategy -- setup parameters
 adaptive_load = True
-MAX_FAILURES = 2
 dl = 0.05 # initial load increment
 dl_min = dl / 16
 
@@ -403,10 +402,6 @@ while load <= (abs(v_bar) + tol):
         load += dl        
         u_prev[:] = u.x.array
         tm_prev[:] = tm_func.x.array
-    
-    if adaptive_load and n > MAX_FAILURES:
-        pprint("Too many failures, aborting.")
-        break
 
 ofile.close() # close output file
 
