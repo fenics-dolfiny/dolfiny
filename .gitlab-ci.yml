@@ -32,6 +32,8 @@ default:
 ruff:
   stage: lint
   image: dolfinx/dev-env:current
+  variables:
+    FORCE_COLOR: 1
   script:
     - pip install --group lint-format
     - ruff format --check
@@ -40,6 +42,8 @@ ruff:
 mypy:
   stage: lint
   image: dolfinx/dolfinx:nightly
+  variables:
+    FORCE_COLOR: 1
   script:
     - apt-get -y update && xargs -a apt-requirements.txt apt-get -y install
     - pip install --group lint-typing
