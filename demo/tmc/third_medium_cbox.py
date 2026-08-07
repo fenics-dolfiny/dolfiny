@@ -57,7 +57,7 @@ warnings.filterwarnings("error")
 name = "tmc_cbox"
 comm = MPI.COMM_WORLD
 
-# Dimensions 
+# Dimensions [mm]
 L = 1.0  # length of the C-shape
 H = 0.5  # height of the C-shape
 T = 0.1  # thickness of the two beams
@@ -122,6 +122,9 @@ ft = dolfinx.mesh.meshtags(
 )
 ft.name = "facet_tags"
 
+# Locate the top-right corner node for applying the vertical displacement
+node_topr = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H))
+
 num_cells_owned = mesh.topology.index_map(tdim).size_local
 num_nodes_owned = mesh.topology.index_map(0).size_local
 num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
@@ -141,91 +144,20 @@ cell_dofs = V_tm.dofmap.list[ct.indices].flatten()
 tm_func.x.array[cell_dofs] = ct.values
 tm_func.x.scatter_forward()
 
-def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm):
-    """PyVista plotter for the deformed configurations (works in serial only)."""
+def frame_recorder(comm):
+    """Collect the deformed states of one run for later side-by-side display.
+    Rendering works in serial only.
+    """
 
     if comm.size > 1:
         return None, None
 
-    grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u.function_space))
+    frames = []
 
-    # A higher-order cell is drawn by tessellating it into flat sub-cells; the level
-    # controls how finely. Linear cells need no subdivision.
-    subdivision_levels = 0 if grid.get_cell(0).is_linear else 3
+    def record_step(_u, _u_y):
+        frames.append((float(_u_y), _u.x.array.copy()))
 
-    # tm_func (BODY_marker=1 / TM_marker=2) is DG0: one value per cell, so it maps
-    # directly to cell_data. The region assignment is fixed for the
-    # whole run, so this is set once here.
-    grid.cell_data["cell_marker"] = tm_func.x.array[:num_cells_owned]
-
-    # VTK points are always stored as 3D, even for a 2D mesh, so the displacement is
-    # padded with a zero out-of-plane component before being handed over.
-    u_3d = np.zeros((grid.n_points, 3))
-    grid.point_data["u"] = u_3d
-
-    def warped_surface():
-        """Warp the reference grid by u and tessellate it for rendering.
-
-        Returns the coloured surface and, separately, the element outlines. The
-        outlines come from separate_cells(): tessellation diagonals are interior to a
-        cell and so are shared by two sub-cells, but after the cells are split apart
-        every cell's own boundary becomes a feature edge. This draws the true (curved)
-        element edges rather than the diagonals that show_edges would expose.
-        """
-        warped = grid.warp_by_vector("u", factor=1.0)
-        surface = warped.extract_surface(
-            nonlinear_subdivision=subdivision_levels, algorithm="dataset_surface"
-        )
-        edges = (
-            warped.separate_cells()
-            .extract_surface(nonlinear_subdivision=subdivision_levels, algorithm="dataset_surface")
-            .extract_feature_edges()
-        )
-        return surface, edges
-
-    surface, edges = warped_surface()
-
-    plotter = pv.Plotter(
-        off_screen=False, window_size=(res := 2048, int(res * 0.7)), theme=dolfiny.pyvista.theme
-    )
-    plotter.open_gif(f"{name}_disp.gif", fps=5)
-    plotter.add_mesh(
-        surface,
-        scalars="cell_marker",
-        n_colors=2,
-        clim=(1, 2),
-        scalar_bar_args={"n_labels": 2},
-    )
-    plotter.add_mesh(
-        edges,
-        style="wireframe",
-        color="black",
-        line_width=dolfiny.pyvista.pixels // 1000,
-    )
-    # Counter showing the applied vertical displacement of the current frame.
-    load_text = plotter.add_text("", position=(0.5, 0.85), viewport=True)
-    load_text.prop.justification_horizontal = "center"
-    plotter.show_axes()
-    # Set explicit camera_position
-    xmin, xmax, ymin, ymax, _, _ = grid.bounds
-    cx, cy = (xmin + xmax) / 2, (ymin + ymax) / 2
-    diag = ((xmax - xmin) ** 2 + (ymax - ymin) ** 2) ** 0.5
-    plotter.camera_position = [(cx, cy, diag), (cx, cy, 0.0), (0.0, 1.0, 0.0)]
-    plotter.camera.zoom(0.9)
-
-    def plot_step(_u, _u_y):
-        u_3d[:, :tdim] = _u.x.array.reshape((-1, tdim))
-        grid.point_data["u"] = u_3d
-        # Warping produces new datasets, so copy them into the ones the actors already
-        # hold instead of re-adding the actors (which would reset the scalar bar).
-        new_surface, new_edges = warped_surface()
-        surface.copy_from(new_surface)
-        edges.copy_from(new_edges)
-        load_text.input = f"u_y = {_u_y:.3f}"
-        plotter.render()
-        plotter.write_frame()
-
-    return plotter, plot_step
+    return frames, record_step
 
 # %% [markdown]
 # ## TMC formulation
@@ -263,15 +195,15 @@ def plot_contact_evolution_pyvista(name, u, tm_func, num_cells_owned, tdim, comm
 # Several forms of $\Psi_r$ have been proposed in the literature, mainly differing in the deformation modes they penalize.
 
 
-# The material parameters for the body are set from the Young's modulus $E = 1.0$ and Poisson's ratio $\nu = 0.4$, 
-# leading to $K = 5/3$ and $\mu = 5/14$, while the relative contact stiffness is set to $\gamma = 10^{-6}$.
+# The material parameters for the body are set from the Young's modulus $E = 1.0$ MPa and Poisson's ratio $\nu = 0.4$, 
+# leading to $K = 5/3$ MPa and $\mu = 5/14$ MPa, while the relative contact stiffness is set to $\gamma = 10^{-6}$.
 
 # %% 
 ## Material Properties
-E = 1.0  # Young's modulus of the body
+E = 1.0  # Young's modulus of the body [MPa]
 nu = 0.4  # Poisson ratio of the body
-K = E / (3 * (1 - 2 * nu))  # bulk modulus 
-mu = E / (2 * (1 + nu))  # shear modulus    
+K = E / (3 * (1 - 2 * nu))  # bulk modulus [MPa]
+mu = E / (2 * (1 + nu))  # shear modulus [MPa]
 
 K_body = fem.Constant(mesh, K)
 mu_body = fem.Constant(mesh, mu)
@@ -343,8 +275,7 @@ left_dofs = dolfinx.fem.locate_dofs_topological(
 bc_left = dolfinx.fem.dirichletbc(
     np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V
 )
-node = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H))
-dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node)
+dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node_topr)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
 bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
 bcs = [bc_left, bc_point_y]
@@ -436,9 +367,9 @@ name_HuLu = f"{name}_HuLu"
 ofile = VTXWriter(comm, f"{name_HuLu}.bp", [u, tm_func])
 ofile.write(0.0) # write initial state
 
-plotter, plot_step = plot_contact_evolution_pyvista(name_HuLu, u, tm_func, num_cells_owned, tdim, comm)
-if plot_step is not None:
-    plot_step(u, 0.0)  # undeformed configuration as the first frame
+# Deformed states of all runs, displayed side by side in the comparison section
+runs = []
+frames_HL, record_HL = frame_recorder(comm)
 
 problem = dolfiny.snesproblem.SNESProblem(
     forms,
@@ -452,7 +383,7 @@ adaptive_load = True
 dl = 0.05  # initial load increment
 dl_min = dl / 16 # minimum load increment
 
-v_bar = -1.0  # final applied vertical displacement
+v_bar = -1.0  # final applied vertical displacement [mm]
 
 def run_adaptive_loading(
     name,
@@ -463,18 +394,19 @@ def run_adaptive_loading(
     adaptive_load,
     initial_increment,
     min_increment,
-    plotter,
-    plot_step,
+    record_step,
 ):
     """Run the load stepping loop for one regularization case."""
     state_snapshots = [s.x.array.copy() for s in state_functions]
     force_history = []
     load_history = []
 
+    if record_step is not None:
+        record_step(displacement, 0.0)  # undeformed configuration as the first frame
+
     dl = initial_increment
     load = dl
     last_load = load
-    n_failures = 0
     load_step = 1
     num_iterations = 0
 
@@ -494,8 +426,7 @@ def run_adaptive_loading(
         num_iterations += problem.snes.getIterationNumber()
 
         if reason < 0:
-            if adaptive_load and dl / 2 >= min_increment:
-                n_failures += 1
+            if adaptive_load and (dl/2 >= min_increment):
                 dl = dl / 2
                 load = last_load + dl
                 for state, snapshot in zip(state_functions, state_snapshots):
@@ -509,10 +440,9 @@ def run_adaptive_loading(
         else:
             last_load = load
             ofile.write(load)
-            if plot_step is not None:
-                plot_step(displacement, applied_y.value)
+            if record_step is not None:
+                record_step(displacement, applied_y.value)
             load_step += 1
-            n_failures = 0
 
             with reaction_vector.localForm() as reaction_local:
                 reaction_local.set(0.0)
@@ -531,9 +461,6 @@ def run_adaptive_loading(
             state_snapshots = [s.x.array.copy() for s in state_functions]
 
     ofile.close()
-    if plotter is not None:
-        plotter.close()
-        plotter.deep_clean()
 
     end_time = datetime.now()
     elapsed_time = end_time - start_time
@@ -555,19 +482,9 @@ force_array_HL, loading_array_HL, num_iterations, elapsedTime = run_adaptive_loa
     adaptive_load=adaptive_load,
     initial_increment=dl,
     min_increment=dl_min,
-    plotter=plotter,
-    plot_step=plot_step,
+    record_step=record_HL,
 )
-
-
-# %% [markdown]
-# ```{figure} tmc_cbox_HuLu_disp.gif
-# :alt: Successive deformed configurations of the C-box with HuHu-LuLu regularization.
-# :align: center
-# :label: fig-tmc-hulu
-#
-# Contact evolution for HuHu-LuLu regularization.
-# ```
+runs.append(("HuHu-LuLu", V, frames_HL))  # V is rebound below, so capture it here
 
 
 # %% [markdown]
@@ -640,8 +557,7 @@ left_dofs = dolfinx.fem.locate_dofs_topological(
 bc_left = dolfinx.fem.dirichletbc(
     np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V
 )
-node = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H))
-dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node)
+dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node_topr)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
 bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
 bcs = [bc_left, bc_point_y]
@@ -699,9 +615,7 @@ name_W = f"{name}_Wriggers"
 ofile = VTXWriter(comm, f"{name_W}.bp", [u, tm_func])
 ofile.write(0.0) # write initial state
 
-plotter, plot_step = plot_contact_evolution_pyvista(name_W, u, tm_func, num_cells_owned, tdim, comm)
-if plot_step is not None:
-    plot_step(u, 0.0)  # undeformed configuration as the first frame
+frames_W, record_W = frame_recorder(comm)
 
 problem = dolfiny.snesproblem.SNESProblem(
     forms,
@@ -720,18 +634,9 @@ force_array_W, loading_array_W, num_iterations, elapsedTime = run_adaptive_loadi
     adaptive_load=True,
     initial_increment=dl,
     min_increment=dl_min,
-    plotter=plotter,
-    plot_step=plot_step,
+    record_step=record_W,
 )
-
-# %% [markdown]
-# ```{figure} tmc_cbox_Wriggers_disp.gif
-# :alt: Successive deformed configurations of the C-box with first-order regularization.
-# :align: center
-# :label: fig-tmc-wriggers
-#
-# Contact evolution for Wriggers regularization.
-# ```
+runs.append(("Wriggers first-order", V, frames_W))
 
 # %% [markdown]
 # ## Deformation-gradient-based regularization
@@ -790,8 +695,7 @@ left_dofs = dolfinx.fem.locate_dofs_topological(
 bc_left = dolfinx.fem.dirichletbc(
     np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V
 )
-node = dolfinx.mesh.locate_entities(mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H))
-dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node)
+dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node_topr)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
 bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
 bcs = [bc_left, bc_point_y]
@@ -843,9 +747,7 @@ name_V = f"{name}_Vorwerk"
 ofile = VTXWriter(comm, f"{name_V}.bp", [u, tm_func])
 ofile.write(0.0) # write initial state
 
-plotter, plot_step = plot_contact_evolution_pyvista(name_V, u, tm_func, num_cells_owned, tdim, comm)
-if plot_step is not None:
-    plot_step(u, 0.0)  # undeformed configuration as the first frame
+frames_V, record_V = frame_recorder(comm)
 
 problem = dolfiny.snesproblem.SNESProblem(
     forms,
@@ -864,21 +766,146 @@ force_array_V, loading_array_V, num_iterations, elapsedTime = run_adaptive_loadi
     adaptive_load=True,
     initial_increment=dl,
     min_increment=dl_min,
-    plotter=plotter,
-    plot_step=plot_step,
+    record_step=record_V,
 )
-
-# %% [markdown]
-# ```{figure} tmc_cbox_Vorwerk_disp.gif
-# :alt: Successive deformed configurations of the C-box with Vorwerk regularization.
-# :align: center
-# :label: fig-tmc-vorwerk
-#
-# Contact evolution for deformation-gradient-based regularization.
-# ```
+runs.append(("Deformation-gradient-based", V, frames_V))
 
 # %% [markdown]
 # ## Comparison
+
+# %% tags=["hide-input"]
+def warped_surface(grid, subdivision_levels):
+    """Warp the reference grid by u and tessellate it for rendering.
+
+    Returns the coloured surface and element outlines.
+    """
+    warped = grid.warp_by_vector("u", factor=1.0)
+    surface = warped.extract_surface(
+        nonlinear_subdivision=subdivision_levels, algorithm="dataset_surface"
+    )
+    edges = (
+        warped.separate_cells()
+        .extract_surface(nonlinear_subdivision=subdivision_levels, algorithm="dataset_surface")
+        .extract_feature_edges()
+    )
+    return surface, edges
+
+def plot_comparison_pyvista(filename, runs, tm_func, num_cells_owned, tdim):
+    """Replay the recorded runs side by side into a single animation."""
+
+    panel_px = 900  # Edge length of one panel [px]
+    plotter = pv.Plotter(
+        off_screen=False,
+        shape=(1, len(runs)),
+        window_size=(panel_px * len(runs), panel_px),
+        theme=dolfiny.pyvista.theme,
+    )
+
+    panels = []
+    # All panels share one framing, wide enough to hold every state of every run.
+    corner_min = np.full(tdim, np.inf)
+    corner_max = np.full(tdim, -np.inf)
+
+    for i, (label, V_run, frames) in enumerate(runs):
+        grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(V_run))
+
+        # A higher-order cell is drawn by tessellating it into flat sub-cells; the level
+        # controls how finely. Linear cells need no subdivision.
+        subdivision_levels = 0 if grid.get_cell(0).is_linear else 3
+
+        # tm_func (BODY_marker=1 / TM_marker=2) is DG0: one value per cell, so it maps
+        # directly to cell_data. The region assignment is fixed for the whole run, so this
+        # is set once here. It lives on the parent mesh, shared by all runs.
+        grid.cell_data["cell_marker"] = tm_func.x.array[:num_cells_owned]
+
+        # VTK points are always stored as 3D, even for a 2D mesh, so the displacement is
+        # padded with a zero out-of-plane component before being handed over.
+        u_3d = np.zeros((grid.n_points, 3))
+        grid.point_data["u"] = u_3d
+
+        reference = grid.points[:, :tdim]
+        for _, u_dofs in frames:
+            deformed = reference + u_dofs.reshape((-1, tdim))
+            corner_min = np.minimum(corner_min, deformed.min(axis=0))
+            corner_max = np.maximum(corner_max, deformed.max(axis=0))
+
+        surface, edges = warped_surface(grid, subdivision_levels)
+
+        plotter.subplot(0, i)
+        # The two colours only separate body from third medium; the figure caption says which
+        # is which.
+        plotter.add_mesh(surface, scalars="cell_marker", n_colors=2, clim=(1, 2),
+                         show_scalar_bar=False)
+        plotter.add_mesh(
+            edges,
+            style="wireframe",
+            color="black",
+            line_width=dolfiny.pyvista.pixels // 1000,
+        )
+        plotter.add_text(
+            label,
+            position="upper_edge",
+            font_size=panel_px // 45,
+            font="courier",
+        )
+        # Counter showing the applied vertical displacement of the current frame. 
+        load_text = plotter.add_text(
+            "", position=(0.04, 0.04), viewport=True, font_size=panel_px // 45
+        )
+
+        panels.append((frames, subdivision_levels, grid, u_3d, surface, edges, load_text))
+
+    # Set up camera position for all panels.
+    centre = (corner_min + corner_max) / 2
+    span = corner_max - corner_min
+    panel_aspect = 1.0  # panel width / height, as set by window_size
+    margin = 1.15  # empty rim around the extreme configuration
+    for i in range(len(panels)):
+        plotter.subplot(0, i)
+        # The theme's parallel projection reaches only the first renderer, so the remaining
+        # panels have to be switched over explicitly or they render in perspective.
+        plotter.enable_parallel_projection()
+        plotter.camera_position = [
+            (centre[0], centre[1], 1.0),
+            (centre[0], centre[1], 0.0),
+            (0.0, 1.0, 0.0),
+        ]
+        plotter.camera.parallel_scale = margin * max(span[1], span[0] / panel_aspect) / 2
+
+    # The runs do not reach the same load level: a panel that runs out of frames 
+    # holds its last converged state until the end.
+    num_frames = max(len(frames) for frames, *_ in panels)
+
+    plotter.open_gif(filename, fps=5)
+    for frame in range(num_frames):
+        for frames, subdivision_levels, grid, u_3d, surface, edges, load_text in panels:
+            index = min(frame, len(frames) - 1)
+            u_y, u_dofs = frames[index]
+            u_3d[:, :tdim] = u_dofs.reshape((-1, tdim))
+            grid.point_data["u"] = u_3d
+            new_surface, new_edges = warped_surface(grid, subdivision_levels)
+            surface.copy_from(new_surface)
+            edges.copy_from(new_edges)
+            load_text.input = f"u_y = {u_y:.3f}"
+        plotter.render()
+        plotter.write_frame()
+
+    plotter.close()
+    plotter.deep_clean()
+
+if comm.size == 1:
+    plot_comparison_pyvista(f"{name}_comparison.gif", runs, tm_func, num_cells_owned, tdim)
+
+# %% [markdown]
+# ```{figure} tmc_cbox_comparison.gif
+# :alt: Deformed configurations of the C-box for the three regularizations, side by side.
+# :align: center
+# :label: fig-tmc-comparison
+#
+# Contact evolution for the HuHu-LuLu, Wriggers first-order and deformation-gradient-based
+# regularizations, with the elastic body in blue and the third medium in red.
+# ```
+
 
 # %% tags=["hide-input"]
 if comm.rank == 0:
@@ -914,5 +941,6 @@ if comm.rank == 0:
 #
 # Vertical reaction–displacement curves for the three regularizations, evaluated at the
 # loaded corner node. The cross marks the last converged step for each simulation.
+# ```
 
 
