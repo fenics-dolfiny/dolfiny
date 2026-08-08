@@ -123,6 +123,10 @@ opts["mat_mumps_icntl_14"] = 20  # Percentage increase in estimated working spac
     warnings fail the CI run instead of being propagated into the rendered book. Files which only
     contain helper or utility functionality are to be excluded.
 
+14. Authorship
+    Every demo should clearly define an own list of authors, by providing a `authors` section in the
+    preamble by using the authors IDs, registered in `myst.yml`.
+
 ## Registering a new demo
 
 When you create a new demo, register it in several places to ensure it is tested and rendered:
