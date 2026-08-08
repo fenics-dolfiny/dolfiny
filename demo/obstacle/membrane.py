@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - ptk
+#   - mh
+#   - az
+# ---
 # # The obstacle problem
 #
 # This demo introduces linear and nonlinear obstacle problems for minimal surfaces

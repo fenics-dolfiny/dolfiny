@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - ptk
+#   - mh
+#   - az
+# ---
 # # Topology optimisation of a 2D cantilever beam
 #
 # This demo showcases the mother of all topology optimisation problems: compliance minimisation of a

@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - mh
+#   - ptk
+#   - az
+# ---
 # # Hyperelasticity in spectral formulation
 
 # This demo solves a three-dimensional hyperelastic torsion problem by expressing the

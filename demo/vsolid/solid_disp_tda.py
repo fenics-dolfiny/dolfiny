@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - ptk
+#   - mh
+#   - az
+# ---
 # # Transient elastodynamics for finite deformation
 #
 # This demo solves the equations of elastodynamics for a cantilever beam subject to gravity loading.

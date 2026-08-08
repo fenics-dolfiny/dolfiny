@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - mh
+#   - ptk
+#   - az
+# ---
 # # Topology optimisation of a 3D jet engine bracket
 #
 # This demo solves the classic General Electric (GE) jet-engine bracket problem under

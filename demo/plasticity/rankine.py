@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - mh
+#   - ptk
+#   - az
+# ---
 # # Rate-independent Rankine plasticity
 #
 # This demo solves a quasi-static small-strain boundary value problem in 3D using a

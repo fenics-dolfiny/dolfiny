@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - ptk
+#   - mh
+#   - az
+# ---
 # # Truss sizing optimisation
 #
 # This demo studies a sizing optimisation problem for an inverse truss bridge and shows how

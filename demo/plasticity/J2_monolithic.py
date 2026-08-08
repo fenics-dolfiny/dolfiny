@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - mh
+#   - ptk
+#   - az
+# ---
 # # Rate-independent monolithic J2 plasticity
 #
 # This demo solves a quasi-static finite-strain boundary value problem in 3D with
