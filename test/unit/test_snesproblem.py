@@ -104,7 +104,7 @@ def test_submesh(squaremesh_5) -> None:
     boundary_dof = dolfinx.fem.locate_dofs_topological(V, tdim - 1, boundary)
     bcs = [dolfinx.fem.dirichletbc(np.float64(0.0), boundary_dof, V)]
 
-    def R(u: dolfinx.fem.Function, f: Any) -> ufl.classes.Expr:
+    def R(u: dolfinx.fem.Function, f: Any) -> ufl.classes.Form:
         dx = ufl.dx(mesh)
         v = ufl.TestFunction(V)
         return ufl.inner(ufl.grad(u), ufl.grad(v)) * dx - f * v * dx  # type: ignore
