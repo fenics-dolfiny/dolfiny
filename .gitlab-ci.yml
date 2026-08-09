@@ -414,6 +414,16 @@ electrodiffusion:
           - pnp_4species_steadystate_scaled.py
           - diffusor_4species_steadystate.py
 
+tmc:
+  extends: .demo_template
+  variables:
+    DIRECTORY: tmc
+  parallel:
+    matrix:
+      - <<: *matrix_arch_runner
+        SCRIPT:
+          - third_medium_cbox.py
+
 bookstrap:
   stage: demo
   extends: .install_template
@@ -450,6 +460,7 @@ bookstrap:
           - continuation/tdc_shell_naghdi_cylindrical_roof.py
           - vsolid/solid_disp_tda.py
           - running_error/neo_hooke_2d.py
+          - tmc/third_medium_cbox.py
   variables:
     DOLFINY_LOG_PREFIX: "0"
 

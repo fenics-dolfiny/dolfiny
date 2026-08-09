@@ -13,14 +13,13 @@
 # # Third medium contact
 #
 # This demo solves the C-shape benchmark problem with the Third Medium Contact (TMC) method, using
-# different regularization techniques proposed in the literature.
+# different regularization techniques.
 
 # In particular, this demo emphasizes:
 # - setting up and solving large-deformation contact problems with the TMC method
 # - the effect of different regularization strategies on convergence behavior and third medium
 #   deformation
 # - multi-domain formulation for the body and third medium regions requiring the use of submeshes
-#   and entity maps
 # - adaptive load-stepping strategy for highly nonlinear problems
 #
 # ## Geometry
@@ -31,8 +30,7 @@
 # fills the gap between the two beams and is further extended by an additional column of elements
 # from $x = L$ to $x = L + \Delta L$ to completely embed the potential contact region. The geometry
 # is discretized with quadrilateral elements to maintain mesh uniformity across different
-# regularization strategies, although first-order regularizations allow the use of triangular
-# elements as well.
+# regularization strategies.
 #
 # %% tags=["hide-input"]
 import warnings
@@ -44,6 +42,7 @@ from petsc4py import PETSc
 import dolfinx
 import dolfinx.fem.petsc
 import ufl
+from dolfinx import default_scalar_type as scalar
 from dolfinx import fem
 from dolfinx.io import VTXWriter
 
@@ -66,12 +65,11 @@ H = 0.5  # height of the C-shape
 T = 0.1  # thickness of the two beams
 
 Nx, Ny = 40, 20  # cells along x and y within the C-shape
-dL = L / Nx  # characteristic cell size
+h = L / Nx  # characteristic cell size
 
-# Create mesh
 mesh = dolfinx.mesh.create_rectangle(
     comm,
-    [[0, 0], [L + dL, H]],
+    [[0, 0], [L + h, H]],
     [Nx + 1, Ny],
     cell_type=dolfinx.mesh.CellType.quadrilateral,
     ghost_mode=dolfinx.mesh.GhostMode.none,
@@ -93,27 +91,27 @@ def left(x):
 
 
 # Mark cells
-BODY_marker = 1
-TM_marker = 2
+marker_body = 1
+marker_tm = 2
 
 mesh.topology.create_connectivity(fdim, tdim)
 mesh.topology.create_connectivity(0, tdim)
 
 im_c = mesh.topology.index_map(tdim)
 num_cells_local = im_c.size_local + im_c.num_ghosts
-markers = np.full(num_cells_local, BODY_marker, dtype=np.int32)
-markers[dolfinx.mesh.locate_entities(mesh, tdim, thirdmedium)] = TM_marker
+markers = np.full(num_cells_local, marker_body, dtype=np.int32)
+markers[dolfinx.mesh.locate_entities(mesh, tdim, thirdmedium)] = marker_tm
 ct = dolfinx.mesh.meshtags(mesh, tdim, np.arange(num_cells_local), markers)
 ct.name = "cell_tags"
 
 # Mark facets
-LEFT_marker = 2
+marker_left = 2
 
 im_f = mesh.topology.index_map(fdim)
 num_facets_local = im_f.size_local + im_f.num_ghosts
 
 facet_markers = np.zeros(num_facets_local, dtype=np.int32)
-facet_markers[dolfinx.mesh.locate_entities(mesh, fdim, left)] = LEFT_marker
+facet_markers[dolfinx.mesh.locate_entities(mesh, fdim, left)] = marker_left
 ft_indices = np.flatnonzero(facet_markers)
 ft = dolfinx.mesh.meshtags(mesh, fdim, ft_indices, facet_markers[ft_indices])
 ft.name = "facet_tags"
@@ -123,14 +121,14 @@ node_topr = dolfinx.mesh.locate_entities(
     mesh, 0, lambda x: np.isclose(x[0], L) & np.isclose(x[1], H)
 )
 
-num_cells_owned = mesh.topology.index_map(tdim).size_local
-num_nodes_owned = mesh.topology.index_map(0).size_local
+num_cells_owned = im_c.size_local
+num_nodes_owned = mesh.topology.index_map(0).size_global
 num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
 num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
 pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
 
 # Create third medium submesh
-third_medium_mesh, medium_map = dolfinx.mesh.create_submesh(mesh, tdim, ct.find(TM_marker))[0:2]
+mesh_tm, entity_map, _, _ = dolfinx.mesh.create_submesh(mesh, tdim, ct.find(marker_tm))
 
 # DG0 field carrying the region tags, used to identify body and third medium cells
 V_tm = fem.functionspace(mesh, ("DG", 0))
@@ -158,7 +156,7 @@ def frame_recorder(comm):
 
 
 # %% [markdown]
-# ## TMC formulation
+# ## Third medium contact formulation
 
 # The TMC approach allows to solve large-deformations contact problems between deformable bodies by
 # introducing a fictitious hyperelastic continuum, the third medium, between the contacting
@@ -207,9 +205,6 @@ nu = 0.4  # Poisson ratio of the body
 K = E / (3 * (1 - 2 * nu))  # bulk modulus [MPa]
 mu = E / (2 * (1 + nu))  # shear modulus [MPa]
 
-K_body = fem.Constant(mesh, K)
-mu_body = fem.Constant(mesh, mu)
-
 gamma = fem.Constant(mesh, 1.0e-6)  # relative contact stiffness of the third medium
 
 
@@ -222,11 +217,11 @@ def kinematics(u):
 
 
 def psi_body(J, I1):
-    return K_body / 2 * ufl.ln(J) ** 2 + mu_body / 2 * (J ** (-2 / 3) * I1 - 3)
+    return K / 2 * ufl.ln(J) ** 2 + mu / 2 * (J ** (-2 / 3) * I1 - 3)
 
 
 def psi_third(J, I1):
-    return mu_body / 2 * (J ** (-2 / 3) * I1 - 3)  # isochoric part only, no volumetric term
+    return mu / 2 * (J ** (-2 / 3) * I1 - 3)  # isochoric part only, no volumetric term
 
 
 # %% [markdown]
@@ -273,8 +268,8 @@ m = [u]
 (δu,) = δm
 
 # BCs
-left_dofs = dolfinx.fem.locate_dofs_topological(V, fdim, ft.find(LEFT_marker))
-bc_left = dolfinx.fem.dirichletbc(np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V)
+left_dofs = dolfinx.fem.locate_dofs_topological(V, fdim, ft.find(marker_left))
+bc_left = dolfinx.fem.dirichletbc(np.zeros(tdim, dtype=scalar), left_dofs, V)
 dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node_topr)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
 bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
@@ -286,8 +281,8 @@ F, J, I1 = kinematics(u)
 QRULE_BODY, QDEG_BODY = "default", 4
 QRULE_TM, QDEG_TM = "GLL", 3
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct)
-dxVol = dx(BODY_marker, metadata={"quadrature_rule": QRULE_BODY, "quadrature_degree": QDEG_BODY})
-dxThird = dx(TM_marker, metadata={"quadrature_rule": QRULE_TM, "quadrature_degree": QDEG_TM})
+dxVol = dx(marker_body, metadata={"quadrature_rule": QRULE_BODY, "quadrature_degree": QDEG_BODY})
+dxThird = dx(marker_tm, metadata={"quadrature_rule": QRULE_TM, "quadrature_degree": QDEG_TM})
 
 # Define the potential energy contributions Elastic energy of the body
 Pi_body = psi_body(J, I1) * dxVol
@@ -369,7 +364,7 @@ problem = dolfiny.snesproblem.SNESProblem(
     m,
     bcs=bcs,
     prefix=name,
-    entity_maps=[medium_map],
+    entity_maps=[entity_map],
 )
 
 adaptive_load = True
@@ -535,8 +530,8 @@ runs.append(("HuHu-LuLu", V, frames_HL))  # V is rebound below, so capture it he
 # %%
 element_deg = 1
 V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
-P = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
-Q = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg))
+P = fem.functionspace(mesh_tm, ("Lagrange", element_deg))
+Q = fem.functionspace(mesh_tm, ("Lagrange", element_deg))
 W = ufl.MixedFunctionSpace(V, P, Q)
 
 # Functions
@@ -549,8 +544,8 @@ m = [u, p1, q]
 δm = ufl.TestFunctions(W)
 
 # BCs
-left_dofs = dolfinx.fem.locate_dofs_topological(V, fdim, ft.find(LEFT_marker))
-bc_left = dolfinx.fem.dirichletbc(np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V)
+left_dofs = dolfinx.fem.locate_dofs_topological(V, fdim, ft.find(marker_left))
+bc_left = dolfinx.fem.dirichletbc(np.zeros(tdim, dtype=scalar), left_dofs, V)
 dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node_topr)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
 bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
@@ -559,8 +554,8 @@ bcs = [bc_left, bc_point_y]
 # Integration measures for first order elements
 QRULE_BODY, QDEG_BODY = "default", 2  # 2x2 Gauss-Legendre (standard)
 QRULE_TM, QDEG_TM = "GLL", 1  # Gauss-Lobatto degree 1 = the four cell vertices
-dxVol = dx(BODY_marker, metadata={"quadrature_rule": QRULE_BODY, "quadrature_degree": QDEG_BODY})
-dxThird = dx(TM_marker, metadata={"quadrature_rule": QRULE_TM, "quadrature_degree": QDEG_TM})
+dxVol = dx(marker_body, metadata={"quadrature_rule": QRULE_BODY, "quadrature_degree": QDEG_BODY})
+dxThird = dx(marker_tm, metadata={"quadrature_rule": QRULE_TM, "quadrature_degree": QDEG_TM})
 
 F, J, I1 = kinematics(u)
 
@@ -608,7 +603,7 @@ problem = dolfiny.snesproblem.SNESProblem(
     m,
     bcs=bcs,
     prefix=name,
-    entity_maps=[medium_map],
+    entity_maps=[entity_map],
 )
 
 force_array_W, loading_array_W, num_iterations, elapsedTime = run_adaptive_loading(
@@ -664,7 +659,7 @@ runs.append(("Wriggers first-order", V, frames_W))
 element_deg_u = 1
 element_deg_theta = 1
 V = fem.functionspace(mesh, ("Lagrange", element_deg_u, (tdim,)))
-V_theta = fem.functionspace(third_medium_mesh, ("Lagrange", element_deg_theta, (tdim, tdim)))
+V_theta = fem.functionspace(mesh_tm, ("Lagrange", element_deg_theta, (tdim, tdim)))
 W = ufl.MixedFunctionSpace(V, V_theta)
 
 # Functions
@@ -676,8 +671,8 @@ m = [u, theta]
 δm = ufl.TestFunctions(W)
 
 # BCs
-left_dofs = dolfinx.fem.locate_dofs_topological(V, fdim, ft.find(LEFT_marker))
-bc_left = dolfinx.fem.dirichletbc(np.zeros(tdim, dtype=dolfinx.default_scalar_type), left_dofs, V)
+left_dofs = dolfinx.fem.locate_dofs_topological(V, fdim, ft.find(marker_left))
+bc_left = dolfinx.fem.dirichletbc(np.zeros(tdim, dtype=scalar), left_dofs, V)
 dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node_topr)
 applied_y = dolfinx.fem.Constant(mesh, 0.0)
 bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
@@ -696,7 +691,7 @@ p_theta = dolfinx.fem.Constant(mesh, 5.0e-2)
 alpha_r = dolfinx.fem.Constant(mesh, 1.0e-8)
 
 # initialize theta as the Identity tensor
-I_tm = fem.Constant(third_medium_mesh, np.eye(tdim, dtype=dolfinx.default_scalar_type))
+I_tm = fem.Constant(mesh_tm, np.eye(tdim, dtype=scalar))
 theta.interpolate(fem.Expression(I_tm, V_theta.element.interpolation_points))
 
 penalty_term = theta - F
@@ -730,7 +725,7 @@ problem = dolfiny.snesproblem.SNESProblem(
     m,
     bcs=bcs,
     prefix=name,
-    entity_maps=[medium_map],
+    entity_maps=[entity_map],
 )
 
 force_array_V, loading_array_V, num_iterations, elapsedTime = run_adaptive_loading(
