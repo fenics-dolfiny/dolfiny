@@ -1,15 +1,10 @@
 # %% [markdown]
 # ---
 # authors:
-#   - az
 #   - mh
 #   - ptk
-#   - name: Matteo Croci
-#     email: mcroci@bcamath.org
-#     affiliations:
-#       - id: bcam
-#         institution: BCAM - Basque Center for Applied Mathematics
-#     url: https://croci.github.io/
+#   - mc
+#   - az
 # ---
 
 # %% [markdown]

@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - mh
+#   - ptk
+#   - az
+# ---
 # # Dimensional analysis of the Navier-Stokes equations
 #
 # This demo demonstrates the automated dimensional analysis in `dolfiny.units` on a transient

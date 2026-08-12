@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - ptk
+#   - mh
+#   - az
+# ---
 # # Minimal surfaces in architecture
 #
 # ```{note}

@@ -1,4 +1,10 @@
 # %% [markdown]
+# ---
+# authors:
+#   - mh
+#   - ptk
+#   - az
+# ---
 # # Nonlinear Naghdi shell with arc-length continuation
 #
 # This demo traces the load-displacement response of a thin elastic cylindrical roof panel

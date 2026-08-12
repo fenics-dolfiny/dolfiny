@@ -35,6 +35,13 @@ project:
       corresponding: true
       url: https://www.uni.lu/fstm-en/people/paul-theodor-kuehner/
       affiliation: unilu
+    - name: Matteo Croci
+      id: mc
+      email: mcroci@bcamath.org
+      affiliations:
+        - id: bcam
+          institution: Basque Center for Applied Mathematics
+      url: https://croci.github.io/
   github: https://github.com/fenics-dolfiny/dolfiny
   toc:
     - file: index.md
