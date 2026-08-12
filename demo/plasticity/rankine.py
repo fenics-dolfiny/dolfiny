@@ -604,10 +604,10 @@ for step, factor in enumerate(cycle):
     dolfiny.interpolation.interpolate(u, uo)
     dolfiny.projection.project(ufl.sqrt(ufl.inner(P0, P0)), eps_p)
     dolfiny.projection.project(f(sigma, l0), f_sig)
-    with dolfinx.io.XDMFFile(MPI.COMM_WORLD, f"{name}.xdmf", "a") as ofile:
-        ofile.write_function(uo, step)
-        ofile.write_function(eps_p, step)
-        ofile.write_function(f_sig, step)
+    with dolfinx.io.XDMFFile(MPI.COMM_WORLD, f"{name}.xdmf", "a") as file:
+        file.write_function(uo, step)
+        file.write_function(eps_p, step)
+        file.write_function(f_sig, step)
 
 if comm.size == 1:
     # Build pyvista grid and attach displacement (padded to 3 components for warping)

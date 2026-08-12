@@ -68,6 +68,7 @@
 
 # %% tags=["hide-input", "hide-output"]
 import warnings
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from mpi4py import MPI
@@ -239,14 +240,12 @@ dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
 
 
 def compliance(load_condition):
-    u = load_condition["u"]
-    return sum(
-        [ufl.inner(f, u) * m for f, m in zip(load_condition["force"], load_condition["measure"])]
-    )
+    u = load_condition.u
+    return sum([ufl.inner(f, u) * m for f, m in zip(load_condition.force, load_condition.measure)])
 
 
 def elastic_energy(load_condition):
-    u = load_condition["u"]
+    u = load_condition.u
     E = 1 / 2 * ufl.inner(σ(u), ε(u)) * dx
     E -= compliance(load_condition)
     return E
@@ -266,8 +265,9 @@ V_ρ_f_bolt_dofs = dolfinx.fem.locate_dofs_topological(
 # %% [markdown]
 # In the challenge specification there are four load cases defined. We need to prepare the
 # elasticity problem for each load case and store the associated linear problem. This is achieved by
-# defining a dictionary with the load case name as the key, and the load vectors, measure, the
-# function to store the solution, and later the `LinearProblem`.
+# defining a list of [`dataclass`](https://docs.python.org/3/library/dataclasses.html) objects, each
+# containing the load case name, the load vectors, measure, the function to store the solution, and
+# later the `LinearProblem`.
 #
 # The first load case is a vertical upward force of $8000 \text{ lbs}$ on the pin faces. The Neumann
 # boundary force in the weak form is the force per area, so we need to compute the area of the pin
@@ -322,31 +322,47 @@ F2 = Quantity(mesh, 8500, syu.pound, "F2")
 F3 = Quantity(mesh, 9500, syu.pound, "F3")
 F4 = Quantity(mesh, 5000, syu.pound * syu.inch, "F4")
 
-load_conditions = {
-    "vertical_up": {
-        "force": [F1 * g / pin_area * ufl.as_vector((0, 0, 1))],
-        "measure": [ds((pin_left_tag, pin_right_tag))],
-    },
-    "horizontal_out": {
-        "force": [F2 * g / pin_area * ufl.as_vector((0, -1, 0))],
-        "measure": [ds((pin_left_tag, pin_right_tag))],
-    },
-    "42deg_vertical_out": {
-        "force": [
-            F3 * g / pin_area * ufl.as_vector((0, -np.sin(np.deg2rad(42)), np.cos(np.deg2rad(42))))
-        ],
-        "measure": [ds((pin_left_tag, pin_right_tag))],
-    },
-    "torsion": {
-        "force": [
+
+@dataclass
+class LoadingCondition:
+    name: str = field(repr=False)
+    force: list[ufl.classes.Expr] = field(repr=False)
+    measure: list[ufl.Measure] = field(repr=False)
+    u: dolfinx.fem.Function = field(repr=False)
+    linear_problem: dolfinx.fem.petsc.LinearProblem | None = field(repr=False, default=None)
+    J_form: dolfinx.fem.Form | None = field(repr=False, default=None)
+    DJ_form: dolfinx.fem.Form | None = field(repr=False, default=None)
+
+
+load_conditions = [
+    LoadingCondition(
+        "vertical_up",
+        [F1 * g / pin_area * ufl.as_vector((0, 0, 1))],
+        [ds((pin_left_tag, pin_right_tag))],
+        dolfinx.fem.Function(V_u, name="vertical_up"),
+    ),
+    LoadingCondition(
+        "horizontal_out",
+        [F2 * g / pin_area * ufl.as_vector((0, -1, 0))],
+        [ds((pin_left_tag, pin_right_tag))],
+        dolfinx.fem.Function(V_u, name="horizontal_out"),
+    ),
+    LoadingCondition(
+        "42deg_vertical_out",
+        [F3 * g / pin_area * ufl.as_vector((0, -np.sin(np.deg2rad(42)), np.cos(np.deg2rad(42))))],
+        [ds((pin_left_tag, pin_right_tag))],
+        dolfinx.fem.Function(V_u, name="42deg_vertical_out"),
+    ),
+    LoadingCondition(
+        "torsion",
+        [
             F4 / torsion_lever_arm * g / pin_area / 2 * ufl.as_vector((0, -1, 0)),
             F4 / torsion_lever_arm * g / pin_area / 2 * ufl.as_vector((0, 1, 0)),
         ],
-        "measure": [ds(pin_left_tag), ds(pin_right_tag)],
-    },
-}
-for fname in load_conditions.keys():
-    load_conditions[fname]["u"] = dolfinx.fem.Function(V_u, name=fname)  # type: ignore
+        [ds(pin_left_tag), ds(pin_right_tag)],
+        dolfinx.fem.Function(V_u, name="torsion"),
+    ),
+]
 
 
 def build_nullspace(V):
@@ -389,8 +405,8 @@ def build_nullspace(V):
 
 ns = build_nullspace(V_u)
 
-for lc in load_conditions.values():
-    u_lc = lc["u"]
+for lc in load_conditions:
+    u_lc = lc.u
     a = ufl.derivative(
         ufl.derivative(elastic_energy(lc), u_lc),
         u_lc,
@@ -423,12 +439,12 @@ for lc in load_conditions.values():
         petsc_options_prefix="elasticity_ksp",
     )
     elas_prob._A.setNearNullSpace(ns)
-    lc["linear_problem"] = elas_prob  # type: ignore
+    lc.linear_problem = elas_prob
 
     J_form = dolfinx.fem.form(compliance(lc))
     DJ_form = dolfinx.fem.form(-ufl.derivative(elastic_energy(lc), ρ_f))
-    lc["J_form"] = J_form
-    lc["DJ_form"] = DJ_form
+    lc.J_form = J_form
+    lc.DJ_form = DJ_form
 
 # %% [markdown]
 # We can solve one of the load cases to visualise the displacement field. Below is the displacement
@@ -439,20 +455,20 @@ for lc in load_conditions.values():
 # | caption: |
 # |   Displacement field (in mm, scaled by 0.2) for each of the four load cases.
 # Solve all load cases
-for name in load_conditions.keys():
-    load_conditions[name]["linear_problem"].solve()  # type: ignore
+for lc in load_conditions:
+    assert lc.linear_problem is not None
+    lc.linear_problem.solve()
 
 # Plot subplots for all load cases
 if comm.size == 1:
     plotter = pv.Plotter(theme=dolfiny.pyvista.theme, shape=(2, 2))
 
-    for i, name in enumerate(load_conditions.keys()):
+    for i, lc in enumerate(load_conditions):
         plotter.subplot(i // 2, i % 2)
-        u_lc = load_conditions[name]["u"]
-        grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u_lc.function_space.mesh))  # type: ignore
+        u_lc = lc.u
+        grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(u_lc.function_space.mesh))
 
-        assert isinstance(u_lc, dolfinx.fem.Function)  # type: ignore
-        grid.point_data["u"] = u_lc.x.array.reshape((-1, 3)) * 1000  # type: ignore # displacement in mm
+        grid.point_data["u"] = u_lc.x.array.reshape((-1, 3)) * 1000  # displacement in mm
         grid_warped = grid.warp_by_vector("u", factor=0.2)
 
         plotter.add_mesh(
@@ -462,7 +478,7 @@ if comm.size == 1:
             scalar_bar_args={"title": "Displacement [mm]"},
         )
         plotter.add_text(
-            name,
+            lc.name,
             font_size=dolfiny.pyvista.pixels // 100,
             font="courier",
             position="lower_edge",
@@ -618,12 +634,12 @@ def J(_tao, _):
     ρ_f.x.array[:] = np.clip(ρ_f.x.array, ρ_min, 1.0)
 
     total = 0.0
-    for lc_name, lc in load_conditions.items():
-        lc["linear_problem"].solve()
+    for lc in load_conditions:
+        lc.linear_problem.solve()
 
-        comp = comm.allreduce(dolfinx.fem.assemble_scalar(lc["J_form"]))
+        comp = comm.allreduce(dolfinx.fem.assemble_scalar(lc.J_form))
         if comm.rank == 0:
-            print(f"Objective ({lc_name}): {comp:.4g}")
+            print(f"Objective ({lc.name}): {comp:.4g}")
 
         total += comp
     return total
@@ -641,8 +657,8 @@ def DJ(_tao, _, G):
         s_local.set(0.0)
         s_lc_local.set(0.0)
 
-    for _lc_name, lc in load_conditions.items():
-        dolfinx.fem.petsc.assemble_vector(s_lc_vec, lc["DJ_form"])
+    for lc in load_conditions:
+        dolfinx.fem.petsc.assemble_vector(s_lc_vec, lc.DJ_form)
         s_lc_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         s_lc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
@@ -692,8 +708,8 @@ def monitor(tao: PETSc.TAO, output: bool, comp, volume) -> None:  # type: ignore
         for f in (ρ, ρ_f):
             file.write_function(f, it)
 
-        for lc in load_conditions.values():
-            file.write_function(lc["u"], it)
+        for lc in load_conditions:
+            file.write_function(lc.u, it)
 
 
 if output:
