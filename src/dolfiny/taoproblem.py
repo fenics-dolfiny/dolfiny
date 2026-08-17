@@ -453,7 +453,7 @@ class TAOProblem:
             self._J = J  # type: ignore
             self._H = H  # type: ignore
 
-        self._tao = PETSc.TAO().create(self._comm)
+        self._tao = PETSc.TAO().create(self._comm)  # type: ignore[arg-type]
         self._tao.setOptionsPrefix(prefix)
         self._tao.setFromOptions()
         self._tao.setSolution(self._x0)
