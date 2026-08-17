@@ -195,8 +195,8 @@ ofile.write_mesh_meshtags(mesh)
 # Write initial state
 dolfiny.interpolation.interpolate(c, co)
 dolfiny.interpolation.interpolate(φ, φo)
-ofile.write_function(co, time.value)
-ofile.write_function(φo, time.value)
+ofile.write_function(co, time.value.item())
+ofile.write_function(φo, time.value.item())
 
 # Process time steps
 for time_step in range(1, nT + 1):
@@ -221,8 +221,8 @@ for time_step in range(1, nT + 1):
     dolfiny.interpolation.interpolate(φ, φo)
 
     # Write output
-    ofile.write_function(co, time.value)
-    ofile.write_function(φo, time.value)
+    ofile.write_function(co, time.value.item())
+    ofile.write_function(φo, time.value.item())
 
 ofile.close()
 

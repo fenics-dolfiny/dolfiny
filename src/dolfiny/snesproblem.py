@@ -144,7 +144,7 @@ class SNESProblem:
         self.norm_x: dict[int, np.ndarray] = {}
         self.size_x: dict[int, np.ndarray] = {}
 
-        self.snes = PETSc.SNES().create(self.comm)
+        self.snes = PETSc.SNES().create(self.comm)  # type: ignore[arg-type]
 
         if self.nest:
             if self.restriction is not None:

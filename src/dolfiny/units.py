@@ -574,7 +574,7 @@ def buckingham_pi_analysis(
 
         rows.append([f"Pi_{i + 1}", expr, f"{numerical_value:.3g}"])
         if is_outlier:
-            outliers.append((i + 1, expr, numerical_value))
+            outliers.append((i + 1, expr, float(numerical_value)))
 
     # Print the dimensionless groups in a table
     print_table(rows, ["Group", "Expression", "Value"])
