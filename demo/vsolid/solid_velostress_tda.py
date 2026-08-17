@@ -136,9 +136,9 @@ ofile.write_mesh_data(mesh_data)
 dolfiny.interpolation.interpolate(v, vo)
 dolfiny.interpolation.interpolate(S, So)
 dolfiny.interpolation.interpolate(u, uo)
-ofile.write_function(vo, time.value)
-ofile.write_function(So, time.value)
-ofile.write_function(uo, time.value)
+ofile.write_function(vo, time.value.item())
+ofile.write_function(So, time.value.item())
+ofile.write_function(uo, time.value.item())
 
 # Options for PETSc backend
 opts = PETSc.Options(name)  # type: ignore[attr-defined]
@@ -190,8 +190,8 @@ for time_step in range(1, nT + 1):
     dolfiny.interpolation.interpolate(v, vo)
     dolfiny.interpolation.interpolate(S, So)
     dolfiny.interpolation.interpolate(u, uo)
-    ofile.write_function(vo, time.value)
-    ofile.write_function(So, time.value)
-    ofile.write_function(uo, time.value)
+    ofile.write_function(vo, time.value.item())
+    ofile.write_function(So, time.value.item())
+    ofile.write_function(uo, time.value.item())
 
 ofile.close()

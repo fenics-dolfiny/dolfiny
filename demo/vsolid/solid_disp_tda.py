@@ -224,7 +224,7 @@ uo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("P", 1, (3,))), name=
 
 # Write initial state
 dolfiny.interpolation.interpolate(u, uo)
-ofile.write_function(uo, time.value)
+ofile.write_function(uo, time.value.item())
 
 # Configure PETSc solver options
 opts = PETSc.Options(name)  # type: ignore[attr-defined]
@@ -312,7 +312,7 @@ for time_step in range(1, nT + 1):
 
     # Write output
     dolfiny.interpolation.interpolate(u, uo)
-    ofile.write_function(uo, time.value)
+    ofile.write_function(uo, time.value.item())
 
     if comm.size == 1:
         time_history[time_step] = time.value

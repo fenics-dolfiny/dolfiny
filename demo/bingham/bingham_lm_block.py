@@ -184,10 +184,10 @@ dolfiny.interpolation.interpolate(v, vo)
 dolfiny.interpolation.interpolate(p, po)
 dolfiny.interpolation.interpolate(n, no)
 dolfiny.interpolation.interpolate(t, to)
-ofile.write_function(vo, time.value)
-ofile.write_function(po, time.value)
-ofile.write_function(no, time.value)
-ofile.write_function(to, time.value)
+ofile.write_function(vo, time.value.item())
+ofile.write_function(po, time.value.item())
+ofile.write_function(no, time.value.item())
+ofile.write_function(to, time.value.item())
 
 # Options for PETSc backend
 opts = PETSc.Options("bingham")  # type: ignore[attr-defined]
@@ -216,8 +216,8 @@ for time_step in range(1, nT + 1):
     # Stage next time step
     odeint.stage()
 
-    # Update functions (taking up time.value)
-    v_t.value = v_inner_(t=time.value)
+    # Update functions (taking up time.value.item())
+    v_t.value = v_inner_(t=time.value.item())
 
     # Set/update boundary conditions
     problem.bcs = [
@@ -239,9 +239,9 @@ for time_step in range(1, nT + 1):
     dolfiny.interpolation.interpolate(p, po)
     dolfiny.interpolation.interpolate(n, no)
     dolfiny.interpolation.interpolate(t, to)
-    ofile.write_function(vo, time.value)
-    ofile.write_function(po, time.value)
-    ofile.write_function(no, time.value)
-    ofile.write_function(to, time.value)
+    ofile.write_function(vo, time.value.item())
+    ofile.write_function(po, time.value.item())
+    ofile.write_function(no, time.value.item())
+    ofile.write_function(to, time.value.item())
 
 ofile.close()

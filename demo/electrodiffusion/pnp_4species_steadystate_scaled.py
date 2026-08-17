@@ -321,8 +321,8 @@ if comm.rank == 0:
 
     ax1.plot(l_ref.value * x_[0], c_ref.value * c_, "-", label=species.keys())
     ax1.ticklabel_format(style="sci", scilimits=(0, -2), axis="x")
-    ax1.set_xlim((l_ref.value * xp[0], l_ref.value * xp[1]))
-    ax1.set_ylim((0, c_ref.value))
+    ax1.set_xlim((l_ref.value.item() * xp[0], l_ref.value.item() * xp[1]))
+    ax1.set_ylim((0, c_ref.value.item()))
     ax1.legend(loc="best")
 
     ax2.plot(l_ref.value * x_[0], φ_ref.value * φ_, "-", color="black", alpha=0.5)

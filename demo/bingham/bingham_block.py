@@ -82,7 +82,7 @@ def t_vector_(x, r=iR):
 
 # Boundary velocity as expression
 def v_vector_i_(x):
-    return t_vector_(x) * v_inner_(t=time.value)
+    return t_vector_(x) * v_inner_(t=time.value.item())
 
 
 def v_vector_o_(x):
@@ -238,8 +238,8 @@ ofile.write_mesh_data(mesh_data)
 # Write initial state
 dolfiny.interpolation.interpolate(v, vo)
 dolfiny.interpolation.interpolate(p, po)
-ofile.write_function(vo, time.value)
-ofile.write_function(po, time.value)
+ofile.write_function(vo, time.value.item())
+ofile.write_function(po, time.value.item())
 
 # Options for PETSc backend
 opts = PETSc.Options("bingham")  # type: ignore[attr-defined]
@@ -269,7 +269,7 @@ for time_step in range(1, nT + 1):
     # Stage next time step
     odeint.stage()
 
-    # Update functions (taking up time.value)
+    # Update functions (taking up time.value.item())
     v_vector_o.interpolate(v_vector_o_)
     v_vector_i.interpolate(v_vector_i_)
 
@@ -292,7 +292,7 @@ for time_step in range(1, nT + 1):
     # Write output
     dolfiny.interpolation.interpolate(v, vo)
     dolfiny.interpolation.interpolate(p, po)
-    ofile.write_function(vo, time.value)
-    ofile.write_function(po, time.value)
+    ofile.write_function(vo, time.value.item())
+    ofile.write_function(po, time.value.item())
 
 ofile.close()
