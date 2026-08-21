@@ -104,8 +104,8 @@ def project_codimension(p_expression, target_func, projector, mt, mt_id, eps=1.0
         cells = np.concatenate((cells, mt_k.find(mt_id_k)), axis=0)
 
     # Create variational forms
-    a = dolfinx.fem.form(a)
-    L = dolfinx.fem.form(L)
+    a = dolfinx.fem.form(a)  # ty: ignore
+    L = dolfinx.fem.form(L)  # ty: ignore
 
     # Get dofs not associated with mt = inactive
     dofs_mt = dolfinx.fem.locate_dofs_topological(V, V.mesh.topology.dim - 1, cells)
