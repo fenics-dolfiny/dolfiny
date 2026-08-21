@@ -78,9 +78,7 @@ class SLEPcProblem:
                     if B0[i][j].empty():  # type: ignore[union-attr]
                         B0[i][j] = None
 
-            self.B_form = B0
-        else:
-            self.B_form = B_form
+            B_form = B0
 
         if A_form is None:
             A0: list[list[ufl.Form | None]] = [
@@ -94,23 +92,20 @@ class SLEPcProblem:
                     if A0[i][j].empty():  # type: ignore[union-attr]
                         A0[i][j] = None
                         continue
-            self.A_form = A0
-        else:
-            self.A_form = A_form
+            A_form = A0
 
         self.eps = SLEPc.EPS().create(self.comm)
         self.eps.setOptionsPrefix(prefix)
         self.eps.setFromOptions()
 
-        # TODO: type ignores are due to missing case in dolfinx type hints
-        self.A_form = dolfinx.fem.form(self.A_form)  # type: ignore
-        self.B_form = dolfinx.fem.form(self.B_form)  # type: ignore
+        self.A_form = dolfinx.fem.form(A_form)
+        self.B_form = dolfinx.fem.form(B_form)
 
-        self.A = dolfinx.fem.petsc.create_matrix(self.A_form)  # type: ignore[arg-type]
+        self.A = dolfinx.fem.petsc.create_matrix(self.A_form)
 
         self.B = None
         if not self.empty_B():
-            self.B = dolfinx.fem.petsc.create_matrix(self.B_form)  # type: ignore[arg-type]
+            self.B = dolfinx.fem.petsc.create_matrix(self.B_form)
 
     def solve(self):
         self.A.zeroEntries()
@@ -118,6 +113,7 @@ class SLEPcProblem:
         self.A.assemble()
 
         if not self.empty_B():
+            assert self.B is not None
             self.B.zeroEntries()
             dolfinx.fem.petsc.assemble_matrix(self.B, self.B_form, [])
             self.B.assemble()

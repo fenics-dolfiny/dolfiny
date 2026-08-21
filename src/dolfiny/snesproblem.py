@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Sequence
+from typing import cast
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -91,8 +92,6 @@ class SNESProblem:
                     # If the form happens to be empty replace with None
                     if J_form[i][j] is not None and J_form[i][j].empty():  # type: ignore[union-attr]
                         J_form[i][j] = None
-        else:
-            self.J_form = J_form
 
         # Compile all forms
         self.F_form_all_ufc = dolfinx.fem.form(
@@ -102,15 +101,16 @@ class SNESProblem:
             entity_maps=entity_maps,
         )
         self.J_form_all_ufc = dolfinx.fem.form(
-            J_form,  # type: ignore
+            J_form,
             form_compiler_options=form_compiler_options,
             jit_options=jit_options,
             entity_maps=entity_maps,
         )
 
         # By default, copy all forms as the forms used in assemblers
-        self.F_form = self.F_form_all_ufc.copy()
-        self.J_form = self.J_form_all_ufc.copy()  # type: ignore[assignment]
+        assert not any(form is None for form in self.F_form_all_ufc)
+        self.F_form = cast(list[dolfinx.fem.Form], self.F_form_all_ufc.copy())
+        self.J_form = self.J_form_all_ufc.copy()
         self.global_spaces_id = range(len(self.u))
 
         self.nest = nest
@@ -153,7 +153,7 @@ class SNESProblem:
             if self.localsolver is not None:
                 raise RuntimeError("LocalSolver for MATNEST not yet supported.")
 
-            self.J = dolfinx.fem.petsc.create_matrix(self.J_form, kind=PETSc.Mat.Type.NEST)  # type: ignore
+            self.J = dolfinx.fem.petsc.create_matrix(self.J_form, kind=PETSc.Mat.Type.NEST)
             self.F = dolfinx.fem.petsc.create_vector(
                 dolfinx.fem.extract_function_spaces(self.F_form), kind=PETSc.Vec.Type.NEST
             )
@@ -173,7 +173,7 @@ class SNESProblem:
                     kind=PETSc.Vec.Type.MPI,
                 )
 
-            self.J = dolfinx.fem.petsc.create_matrix(self.J_form)  # type: ignore
+            self.J = dolfinx.fem.petsc.create_matrix(self.J_form)
             # TODO: this might be a bug in dolfinx: doc claims None and MPI should have same
             #       behavior, None does not work atm.
             spaces = dolfinx.fem.extract_function_spaces(self.F_form)
@@ -186,7 +186,7 @@ class SNESProblem:
 
             if self.restriction is not None:
                 # Need to create new global matrix for the restriction
-                self._J = dolfinx.fem.petsc.create_matrix(self.J_form)  # type: ignore
+                self._J = dolfinx.fem.petsc.create_matrix(self.J_form)
                 self._J.assemble()
 
                 self._x = self.x.copy()
@@ -246,9 +246,9 @@ class SNESProblem:
         )
         dolfinx.fem.petsc.apply_lifting(
             self.F,
-            self.J_form,  # type: ignore
+            self.J_form,
             bcs=dolfinx.fem.bcs_by_block(
-                dolfinx.fem.extract_function_spaces(self.J_form, 1),  # type: ignore
+                dolfinx.fem.extract_function_spaces(self.J_form, 1),
                 self.bcs,
             ),
             x0=self.x,  # type: ignore
@@ -275,14 +275,14 @@ class SNESProblem:
         x_sub = x.getNestSubVecs()
 
         bcs1 = dolfinx.fem.bcs.bcs_by_block(
-            dolfinx.fem.forms.extract_function_spaces(self.J_form, 1),  # type: ignore
+            dolfinx.fem.forms.extract_function_spaces(self.J_form, 1),
             self.bcs,
         )
         for L, F_sub, a in zip(self.F_form, F.getNestSubVecs(), self.J_form):
             with F_sub.localForm() as F_sub_local:
                 F_sub_local.set(0.0)
             dolfinx.fem.petsc.assemble_vector(F_sub, L)
-            dolfinx.fem.petsc.apply_lifting(F_sub, a, bcs1, x0=x_sub, alpha=-1.0)  # type: ignore
+            dolfinx.fem.petsc.apply_lifting(F_sub, a, bcs1, x0=x_sub, alpha=-1.0)
             F_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)  # type: ignore
 
         # Set bc value in RHS
@@ -299,7 +299,7 @@ class SNESProblem:
         self.J.zeroEntries()
         self._update_functions(x)
 
-        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)  # type: ignore
+        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)
         self.J.assemble()
 
         if self.restriction is not None:
@@ -307,7 +307,7 @@ class SNESProblem:
 
     def _J_nest(self, snes: PETSc.SNES, x: PETSc.Vec, J: PETSc.Mat, P: PETSc.Mat):
         self.J.zeroEntries()
-        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)  # type: ignore
+        dolfinx.fem.petsc.assemble_matrix(self.J, self.J_form, self.bcs, diag=1.0)
         self.J.assemble()
 
     def _converged(self, snes, it, norms):
