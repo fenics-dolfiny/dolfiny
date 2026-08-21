@@ -1,12 +1,10 @@
 # %% [markdown]
 # ---
 # authors:
-#   - az
-#   - mh
+#   - aa
 #   - ptk
-#   - name: Andrea Antonelli
-#     email: aantonelli@student.ethz.ch
-#     affiliation: ETH Zürich
+#   - mh
+#   - az
 # ---
 
 # %% [markdown]
@@ -101,8 +99,7 @@ im_c = mesh.topology.index_map(tdim)
 num_cells_local = im_c.size_local + im_c.num_ghosts
 markers = np.full(num_cells_local, marker_body, dtype=np.int32)
 markers[dolfinx.mesh.locate_entities(mesh, tdim, thirdmedium)] = marker_tm
-ct = dolfinx.mesh.meshtags(mesh, tdim, np.arange(num_cells_local), markers)
-ct.name = "cell_tags"
+ct = dolfinx.mesh.meshtags(mesh, tdim, np.arange(num_cells_local), markers, name="cell_tags")
 
 # Mark facets
 marker_left = 2
@@ -113,8 +110,7 @@ num_facets_local = im_f.size_local + im_f.num_ghosts
 facet_markers = np.zeros(num_facets_local, dtype=np.int32)
 facet_markers[dolfinx.mesh.locate_entities(mesh, fdim, left)] = marker_left
 ft_indices = np.flatnonzero(facet_markers)
-ft = dolfinx.mesh.meshtags(mesh, fdim, ft_indices, facet_markers[ft_indices])
-ft.name = "facet_tags"
+ft = dolfinx.mesh.meshtags(mesh, fdim, ft_indices, facet_markers[ft_indices], name="facet_tags")
 
 # Locate the top-right corner node for applying the vertical displacement
 node_topr = dolfinx.mesh.locate_entities(
