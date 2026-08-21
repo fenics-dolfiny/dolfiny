@@ -420,9 +420,9 @@ bookstrap:
   tags:
     - zed
   rules:
-    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" &&
-        ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_MESSAGE =~ /\[book\]/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_LABELS =~ /documentation/)
   before_script:
     - cd book
   script:
@@ -456,6 +456,8 @@ bookstrap:
 book build:
   stage: book
   image: $CONTAINER_COMMIT_IMAGE-amd64
+  needs:
+    - bookstrap
   dependencies:
     - bookstrap
   script:
@@ -470,14 +472,16 @@ book build:
       - public
     expire_in: 2 hours
   rules:
-    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" &&
-        ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_MESSAGE =~ /\[book\]/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_LABELS =~ /documentation/)
       variables:
         BASE_URL: "/mr-${CI_MERGE_REQUEST_IID}"
 
 book release:
   stage: release
+  needs:
+    - book build
   script:
     - echo "Book accessible at ${PAGES_URL}"
   pages:
@@ -488,13 +492,13 @@ book release:
     url: $PAGES_URL
     auto_stop_in: 1 week
   rules:
-    - if: ($CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH)
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       variables:
         PAGES_PREFIX: ""
         PAGES_URL: $CI_PAGES_URL
         PAGES_EXPIRE: never
-    - if: ($CI_PIPELINE_SOURCE == "merge_request_event" &&
-        ($CI_MERGE_REQUEST_LABELS =~ /documentation/ || $CI_COMMIT_MESSAGE =~ /\[book\]/))
+    - if: $CI_COMMIT_MESSAGE =~ /\[book\]/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && ($CI_MERGE_REQUEST_LABELS =~ /documentation/)
       variables:
         PAGES_PREFIX: "mr-${CI_MERGE_REQUEST_IID}"
         PAGES_URL: $CI_PAGES_URL/mr-${CI_MERGE_REQUEST_IID}
