@@ -99,18 +99,17 @@ im_c = mesh.topology.index_map(tdim)
 num_cells_local = im_c.size_local + im_c.num_ghosts
 markers = np.full(num_cells_local, marker_body, dtype=np.int32)
 markers[dolfinx.mesh.locate_entities(mesh, tdim, thirdmedium)] = marker_tm
-ct = dolfinx.mesh.meshtags(mesh, tdim, np.arange(num_cells_local), markers, name="cell_tags")
+ct = dolfinx.mesh.meshtags(
+    mesh, tdim, np.arange(num_cells_local, dtype=np.int32), markers, name="cell_tags"
+)
 
 # Mark facets
 marker_left = 2
 
 im_f = mesh.topology.index_map(fdim)
 num_facets_local = im_f.size_local + im_f.num_ghosts
-
-facet_markers = np.zeros(num_facets_local, dtype=np.int32)
-facet_markers[dolfinx.mesh.locate_entities(mesh, fdim, left)] = marker_left
-ft_indices = np.flatnonzero(facet_markers)
-ft = dolfinx.mesh.meshtags(mesh, fdim, ft_indices, facet_markers[ft_indices], name="facet_tags")
+ft_indices = dolfinx.mesh.locate_entities(mesh, fdim, left)
+ft = dolfinx.mesh.meshtags(mesh, fdim, ft_indices, marker_left, name="facet_tags")
 
 # Locate the top-right corner node for applying the vertical displacement
 node_topr = dolfinx.mesh.locate_entities(
@@ -118,7 +117,7 @@ node_topr = dolfinx.mesh.locate_entities(
 )
 
 num_cells_owned = im_c.size_local
-num_nodes_owned = mesh.topology.index_map(0).size_global
+num_nodes_owned = mesh.topology.index_map(0).size_local
 num_cells_global = comm.allreduce(num_cells_owned, op=MPI.SUM)
 num_nodes_global = comm.allreduce(num_nodes_owned, op=MPI.SUM)
 pprint(f"Mesh: {num_cells_global} cells, {num_nodes_global} nodes")
@@ -133,23 +132,6 @@ tm_func = fem.Function(V_tm, name="cell_markers")
 cell_dofs = V_tm.dofmap.list[ct.indices].flatten()
 tm_func.x.array[cell_dofs] = ct.values
 tm_func.x.scatter_forward()
-
-
-def frame_recorder(comm):
-    """Collect the deformed states of one run for later side-by-side display.
-    Rendering works in serial only.
-    """
-
-    if comm.size > 1:
-        return None, None
-
-    frames = []
-
-    def record_step(_u, _u_y):
-        frames.append((float(_u_y), _u.x.array.copy()))
-
-    return frames, record_step
-
 
 # %% [markdown]
 # ## Third medium contact formulation
@@ -175,7 +157,7 @@ def frame_recorder(comm):
 # strain energy density is scaled by a small parameter $\gamma$, with the stiffening contribution
 # coming from the $\ln J$ volumetric term as $J \rightarrow 0$. However, as discussed in
 # {cite:t}`Faltus2024`, in 2D plane-strain conditions this term can be omitted, since the isochoric
-# term stiffens as $J \rightarrow 0$, combined with the plane strain constraint $F_{33} = 1$, is
+# term stiffening as $J \rightarrow 0$, combined with the plane strain constraint $F_{33} = 1$, is
 # sufficient to prevent penetration. Therefore, the strain energy density for the third medium
 # reduces to:
 
@@ -185,10 +167,7 @@ def frame_recorder(comm):
 # When large deformations occur in the pre-contact phase, the third medium elements become severely
 # distorted, preventing convergence in the nonlinear solution process. A way to mitigate this issue
 # is to introduce a regularization contribution $\Psi_r$ to the third medium strain energy density
-# that should provide sufficient stabilization while minimally influencing its deformation. Several
-# forms of $\Psi_r$ have been proposed in the literature, mainly differing in the deformation modes
-# they penalize.
-
+# that should provide sufficient stabilization while minimally influencing its deformation.
 
 # The material parameters for the body are set from the Young's modulus $E = 1.0$ MPa and Poisson's
 # ratio $\nu = 0.4$, leading to $K = 5/3$ MPa and $\mu = 5/14$ MPa, while the relative contact
@@ -198,8 +177,8 @@ def frame_recorder(comm):
 ## Material Properties
 E = 1.0  # Young's modulus of the body [MPa]
 nu = 0.4  # Poisson ratio of the body
-K = E / (3 * (1 - 2 * nu))  # bulk modulus [MPa]
-mu = E / (2 * (1 + nu))  # shear modulus [MPa]
+K = fem.Constant(mesh, E / (3 * (1 - 2 * nu)))  # bulk modulus [MPa]
+mu = fem.Constant(mesh, E / (2 * (1 + nu)))     # shear modulus [MPa]
 
 gamma = fem.Constant(mesh, 1.0e-6)  # relative contact stiffness of the third medium
 
@@ -221,153 +200,74 @@ def psi_third(J, I1):
 
 
 # %% [markdown]
-# ## HuHu-LuLu regularization
+# ## Solution strategy
 #
-# The first regularization was proposed by {cite:t}`Bluhm2021` and penalizes higher-order
-# deformation modes through the Hessian of the displacement field $\mathbb{H}\boldsymbol{u}$, hence
-# the name "HuHu regularization":
+# Solving a contact problem with the TMC method amounts to finding a stationary point of the total
+# potential energy of the system, which is composed of the elastic energy of the body, the elastic
+# energy of the third medium and a regularization contribution. Several forms of $\Psi_r$ have been
+# proposed in the literature, mainly differing in the deformation modes they penalize: some are
+# formulated in the displacement alone, others introduce auxiliary fields living on the third medium
+# only. It is therefore convenient to collect all unknowns of a given formulation in a single state
+# $\boldsymbol{m}$, comprising the displacement field $\boldsymbol{u}$ defined on the whole domain
+# and the (eventually empty) set of regularization-specific auxiliary fields, defined on the third
+# medium subdomain only. The total potential energy then splits into a contribution shared by all
+# formulations and a regularization contribution:
 #
-# $$ \Psi_r^{Hu}(\boldsymbol{u}) = \frac{k_r}{2} \mathbb{H}\boldsymbol{u} \cdot
-# \mathbb{H}\boldsymbol{u}, $$
+# $$ \Pi(\boldsymbol{m}) = \Pi_{el}(\boldsymbol{u}) + \Pi_{r}(\boldsymbol{m}), $$
 #
-# where $k_r = \alpha L^2 K$, $L$ is a characteristic length of the problem and $\alpha$ a
-# dimensionless constant to be chosen as small as possible while still stabilizing the third medium.
-# A value of $\alpha = 10^{-6}$ is adopted in the following.
+# where the common part collects the elastic energy of the body and of the third medium:
 #
-# To reduce the penalization on bending and quadratic compression modes, {cite:t}`Frederiksen2025`
-# proposed to subtract a term in the Laplacian of the displacement field $\mathbb{L}\boldsymbol{u}$
-# from the HuHu regularization:
+# $$ \Pi_{el}(\boldsymbol{u}) = \int_{\Omega_{b}} \Psi_{body}(\boldsymbol{u}) \,\text{d}x +
+# \int_{\Omega_{tm}} \Psi_{tm}^{2D}(\boldsymbol{u}) \,\text{d}x, $$
 #
-# $$ \Psi_r^{HuLu} = \frac{k_r}{2} (\mathbb{H} \boldsymbol{u} \cdot \mathbb{H} \boldsymbol{u}
-# - \frac{1}{\operatorname{tr} {\boldsymbol{I}}} \mathbb{L} \boldsymbol{u} \cdot \mathbb{L}
-# \boldsymbol{u}), $$
+# with $\Omega_{b}$ and $\Omega_{tm}$ the body and third medium subdomains, and the regularization
+# part is:
 #
-# leading to the so-called "HuHu-LuLu regularization". Both regularizations rely on second
-# derivatives of the displacement field, hence at least quadratic elements are required to obtain an
-# effective, spatially varying Hessian and Laplacian within each cell. Moreover, for the C-shape
-# benchmark considered here the third medium is dominated by shear, skew and linear compression
-# deformation modes that HuHu and HuHu-LuLu penalize equivalently. The two regularizations are
-# therefore expected to produce almost identical results, as already observed in
-# {cite:t}`Frederiksen2025`. A Gauss-Lobatto quadrature rule is employed for third medium elements
-# to mitigate element inversion, increasing robustness under severe skew deformations.
+# $$ \Pi_{r}(\boldsymbol{m}) = \int_{\Omega_{tm}} \Psi_{r}(\boldsymbol{m}) \,\text{d}x, $$
 #
-# %% Define function spaces and functions
-element_deg = 2
-V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
-
-u = fem.Function(V, name="displacement")
-δu = ufl.TestFunction(V)
-
-# Define state
-m = [u]
-δm = ufl.TestFunctions(ufl.MixedFunctionSpace(V))
-(δu,) = δm
-
-# BCs
-left_dofs = dolfinx.fem.locate_dofs_topological(V, fdim, ft.find(marker_left))
-bc_left = dolfinx.fem.dirichletbc(np.zeros(tdim, dtype=scalar), left_dofs, V)
-dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node_topr)
-applied_y = dolfinx.fem.Constant(mesh, 0.0)
-bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
-bcs = [bc_left, bc_point_y]
-
-F, J, I1 = kinematics(u)
-
-# Integration measures
-QRULE_BODY, QDEG_BODY = "default", 4
-QRULE_TM, QDEG_TM = "GLL", 3
-dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct)
-dxVol = dx(marker_body, metadata={"quadrature_rule": QRULE_BODY, "quadrature_degree": QDEG_BODY})
-dxThird = dx(marker_tm, metadata={"quadrature_rule": QRULE_TM, "quadrature_degree": QDEG_TM})
-
-# Define the potential energy contributions Elastic energy of the body
-Pi_body = psi_body(J, I1) * dxVol
-
-# Third medium elastic energy
-Pi_third = gamma * psi_third(J, I1) * dxThird
-
-# Regularization
-L_i = np.zeros(tdim)
-for dim in range(mesh.geometry.dim):
-    x_i_max = mesh.comm.allreduce(mesh.geometry.x[:, dim].max(), op=MPI.MAX)
-    x_i_min = mesh.comm.allreduce(mesh.geometry.x[:, dim].min(), op=MPI.MIN)
-    L_i[dim] = x_i_max - x_i_min
-L_char = dolfinx.fem.Constant(mesh, np.max(L_i))
-alpha = fem.Constant(mesh, 1.0e-06)
-k_r = fem.Constant(mesh, alpha.value * L_char.value**2 * K)
-
-Hu = ufl.grad(ufl.grad(u))  # Hessian of displacement
-Lu = ufl.div(ufl.grad(u))  # Laplacian of displacement
-
-HuHu = ufl.inner(Hu, Hu)
-LuLu = ufl.inner(Lu, Lu) / ufl.tr(ufl.Identity(tdim))
-
-# Pi_Hu = k_r / 2 * (HuHu) * dxThird
-
-Pi_HuLu = k_r / 2 * (HuHu - LuLu) * dxThird
-Pi_r = Pi_HuLu
-
-# %% [markdown]
-# ### Solution strategy
+# whose specific form, together with the auxiliary fields it involves, is detailed in each of the
+# following sections.
 #
-# Solving this contact problem with the TMC method amounts to finding the stationary point of the
-# total potential energy of the system,
-#
-# $$ \Pi(\boldsymbol{u}) = \int_{\Omega_{b}} \Psi_{body}(\boldsymbol{u}) \, \mathrm{d}\Omega
-# + \int_{\Omega_{tm}} \Psi_{tm}^{2D}(\boldsymbol{u}) \, \mathrm{d}\Omega
-# + \int_{\Omega_{tm}} \Psi_{r}^{HuLu}(\boldsymbol{u}) \, \mathrm{d}\Omega , $$
-#
-# with $\Omega_{b}$ and $\Omega_{tm}$ the body and third medium subdomains. The load is applied
-# through prescribed displacement only, so no external work term appears. The nonlinear system is
-# solved using the PETSc Newton solver with backtracking line search, coupled with an adaptive load
-# stepping strategy to improve robustness and convergence: on failure the state is reset to the last
-# converged one and the increment is halved, until the target displacement $\bar{v}$ is reached or
-# the increment falls below $\Delta l_{\min}$.
+# The load is applied through prescribed displacement only, so no external work term appears. The
+# nonlinear system is solved using the PETSc Newton solver with backtracking line search, coupled
+# with an adaptive load stepping strategy to improve robustness and convergence: on failure the
+# state is reset to the last converged one and the increment is halved, until the target
+# displacement $\bar{v}$ is reached or the increment falls below $\Delta l_{\min}$.
 
-# %% tags=["hide-input", "hide-output"] Define the residual and forms for the nonlinear problem
-residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
-forms = ufl.extract_blocks(residual)
-
-# Prepare vertical reaction force at the loaded corner node
-disp_residual = ufl.derivative(Pi_body, u)
-reaction_form = fem.form(disp_residual)
-reaction_vector = dolfinx.fem.petsc.create_vector(V)
-owned_size = V.dofmap.index_map.size_local * V.dofmap.index_map_bs
-dofs_point_y_owned = dofs_point_y[dofs_point_y < owned_size]
-
-# Instantiate the nonlinear problem and solver
+# %% tags=["hide-input"]
+# Instantiate the nonlinear solver options
 opts = PETSc.Options(name)
 opts["snes_type"] = "newtonls"
 opts["snes_linesearch_type"] = "bt"
 opts["snes_atol"] = 1.0e-08
 opts["snes_rtol"] = 1.0e-08
-opts["snes_max_it"] = 50
+opts["snes_max_it"] = 100
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "lu"
 opts["pc_factor_mat_solver_type"] = "mumps"
 
-# Setup output file for storing results
-name_HuLu = f"{name}_HuLu"
-ofile = VTXWriter(comm, f"{name_HuLu}.bp", [u, tm_func])
-ofile.write(0.0)  # write initial state
-
-# Deformed states of all runs, displayed side by side in the comparison section
-runs = []
-frames_HL, record_HL = frame_recorder(comm)
-
-problem = dolfiny.snesproblem.SNESProblem(
-    forms,
-    m,
-    bcs=bcs,
-    prefix=name,
-    entity_maps=[entity_map],
-)
-
+# Setup adaptive loading strategy and parameters
 adaptive_load = True
 dl = 0.05  # initial load increment
 dl_min = dl / 16  # minimum load increment
 
 v_bar = -1.0  # final applied vertical displacement [mm]
+
+
+def frame_recorder(comm):
+    """Collect the deformed states of one run for later side-by-side display.
+    Rendering works in serial only.
+    """
+
+    if comm.size > 1:
+        return None, None
+
+    frames = []
+
+    def record_step(_u, _u_y):
+        frames.append((float(_u_y), _u.x.array.copy()))
+
+    return frames, record_step
 
 
 def run_adaptive_loading(
@@ -381,7 +281,7 @@ def run_adaptive_loading(
     min_increment,
     record_step,
 ):
-    """Run the load stepping loop for one regularization case."""
+    """Run the load stepping loop for one regularization case"""
     state_snapshots = [s.x.array.copy() for s in state_functions]
     force_history = []
     load_history = []
@@ -456,6 +356,121 @@ def run_adaptive_loading(
     return force_history, load_history, num_iterations, elapsed_time
 
 
+# %% [markdown]
+# ## HuHu-LuLu regularization
+#
+# The first regularization was proposed by {cite:t}`Bluhm2021` and penalizes higher-order
+# deformation modes through the Hessian of the displacement field $\mathbb{H}\boldsymbol{u}$, hence
+# the name "HuHu regularization":
+#
+# $$ \Psi_r^{Hu}(\boldsymbol{u}) = \frac{k_r}{2} \mathbb{H}\boldsymbol{u} \cdot
+# \mathbb{H}\boldsymbol{u}, $$
+#
+# where $k_r = \alpha L^2 K$, $L$ is a characteristic length of the problem and $\alpha$ a
+# dimensionless constant to be chosen as small as possible while still stabilizing the third medium.
+# A value of $\alpha = 10^{-6}$ is adopted in the following.
+#
+# To reduce the penalization on bending and quadratic compression modes, {cite:t}`Frederiksen2025`
+# proposed to subtract a term in the Laplacian of the displacement field $\mathbb{L}\boldsymbol{u}$
+# from the HuHu regularization:
+#
+# $$ \Psi_r^{HuLu} = \frac{k_r}{2} (\mathbb{H} \boldsymbol{u} \cdot \mathbb{H} \boldsymbol{u}
+# - \frac{1}{\operatorname{tr} {\boldsymbol{I}}} \mathbb{L} \boldsymbol{u} \cdot \mathbb{L}
+# \boldsymbol{u}), $$
+#
+# leading to the so-called "HuHu-LuLu regularization". Since both forms are expressed in the
+# displacement alone, no auxiliary field is required and the state reduces to $\boldsymbol{m} =
+# [\boldsymbol{u}]$. Both regularizations rely on second derivatives of the displacement field,
+# hence at least quadratic elements are required to obtain an effective, spatially varying Hessian
+# and Laplacian within each cell. Moreover, for the C-shape benchmark considered here the third
+# medium is dominated by shear, skew and linear compression deformation modes that HuHu and
+# HuHu-LuLu penalize equivalently. The two regularizations are therefore expected to produce almost
+# identical results, as already observed in {cite:t}`Frederiksen2025`. A Gauss-Lobatto quadrature
+# rule is employed for third medium elements to mitigate element inversion, increasing robustness
+# under severe skew deformations.
+#
+# %% tags=["hide-output"]
+element_deg = 2
+V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
+u = fem.Function(V, name="displacement")
+
+# Define state
+m = [u]
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(V))
+
+# BCs
+left_dofs = dolfinx.fem.locate_dofs_topological(V, fdim, ft.find(marker_left))
+bc_left = dolfinx.fem.dirichletbc(np.zeros(tdim, dtype=scalar), left_dofs, V)
+dofs_point_y = dolfinx.fem.locate_dofs_topological(V.sub(1), 0, node_topr)
+applied_y = dolfinx.fem.Constant(mesh, 0.0)
+bc_point_y = dolfinx.fem.dirichletbc(applied_y, dofs_point_y, V.sub(1))
+bcs = [bc_left, bc_point_y]
+
+F, J, I1 = kinematics(u)
+
+# Integration measures
+QRULE_BODY, QDEG_BODY = "default", 4
+QRULE_TM, QDEG_TM = "GLL", 3
+dx = ufl.Measure("dx", domain=mesh, subdomain_data=ct)
+dxVol = dx(marker_body, metadata={"quadrature_rule": QRULE_BODY, "quadrature_degree": QDEG_BODY})
+dxThird = dx(marker_tm, metadata={"quadrature_rule": QRULE_TM, "quadrature_degree": QDEG_TM})
+
+# Define the potential energy contributions Elastic energy of the body
+Pi_body = psi_body(J, I1) * dxVol
+
+# Third medium elastic energy
+Pi_third = gamma * psi_third(J, I1) * dxThird
+
+# Regularization
+L_i = np.zeros(tdim)
+for dim in range(mesh.geometry.dim):
+    x_i_max = mesh.comm.allreduce(mesh.geometry.x[:, dim].max(), op=MPI.MAX)
+    x_i_min = mesh.comm.allreduce(mesh.geometry.x[:, dim].min(), op=MPI.MIN)
+    L_i[dim] = x_i_max - x_i_min
+L_char = dolfinx.fem.Constant(mesh, np.max(L_i))
+alpha = fem.Constant(mesh, 1.0e-06)
+k_r = fem.Constant(mesh, alpha.value * L_char.value**2 * K.value)
+
+Hu = ufl.grad(ufl.grad(u))  # Hessian of displacement
+Lu = ufl.div(ufl.grad(u))  # Laplacian of displacement
+
+HuHu = ufl.inner(Hu, Hu)
+LuLu = ufl.inner(Lu, Lu) / ufl.tr(ufl.Identity(tdim))
+
+# Pi_Hu = k_r / 2 * (HuHu) * dxThird
+
+Pi_HuLu = k_r / 2 * (HuHu - LuLu) * dxThird
+Pi_r = Pi_HuLu
+
+# Define the residual and forms for the nonlinear problem
+residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
+forms = ufl.extract_blocks(residual)
+
+# Prepare vertical reaction force at the loaded corner node
+disp_residual = ufl.derivative(Pi_body, u)
+reaction_form = fem.form(disp_residual)
+reaction_vector = dolfinx.fem.petsc.create_vector(V)
+owned_size = V.dofmap.index_map.size_local * V.dofmap.index_map_bs
+dofs_point_y_owned = dofs_point_y[dofs_point_y < owned_size]
+
+# Setup output file for storing results
+name_HuLu = f"{name}_HuLu"
+ofile = VTXWriter(comm, f"{name_HuLu}.bp", [u, tm_func])
+ofile.write(0.0)  # write initial state
+
+# Deformed states of all runs, displayed side by side in the comparison section
+runs = []
+frames_HL, record_HL = frame_recorder(comm)
+
+problem = dolfiny.snesproblem.SNESProblem(
+    forms,
+    m,
+    bcs=bcs,
+    prefix=name,
+    entity_maps=[entity_map],
+    jit_options=dict(cffi_extra_compile_args=["-ffast-math"]),
+)
+
 force_array_HL, loading_array_HL, num_iterations, elapsedTime = run_adaptive_loading(
     name="HuLu",
     problem=problem,
@@ -467,8 +482,7 @@ force_array_HL, loading_array_HL, num_iterations, elapsedTime = run_adaptive_loa
     min_increment=dl_min,
     record_step=record_HL,
 )
-runs.append(("HuHu-LuLu", V, frames_HL))  # V is rebound below, so capture it here
-
+runs.append(("HuHu-LuLu", V, frames_HL))  # V is redefined below, so capture it here
 
 # %% [markdown]
 # ## Wriggers regularization
@@ -506,24 +520,18 @@ runs.append(("HuHu-LuLu", V, frames_HL))  # V is rebound below, so capture it he
 # q\right)^2 + \alpha_r\|\nabla q\|^2\right]. $$
 #
 # Only first derivatives remain, so $\boldsymbol{u}$, $p$ and $q$ can all be interpolated with
-# linear shape functions. The solution is then the stationary point of the total potential energy,
-# which now depends on the auxiliary fields as well:
-#
-# $$ \Pi(\boldsymbol{u}, p, q) = \int_{\Omega_{b}} \Psi_{body}(\boldsymbol{u}) \, \mathrm{d}\Omega +
-# \int_{\Omega_{tm}} \Psi_{tm}^{2D}(\boldsymbol{u}) \, \mathrm{d}\Omega + \int_{\Omega_{tm}}
-# \Psi_{r}(\boldsymbol{u}, p, q) \, \mathrm{d}\Omega , $$
-#
-# solved with the same Newton solver and adaptive load-stepping strategy as above. The displacement
-# uses $Q_1$ elements on the full mesh, while $p$ and $q$ are $Q_1$ fields on the third medium
-# submesh only, so that the additional unknowns stay confined to $\Omega_{tm}$. A Gauss-Lobatto rule
-# of degree one is used here for third medium elements.
+# linear shape functions. The state of this formulation is therefore $\boldsymbol{m} =
+# [\boldsymbol{u}, p, q]$, with the two auxiliary fields entering the regularization contribution
+# $\Pi_r$. The displacement uses $Q_1$ elements on the full mesh, while $p$ and $q$ are $Q_1$ fields
+# on the third medium submesh only, so that the additional unknowns stay confined to $\Omega_{tm}$.
+# A Gauss-Lobatto rule of degree one is used here for third medium elements.
 #
 # The regularization parameters are taken as $\beta_1 = 10^{4}$, $\beta_2 = 10$ and $\alpha_r =
 # 100$. The $\nabla J$ contribution is retained here, although {cite:t}`Wriggers2025` observe on
 # this same benchmark (Section 4.2.3) that it can be dropped when linear shape functions are used,
 # since the $p$ and $(p,q)$ formulations give the same results.
 
-# %%
+# %% tags=["hide-output"]
 element_deg = 1
 V = fem.functionspace(mesh, ("Lagrange", element_deg, (tdim,)))
 P = fem.functionspace(mesh_tm, ("Lagrange", element_deg))
@@ -573,11 +581,14 @@ skew_term = (skF / trF) - p1
 
 Pi_grad = (beta_1 * skew_term**2 + alpha_r * ufl.inner(ufl.grad(p1), ufl.grad(p1))) * dxThird
 
+q.x.array[:] = 1.0  # reference configuration has J = 1
+q.x.scatter_forward()
+
 Pi_J = (beta_2 * (J - q) ** 2 + alpha_r * ufl.inner(ufl.grad(q), ufl.grad(q))) * dxThird
 
 Pi_r = gamma / 2 * (Pi_grad + Pi_J)
 
-# %% tags=["hide-input", "hide-output"] Nonlinear problem and solver using new regularization term
+# Nonlinear problem and solver using new regularization term
 residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
 forms = ufl.extract_blocks(residual)
 
@@ -637,21 +648,15 @@ runs.append(("Wriggers first-order", V, frames_W))
 # where $\alpha_r$ is the regularization parameter. The new field is discretized independently of
 # the displacement, and since only first derivatives of $\boldsymbol{\Theta}$ appear, a gradient
 # control of $\boldsymbol{F}$ is recovered without evaluating second derivatives of
-# $\boldsymbol{u}$, so that first-order elements become admissible for both fields. The potential
-# energy of the system now takes the form:
-#
-# $$ \Pi(\boldsymbol{u}, \boldsymbol{\Theta}) = \int_{\Omega_{b}} \Psi_{body}(\boldsymbol{u}) \,
-# \mathrm{d}\Omega + \int_{\Omega_{tm}} \Psi_{tm}^{2D}(\boldsymbol{u}) \, \mathrm{d}\Omega +
-# \int_{\Omega_{tm}} \Psi_{r}(\boldsymbol{u}, \boldsymbol{\Theta}) \, \mathrm{d}\Omega , $$
-#
-# and the stationary conditions lead to a nonlinear system solved as above. The displacement uses
-# $Q_1$ elements on the full mesh, while $\boldsymbol{\Theta}$ is a $Q_1$ tensor-valued field on the
-# third medium submesh only.
+# $\boldsymbol{u}$, so that first-order elements become admissible for both fields. The state of
+# this formulation is therefore $\boldsymbol{m} = [\boldsymbol{u}, \boldsymbol{\Theta}]$. The
+# displacement uses $Q_1$ elements on the full mesh, while $\boldsymbol{\Theta}$ is a $Q_1$
+# tensor-valued field on the third medium submesh only.
 #
 # The regularization parameters are taken as $p_{\Theta} = 5 \cdot 10^{-2}$ and $\alpha_r =
 # 10^{-8}$.
 #
-# %%
+# %% tags=["hide-output"]
 element_deg_u = 1
 element_deg_theta = 1
 V = fem.functionspace(mesh, ("Lagrange", element_deg_u, (tdim,)))
@@ -696,8 +701,6 @@ Pi_penalty = (p_theta / 2 * ufl.inner(penalty_term, penalty_term)) * dxThird
 Pi_reg = (alpha_r / 2 * ufl.inner(ufl.grad(theta), ufl.grad(theta))) * dxThird
 
 Pi_r = Pi_penalty + Pi_reg
-
-# %% tags=["hide-input", "hide-output"]
 
 # Nonlinear problem and solver using new regularization term
 residual = ufl.derivative(Pi_body + Pi_third + Pi_r, m, δm)
@@ -782,7 +785,7 @@ def plot_comparison_pyvista(filename, runs, tm_func, num_cells_owned, tdim):
         # how finely. Linear cells need no subdivision.
         subdivision_levels = 0 if grid.get_cell(0).is_linear else 3
 
-        # tm_func (BODY_marker=1 / TM_marker=2) is DG0: one value per cell, so it maps directly to
+        # tm_func (marker_body=1 / marker_tm=2) is DG0: one value per cell, so it maps directly to
         # cell_data. The region assignment is fixed for the whole run, so this is set once here. It
         # lives on the parent mesh, shared by all runs.
         grid.cell_data["cell_marker"] = tm_func.x.array[:num_cells_owned]
@@ -842,11 +845,12 @@ def plot_comparison_pyvista(filename, runs, tm_func, num_cells_owned, tdim):
         ]
         plotter.camera.parallel_scale = margin * max(span[1], span[0] / panel_aspect) / 2
 
-    # The runs do not reach the same load level: a panel that runs out of frames holds its last
+    # A panel that runs out of frames holds its last
     # converged state until the end.
     num_frames = max(len(frames) for frames, *_ in panels)
 
-    plotter.open_gif(filename, fps=5)
+    # Play the exported animation once
+    plotter.open_gif(filename, loop=None, fps=5)
     for frame in range(num_frames):
         for frames, subdivision_levels, grid, u_3d, surface, edges, load_text in panels:
             index = min(frame, len(frames) - 1)
