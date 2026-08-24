@@ -21,10 +21,9 @@ RUN apt-get -y update && \
 # Note: cppyy is not self maintained, but needs cache for install of cppyy-cling
 RUN pip install --no-cache-dir --index-url https://gitlab.com/api/v4/projects/59503118/packages/pypi/simple \
     cppyy-cling==6.32.8 \
-    vtk==9.6.2 \
-    cppyy && \
+    vtk==9.6.2 && \
     find / -type f -name 'allDict.cxx*' -delete
-
+    
 # Install python dependencies for efficient rebuilds
 RUN pip install --no-cache-dir -v \
     coverage \
@@ -43,7 +42,8 @@ RUN pip install --no-cache-dir -v \
     ruff \
     scipy \
     sympy \
-    typos
+    typos \
+    cppyy
 
 # Setup Dolfiny
 COPY . /src/dolfiny/
