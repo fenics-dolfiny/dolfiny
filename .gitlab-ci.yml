@@ -49,7 +49,7 @@ mypy:
     - pip install --group lint-typing
     - pip install . --no-build-isolation
     - mypy -p dolfiny
-    - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
+    - rm /dolfinx-env/lib/python3.14/site-packages/petsc4py/PETSc.pyi
     - mypy test/ demo/ --explicit-package-bases
 
 ty:
@@ -62,7 +62,7 @@ ty:
     - pip install . --no-build-isolation
     - pip uninstall -y pyvista # https://github.com/astral-sh/ty/issues/350
     - ty check --color always src/dolfiny
-    - rm /dolfinx-env/lib64/python3.12/site-packages/petsc4py/PETSc.pyi
+    - rm /dolfinx-env/lib/python3.14/site-packages/petsc4py/PETSc.pyi
     - ty check --color always demo/
     - ty check --color always test/
 
