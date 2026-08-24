@@ -10,6 +10,9 @@ ENV PYVISTA_TRAME_SERVER_PROXY_ENABLED="True"
 ENV PYVISTA_JUPYTER_BACKEND="html"
 ENV LIBGL_ALWAYS_SOFTWARE=1
 
+ENV OMPI_ALLOW_RUN_AS_ROOT=1
+ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+
 # Install system dependencies
 COPY apt-requirements.txt /tmp/apt-requirements.txt
 RUN apt-get -y update && \
