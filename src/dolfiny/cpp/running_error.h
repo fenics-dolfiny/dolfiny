@@ -82,9 +82,7 @@ struct running_error_t {
   // Comparison operators
   //
 
-  bool operator==(const re_t& other) const {
-    return val == other.val && err_bnd == other.err_bnd;
-  }
+  bool operator==(const re_t& other) const { return val == other.val; }
   bool operator!=(const re_t& other) const { return !(*this == other); }
 
  private:
@@ -95,6 +93,19 @@ struct running_error_t {
   // preferred over guaranteed pessimism.
   static constexpr T eps = std::numeric_limits<T>::epsilon();
 };
+
+// comparison operations compare the value (not the error).
+template <typename T, ErrorMode M>
+bool operator<=(const dolfiny::running_error_t<T, M>& lhs,
+                const dolfiny::running_error_t<T, M>& other) noexcept {
+  return lhs.val <= other.val;
+}
+
+template <typename T, ErrorMode M>
+bool operator>=(const dolfiny::running_error_t<T, M>& lhs,
+                const dolfiny::running_error_t<T, M>& other) noexcept {
+  return lhs.val >= other.val;
+}
 
 // ---------------------------------------------------------------------------
 // EXACT mode: signed accumulated error via first-order derivative propagation
@@ -205,9 +216,7 @@ struct running_error_t<T, ErrorMode::EXACT> {
   // Comparison operators
   //
 
-  bool operator==(const re_t& other) const {
-    return val == other.val && exact_error == other.exact_error;
-  }
+  bool operator==(const re_t& other) const { return val == other.val; }
   bool operator!=(const re_t& other) const { return !(*this == other); }
 };
 
