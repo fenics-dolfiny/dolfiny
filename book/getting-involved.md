@@ -35,17 +35,6 @@ The project aims at interfacing to the PETSc [SNES arc length solver](https://pe
 ```
 
 ```{card}
-:header: 🤝 Third-medium contact demo
-
-The *third-medium* contact method, ref. https://doi.org/10.1007/s00466-013-0848-5 and https://doi.org/10.1016/j.cma.2025.117740, gained popularity for its variationally pleasing and differential contact formulation.
-
-Its formulation fits well into the domain description language [`UFL`](https://github.com/fenics/ufl).
-
-The project aims to demonstrate the usage of third medium contact formulations within FEniCS and (possibly) applying it other use cases, such as optimisation problems.
-It gives the opportunity to understand a modern research topic and to get involved with modern, coding practices.
-```
-
-```{card}
 :header: 📝 Your project idea
 You have an own idea for a project that you would like to see accomplished?
 Suggest it to us!
@@ -62,3 +51,22 @@ Are you looking for a new academic position related to the here covered applicat
 Then you might be interested in joining our *Mechanics and Structural Analysis* group at the [University of Luxembourg](https://www.uni.lu/en/).
 For more details on current availability, we are happy to receive your unsolicited application - reach out to the authors directly.
 ```
+
+## 🏁 Completed collaborative projects
+
+````{grid} 2
+
+```{card}
+:header: 🤝 Third-medium contact demo
+:link: https://dolfiny.uni.lu/tmc/third-medium-cbox/
+
+The *third-medium* contact method, ref. https://doi.org/10.1007/s00466-013-0848-5 and https://doi.org/10.1016/j.cma.2025.117740, gained popularity for its variationally pleasing and differential contact formulation.
+
+Its formulation fits well into the domain description language [`UFL`](https://github.com/fenics/ufl).
+
+The project aims to demonstrate the usage of third medium contact formulations within FEniCS and (possibly) applying it other use cases, such as optimisation problems.
+It gives the opportunity to understand a modern research topic and to get involved with modern, coding practices.
+```
+
+```
+````
