@@ -12,7 +12,7 @@ authors = [
   { name = "Paul T. Kühner", email = "paul.kuehner@uni.lu" },
 ]
 readme = "README.md"
-requires-python = ">=3.10.0"
+requires-python = ">=3.12.0"
 dependencies = [
   "fenics-dolfinx>=0.12.0.dev0,<0.13.0",
   "matplotlib",
@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-jit = ["numba", "cppyy>=3.1.0"]
+jit = ["numba", "cppjit @ git+https://github.com/compiler-research/cppjit"]
 book = ["jupytext", "jupyter-book>=2.0.0", "jupyter"]
 all = ["dolfiny[book,jit]"]
 
@@ -101,7 +101,7 @@ allowed-confusables = ["σ", "×"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["dolfiny"]
-known-third-party = ["cppyy", "gmsh", "numba", "numpy", "pytest", "pyvista"]
+known-third-party = ["cppjit", "gmsh", "numba", "numpy", "pytest", "pyvista"]
 section-order = [
   "future",
   "standard-library",

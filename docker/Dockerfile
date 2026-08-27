@@ -1,8 +1,5 @@
 FROM dolfinx/dolfinx:nightly
 
-ARG EXTRA_CLING_ARGS="-O2"
-
-ENV EXTRA_CLING_ARGS=${EXTRA_CLING_ARGS}
 ENV PYTHONPYCACHEPREFIX=/root/.cache/cpython
 
 ENV PYVISTA_TRAME_SERVER_PROXY_PREFIX="/proxy/"
@@ -21,12 +18,15 @@ RUN apt-get -y update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Install prebuild wheels maintained at https://gitlab.com/uniluxembourg/fstm/doe/zed/tools/python/wheels
-# Note: cppyy is not self maintained, but needs cache for install of cppyy-cling
 RUN pip install --no-cache-dir --index-url https://gitlab.com/api/v4/projects/59503118/packages/pypi/simple \
-    cppyy-cling==6.32.8 \
     vtk==9.6.2 && \
     find / -type f -name 'allDict.cxx*' -delete
-    
+
+# Build cppjit from source (no published wheel yet.
+RUN pip install --no-cache-dir --no-build-isolation -v \
+    "cppjit @ git+https://github.com/compiler-research/cppjit" \
+    --config-settings=cmake.define.Clang_DIR=/usr/lib/llvm-21/lib/cmake/clang
+
 # Install python dependencies for efficient rebuilds
 RUN pip install --no-cache-dir -v \
     coverage \
@@ -45,8 +45,7 @@ RUN pip install --no-cache-dir -v \
     ruff \
     scipy \
     sympy \
-    typos \
-    cppyy
+    typos
 
 # Setup Dolfiny
 COPY . /src/dolfiny/

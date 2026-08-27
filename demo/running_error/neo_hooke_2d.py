@@ -203,7 +203,7 @@
 #
 # The `dolfiny.fem.form` function JIT-compiles the UFL form using the `running_error_t`
 # scalar type. To support this, we use the `ffcx-backends` library which provides
-# templated kernels from FFCx, and we JIT compile these using `cppyy`. Finally,
+# templated kernels from FFCx, and we JIT compile these using `cppjit`. Finally,
 # `dolfiny.fem.assemble_vector` invokes the DOLFINx assembly with this custom type, so
 # every operation in the element kernel automatically tracks its error.
 #
