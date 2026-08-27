@@ -88,7 +88,7 @@ class LocalSolver:
         3. reconstruct local dofs for a fixed, known global dofs, parameter ``local_integrals``,
         4. update local dofs (globally), parameter ``local_update``.
 
-        It supports use of C++ (via cppyy JIT compilation) or Numba kernels.
+        It supports use of C++ (via cppjit JIT compilation) or Numba kernels.
 
         The interface for ``foo_integrals`` follows integral storage in dolfinx,
         for example
@@ -458,13 +458,12 @@ class LocalSolver:
         return int(wrapped_kernel.address)
 
     def wrap_kernel_cpp(self, kernel: UserKernel, indices, celltype):
-        import cppyy
-        import cppyy.ll
+        import cppjit
 
-        cppyy.add_include_path("/usr/include/eigen3/")
-        if getattr(cppyy.gbl, "kernel_data_t", None) is None:
+        cppjit.add_include_path("/usr/include/eigen3/")
+        if getattr(cppjit.gbl, "kernel_data_t", None) is None:
             # Include header only once
-            cppyy.include(os.path.join(os.path.dirname(__file__), "localsolver.h"))
+            cppjit.include(os.path.join(os.path.dirname(__file__), "localsolver.h"))
 
         sizes = []
         for i, fs in enumerate(self.function_spaces):
@@ -643,7 +642,7 @@ class LocalSolver:
                     const double* __restrict__ c_, const double* __restrict__ coords_,
                     void* __restrict__ eli_null, void* __restrict__ perm_null, void* custom_data_)
         {{
-            // This is a hack for cppyy which cannot implicitly cast nullptr
+            // This is a hack for cppjit which cannot implicitly cast nullptr
             // passed for cell integrals into int32_t*
             auto eli_ = static_cast<const int32_t* >(eli_null);
             auto perm_ = static_cast<const uint8_t*>(perm_null);
@@ -656,6 +655,10 @@ class LocalSolver:
             // Execute user kernel
             {kernel.name}(Arr);
         }};
+
+        // cppjit's FunctionPointerConverter cannot marshal a __restrict__-qualified
+        // function pointer back to Python, so compute the address on the C++ side.
+        intptr_t kernel_addr() {{ return reinterpret_cast<intptr_t>(&kernel); }}
         """
 
         # Compute caching hash and wrap in a namespace
@@ -668,10 +671,10 @@ class LocalSolver:
         }}
         """
 
-        cppyy.cppdef(code)
-        compiled_wrapper = getattr(cppyy.gbl, name)
+        cppjit.cppdef(code)
+        compiled_wrapper = getattr(cppjit.gbl, name)
 
-        return cppyy.ll.cast["intptr_t"](compiled_wrapper.kernel)
+        return compiled_wrapper.kernel_addr()
 
     def stack_data(self):
         """Stack all Coefficients and Constants across all blocks in F and J forms."""

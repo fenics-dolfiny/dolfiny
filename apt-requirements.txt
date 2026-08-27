@@ -1,6 +1,12 @@
+clang
+cmake
 curl
+libclang-dev
 libgl1-mesa-dev
-libgraphviz-dev
-libosmesa6
-libmpfr-dev
 libgmp-dev
+libgraphviz-dev
+libmpfr-dev
+libosmesa6
+libpolly-dev
+libzstd-dev
+ninja-build

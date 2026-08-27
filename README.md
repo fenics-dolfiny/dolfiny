@@ -27,7 +27,7 @@ of external packages such as
 
 - [Matplotlib](https://github.com/matplotlib/matplotlib) (plotting),
 - [PyVista](https://github.com/pyvista/pyvista) (scientific visualisation), or
-- [cppyy](https://github.com/wlav/cppyy) (dynamic Python/C++ bindings).
+- [cppjit](https://github.com/compiler-research/cppjit) (dynamic Python/C++ bindings).
 
 Install `dolfiny` with these dependencies by running
 
@@ -36,7 +36,7 @@ pip install dolfiny[all]
 ```
 
 For ARM-based architectures (`aarch64`/`arm64` on Linux) we recommend to fallback to our
-custom-compiled binary wheels for `vtk` and `cppyy-cling` by setting the
+custom-compiled binary wheels for `vtk` by setting the
 local package index repository in the respective environment variable
 
 ```

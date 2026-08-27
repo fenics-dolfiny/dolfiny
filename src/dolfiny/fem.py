@@ -35,9 +35,9 @@ nptype_to_cpp = {np.float64: "double"}
 alias_type_map = {np.float64: np.complex128}
 
 # Cache is used to avoid re-compiling the same form multiple times,
-# since cppyy does not recognize that two identical declarations are
+# since cppjit does not recognize that two identical declarations are
 # the same and will raise a redefinition error.
-_cppyy_form_cache: dict[str, typing.Any] = {}
+_cppjit_form_cache: dict[str, typing.Any] = {}
 
 
 def assemble_scalar(M: Form) -> typing.Any:
@@ -307,24 +307,24 @@ def jit(form, form_compiler_options: dict | None = None):
         ";".join([form.signature(), ffcx.__version__, repr(sorted(opts.items()))]).encode()
     ).hexdigest()
 
-    if cache_key in _cppyy_form_cache:
-        return _cppyy_form_cache[cache_key]
+    if cache_key in _cppjit_form_cache:
+        return _cppjit_form_cache[cache_key]
 
-    import cppyy
+    import cppjit
 
     decl = compile_ufl_objects([form], opts)[0][0]
 
     ufcx_path = pathlib.Path(ffcx.__file__).parent / "codegeneration" / "ufcx.h"
     assert ufcx_path.exists(), f"Path does not exist: {ufcx_path}"
-    cppyy.add_include_path(str(ufcx_path.parent))
+    cppjit.add_include_path(str(ufcx_path.parent))
 
     # Include dolfiny's running_error.h (brings in mpfr.h context) and load libmpfr
     dolfiny_cpp_path = pathlib.Path(dolfiny.__file__).parent / "cpp" / "running_error.h"
-    cppyy.include(str(dolfiny_cpp_path))
-    cppyy.load_library("mpfr")
+    cppjit.include(str(dolfiny_cpp_path))
+    cppjit.load_library("mpfr")
 
     # Extract the form class name (content-hash based, stable) to retrieve the
-    # compiled template from cppyy and to build a unique alias replacing form__0.
+    # compiled template from cppjit and to build a unique alias replacing form__0.
     import re as _re
 
     m = _re.search(r"\bclass (form_[0-9a-f]{40})\b", decl)
@@ -336,9 +336,14 @@ def jit(form, form_compiler_options: dict | None = None):
     # Rename the form__0 template alias to form__<content-hash> so that
     # compiling different forms in the same process never redefines the same alias.
     decl = decl.replace("form__0", f"form__{form_content_hash}")
-    cppyy.cppdef(decl)
 
-    compiled_form = getattr(cppyy.gbl, form_class_name)
-    _cppyy_form_cache[cache_key] = compiled_form
+    # #pragma once has no real file to track and crashes the interpreter (segfault in
+    # HandlePragmaOnce/getFileInfo). It is also redundant here: the class name above
+    # is already salted per form, so re-cppdef'ing never redefines the same symbol.
+    decl = decl.replace("#pragma once", "")
+    cppjit.cppdef(decl)
+
+    compiled_form = getattr(cppjit.gbl, form_class_name)
+    _cppjit_form_cache[cache_key] = compiled_form
 
     return compiled_form
