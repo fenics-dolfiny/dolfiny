@@ -151,4 +151,4 @@ if args.watch:
             last = time.time_ns()
 
 print("📖 ready!")
-print(" > jupyter book start")
+print(" > HOST=0.0.0.0 jupyter-book start --keep-host")

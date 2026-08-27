@@ -51,7 +51,7 @@
           "editor.defaultFormatter": "loopj.vscode-gersemi",
           "editor.formatOnSave": true
         },
-        "remote.autoForwardPorts": false,
+        "remote.autoForwardPorts": true,
         "ruff.nativeServer": true,
         "mypy-type-checker.preferDaemon": true,
         "mypy-type-checker.reportingScope": "workspace",
