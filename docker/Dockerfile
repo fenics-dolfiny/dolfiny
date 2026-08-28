@@ -1,4 +1,5 @@
-FROM dolfinx/dolfinx:nightly
+# dolfinx/dolfinx:nightly on Aug 26th 2026
+FROM dolfinx/dolfinx@sha256:3fd59c6a504b3d7e4dc5d3c191de6d16953ec44f9f60ca8c6480e284af8b36b9
 
 ENV PYTHONPYCACHEPREFIX=/root/.cache/cpython
 
@@ -9,6 +10,10 @@ ENV LIBGL_ALWAYS_SOFTWARE=1
 
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+
+# Make CppJIT compile with optimizations
+ARG EXTRA_INTERPRETER_ARGS="-O3"
+ENV CPPINTEROP_EXTRA_INTERPRETER_ARGS=${EXTRA_INTERPRETER_ARGS}
 
 # Install system dependencies
 COPY apt-requirements.txt /tmp/apt-requirements.txt
