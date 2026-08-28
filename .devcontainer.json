@@ -63,7 +63,7 @@
   "build": {
     "dockerfile": "docker/Dockerfile",
     "context": ".",
-    "options": ["--progress", "plain"]
+    "options": ["--progress", "plain", "--pull"]
   },
   "features": {
     "ghcr.io/devcontainers/features/common-utils:2.5.9": {}

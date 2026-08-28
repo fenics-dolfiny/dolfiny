@@ -2,6 +2,7 @@ clang
 cmake
 curl
 libclang-dev
+libeigen3-dev
 libgl1-mesa-dev
 libgmp-dev
 libgraphviz-dev
