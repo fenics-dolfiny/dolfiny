@@ -295,7 +295,7 @@ facet_tags = mesh_data.facet_tags
 
 pv_grid = pv.UnstructuredGrid(*dolfinx.plot.vtk_mesh(mesh, 2))
 plotter = pv.Plotter(theme=dolfiny.pyvista.theme)
-plotter.add_mesh(pv_grid, show_edges=True)
+plotter.add_mesh(pv_grid, show_edges=True, lighting=False)
 plotter.add_axes()
 plotter.view_xy()
 plotter.camera.zoom(1.2)

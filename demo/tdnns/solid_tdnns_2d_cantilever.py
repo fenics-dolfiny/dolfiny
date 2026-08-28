@@ -218,6 +218,7 @@ if comm.rank == 0:
         scalars="s",
         scalar_bar_args={"title": "von Mises stress"},
         n_colors=10,
+        lighting=False,
     )
 
     plotter.add_mesh(
