@@ -418,6 +418,7 @@ if comm.size == 1:
         clim=[ρ_min, 1],
         n_colors=10,
         scalar_bar_args={"position_y": 0.85},
+        lighting=False,
     )
     text = plotter.add_text("")
     plotter.view_xy()
@@ -436,6 +437,7 @@ if comm.size == 1:
         clim=[ρ_min, 1],
         n_colors=10,
         scalar_bar_args={"position_y": 0.85},
+        lighting=False,
     )
     text_f = plotter_f.add_text("")
     plotter_f.view_xy()

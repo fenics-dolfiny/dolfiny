@@ -555,6 +555,7 @@ if comm.size == 1:
         log_scale=True,
         clim=energy_clim,
         show_edges=show_edges,
+        lighting=False,
     )
     frame_beam(plotter1)
 
@@ -576,6 +577,7 @@ if comm.size == 1:
         log_scale=True,
         clim=energy_clim,
         show_edges=show_edges,
+        lighting=False,
     )
     frame_beam(plotter2)
 
@@ -623,6 +625,7 @@ if comm.size == 1:
         log_scale=True,
         n_colors=n_colors,
         show_edges=show_edges,
+        lighting=False,
     )
     frame_beam(plotter3)
 
@@ -643,6 +646,7 @@ if comm.size == 1:
         log_scale=True,
         n_colors=n_colors,
         show_edges=show_edges,
+        lighting=False,
     )
     frame_beam(plotter4)
 
@@ -692,6 +696,7 @@ if comm.size == 1:
         log_scale=True,
         n_colors=n_colors,
         show_edges=show_edges,
+        lighting=False,
     )
     frame_beam(plotter5)
 
@@ -712,6 +717,7 @@ if comm.size == 1:
         log_scale=True,
         n_colors=n_colors,
         show_edges=show_edges,
+        lighting=False,
     )
     frame_beam(plotter6)
 
