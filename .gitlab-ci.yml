@@ -186,7 +186,7 @@ wheel release:
 
 .install_template:
   image: $CONTAINER_COMMIT_IMAGE-$ARCH
-  needs: ["image build: [amd64, zed]"]
+  needs: ["image build: [amd64, zed, saas-linux-large-amd64]"]
   tags:
     - $RUNNER_TAG
   script:
