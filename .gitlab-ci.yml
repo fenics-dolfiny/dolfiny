@@ -110,9 +110,9 @@ image build:
   parallel:
     matrix:
       - ARCH: amd64
-        RUNNER_TAG: zed, saas-linux-large-amd64
+        RUNNER_TAG: [zed, saas-linux-large-amd64]
       - ARCH: arm64
-        RUNNER_TAG: saas-linux-medium-arm64
+        RUNNER_TAG: [saas-linux-medium-arm64]
   tags:
     - $RUNNER_TAG
   services:
@@ -186,7 +186,7 @@ wheel release:
 
 .install_template:
   image: $CONTAINER_COMMIT_IMAGE-$ARCH
-  needs: ["image build: [amd64, zed, saas-linux-large-amd64]"]
+  needs: ["image build: [amd64, zed]"]
   tags:
     - $RUNNER_TAG
   script:
