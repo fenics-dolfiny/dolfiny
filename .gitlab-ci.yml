@@ -110,11 +110,13 @@ image build:
   parallel:
     matrix:
       - ARCH: amd64
-        RUNNER_TAG: [zed, saas-linux-large-amd64]
+        RUNNER_TAG: saas-linux-large-amd64
+        RUNNER_TAG_LOCALITY: zed
       - ARCH: arm64
-        RUNNER_TAG: [saas-linux-medium-arm64]
+        RUNNER_TAG: saas-linux-medium-arm64
   tags:
     - $RUNNER_TAG
+    - $RUNNER_TAG_LOCALITY
   services:
     - name: docker:dind
       command: ["--mtu=1450"]
@@ -186,7 +188,7 @@ wheel release:
 
 .install_template:
   image: $CONTAINER_COMMIT_IMAGE-$ARCH
-  needs: ["image build: [amd64, zed]"]
+  needs: ["image build: [amd64, saas-linux-large-amd64, zed]"]
   tags:
     - $RUNNER_TAG
   script:
