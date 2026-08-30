@@ -21,7 +21,8 @@ workflow:
 
 .matrix_arch_runner: &matrix_arch_runner
   ARCH: [amd64] # FIXME: add arm64
-  RUNNER_TAG: [zed, saas-linux-large-amd64] # FIXME: add saas-linux-medium-arm64
+  RUNNER_TAG: [saas-linux-large-amd64] # FIXME: add saas-linux-medium-arm64
+  RUNNER_TAG_LOCALITY: [zed]
 
 # jobs
 default:
@@ -191,6 +192,7 @@ wheel release:
   needs: ["image build: [amd64, saas-linux-large-amd64, zed]"]
   tags:
     - $RUNNER_TAG
+    - $RUNNER_TAG_LOCALITY
   script:
     - echo "Apply optional runtime hot-fixes here."
   parallel:
