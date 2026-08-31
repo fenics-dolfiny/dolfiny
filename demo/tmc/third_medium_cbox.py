@@ -180,14 +180,16 @@ if comm.size == 1:
 # right Cauchy-Green deformation tensor. $K$ and $\mu$ are, respectively, the initial bulk and shear
 # moduli of the body. To keep the influence of the third medium negligible before contact, its
 # strain energy density is scaled by a small parameter $\gamma$, with the stiffening contribution
-# coming from the $\ln J$ volumetric term as $J \rightarrow 0$. However, as discussed in
+# coming from the $\ln J$ volumetric term as $J \rightarrow 0$. As discussed in
 # {cite:t}`Faltus2024`, in 2D plane-strain conditions this term can be omitted, since the isochoric
 # term stiffening as $J \rightarrow 0$, combined with the plane strain constraint $F_{33} = 1$, is
-# sufficient to prevent penetration. Therefore, the strain energy density for the third medium
-# reduces to:
+# sufficient to prevent penetration. That argument assumes a confined medium, which the column
+# beyond $x = L$ is not: there the isochoric term never activates, leaving a near-singular tangent.
+# The volumetric term is therefore retained, making the third medium the body energy scaled by
+# $\gamma$:
 
-# $$ \Psi_{tm}^{2D}(\boldsymbol{u}) = \gamma
-# \left[\frac{\mu}{2}\left(J^{-2/3}\operatorname{tr}\boldsymbol{C} - 3\right)\right]. $$
+# $$ \Psi_{tm}^{2D}(\boldsymbol{u}) = \gamma \left[\frac{K}{2}\left(\ln J\right)^{2} +
+# \frac{\mu}{2}\left(J^{-2/3}\operatorname{tr}\boldsymbol{C} - 3\right)\right]. $$
 
 # When large deformations occur in the pre-contact phase, the third medium elements become severely
 # distorted, preventing convergence in the nonlinear solution process. A way to mitigate this issue
@@ -221,7 +223,7 @@ def psi_body(J, I1):
 
 
 def psi_third(J, I1):
-    return mu / 2 * (J ** (-2 / 3) * I1 - 3)  # isochoric part only, no volumetric term
+    return K / 2 * ufl.ln(J) ** 2 + mu / 2 * (J ** (-2 / 3) * I1 - 3)
 
 
 # %% [markdown]
@@ -264,12 +266,9 @@ def psi_third(J, I1):
 opts = PETSc.Options(name)  # type: ignore
 opts["snes_type"] = "newtonls"
 opts["snes_linesearch_type"] = "bt"
-opts["snes_linesearch_order"] = 3
-opts["snes_linesearch_damping"] = 1.0
-opts["snes_linesearch_minlambda"] = 1.0e-10
-opts["snes_linesearch_max_it"] = 40
-opts["snes_atol"] = 1.0e-08
+opts["snes_linesearch_order"] = 2
 opts["snes_rtol"] = 1.0e-08
+
 opts["snes_max_it"] = 100
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "lu"
@@ -352,7 +351,7 @@ def run_adaptive_loading(
             )
             force_history.append(force_y)
             load_history.append(abs(applied_y.value))
-            pprint(f"lambda = {applied_y.value:.3f}, reaction force = {force_y:.6e}")
+            pprint(f"lambda = {applied_y.value:.3f}, reaction force = {force_y:.16e}")
 
             load += dl
             state_snapshots = [s.x.array.copy() for s in state_functions]
@@ -477,7 +476,6 @@ problem = dolfiny.snesproblem.SNESProblem(
     bcs=bcs,
     prefix=name,
     entity_maps=[entity_map],
-    jit_options=dict(cffi_extra_compile_args=["-ffast-math"]),
 )
 
 force_array_HL, loading_array_HL, num_iterations, elapsedTime, frames_HL = run_adaptive_loading(
