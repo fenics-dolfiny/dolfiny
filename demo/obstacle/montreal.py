@@ -346,8 +346,7 @@ def fixed_boundary_data() -> tuple[dolfinx.fem.Function, dolfinx.fem.Function]:
 
     element = ufl.Mesh(basix.ufl.element("Lagrange", "interval", 1, shape=(2,)))
 
-    boundary_geometry = np.append([p_e], geometry[1:, :-1], axis=0)
-    boundary_geometry = np.append(boundary_geometry, [p_s], axis=0)
+    boundary_geometry = np.vstack([p_e, geometry[1:, :-1], p_s])
     boundary_mesh = (
         dolfinx.mesh.create_mesh(comm, np.array(cells, dtype=np.int64), element, boundary_geometry)
         if comm.rank == 0

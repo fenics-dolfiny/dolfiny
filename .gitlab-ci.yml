@@ -43,7 +43,7 @@ ruff:
 
 mypy:
   stage: lint
-  image: dolfinx/dolfinx:nightly
+  image: dolfinx/dolfinx@sha256:3fd59c6a504b3d7e4dc5d3c191de6d16953ec44f9f60ca8c6480e284af8b36b9 # dolfinx/dolfinx:nightly on Aug 26th 2026
   variables:
     FORCE_COLOR: 1
   script:
@@ -57,7 +57,7 @@ mypy:
 ty:
   stage: lint
   allow_failure: true # mypy is blocking
-  image: dolfinx/dolfinx:nightly
+  image: dolfinx/dolfinx@sha256:3fd59c6a504b3d7e4dc5d3c191de6d16953ec44f9f60ca8c6480e284af8b36b9 # dolfinx/dolfinx:nightly on Aug 26th 2026
   script:
     - apt-get -y update && xargs -a apt-requirements.txt apt-get -y install
     - pip install --group lint-typing
