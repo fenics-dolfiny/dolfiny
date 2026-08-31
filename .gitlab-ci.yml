@@ -21,7 +21,7 @@ workflow:
 
 .matrix_arch_runner: &matrix_arch_runner
   ARCH: [amd64] # FIXME: add arm64
-  RUNNER_TAG: [saas-linux-large-amd64] # FIXME: add saas-linux-medium-arm64
+  RUNNER_TAG_PROPERTY: [saas-linux-large-amd64] # FIXME: add saas-linux-medium-arm64
   RUNNER_TAG_LOCALITY: [zed]
 
 # jobs
@@ -111,12 +111,13 @@ image build:
   parallel:
     matrix:
       - ARCH: amd64
-        RUNNER_TAG: saas-linux-large-amd64
+        RUNNER_TAG_PROPERTY: saas-linux-large-amd64
         RUNNER_TAG_LOCALITY: zed
       - ARCH: arm64
-        RUNNER_TAG: saas-linux-medium-arm64
+        RUNNER_TAG_PROPERTY: saas-linux-medium-arm64
+        RUNNER_TAG_LOCALITY: ""
   tags:
-    - $RUNNER_TAG
+    - $RUNNER_TAG_PROPERTY
     - $RUNNER_TAG_LOCALITY
   services:
     - name: docker:dind
@@ -191,7 +192,7 @@ wheel release:
   image: $CONTAINER_COMMIT_IMAGE-$ARCH
   needs: ["image build: [amd64, saas-linux-large-amd64, zed]"]
   tags:
-    - $RUNNER_TAG
+    - $RUNNER_TAG_PROPERTY
     - $RUNNER_TAG_LOCALITY
   script:
     - echo "Apply optional runtime hot-fixes here."
