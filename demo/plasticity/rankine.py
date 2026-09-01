@@ -625,10 +625,13 @@ if comm.size == 1:
 
     # Attach cell data from DG0 field
     grid_warped.cell_data["eps_p"] = eps_p.x.array
+    surf = grid_warped.extract_surface(algorithm=None)
+    surf = surf.separate_cells()
+    surf = surf.cell_data_to_point_data()
 
     plotter = pv.Plotter(off_screen=True, theme=dolfiny.pyvista.theme)
     plotter.add_mesh(
-        grid_warped,
+        surf,
         scalars="eps_p",
         show_scalar_bar=True,
         scalar_bar_args={"title": "Plastic strain"},
