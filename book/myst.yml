@@ -42,6 +42,10 @@ project:
         - id: bcam
           institution: Basque Center for Applied Mathematics
       url: https://croci.github.io/
+    - name: Andrea Antonelli
+      id: aa
+      email: aantonelli@student.ethz.ch
+      affiliation: ETH Zürich
   github: https://github.com/fenics-dolfiny/dolfiny
   toc:
     - file: index.md
@@ -65,6 +69,7 @@ project:
     - file: units/navier_stokes.ipynb
     - file: continuation/tdc_shell_naghdi_cylindrical_roof.ipynb
     - file: running_error/neo_hooke_2d.ipynb
+    - file: tmc/third_medium_cbox.ipynb
     - file: getting-involved.md
 site:
   template: book-theme
