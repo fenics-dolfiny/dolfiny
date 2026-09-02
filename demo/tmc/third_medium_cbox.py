@@ -265,11 +265,11 @@ def psi_third(J, I1):
 # Instantiate the nonlinear solver options
 opts = PETSc.Options(name)  # type: ignore
 opts["snes_type"] = "newtonls"
-opts["snes_linesearch_type"] = "bt"
-opts["snes_linesearch_order"] = 2
+opts["snes_linesearch_type"] = "l2"
+opts["snes_linesearch_max_it"] = 40
+opts["snes_linesearch_minlambda"] = 1.0e-10
 opts["snes_rtol"] = 1.0e-08
-
-opts["snes_max_it"] = 100
+opts["snes_max_it"] = 250
 opts["ksp_type"] = "preonly"
 opts["pc_type"] = "lu"
 opts["pc_factor_mat_solver_type"] = "mumps"

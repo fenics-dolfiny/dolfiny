@@ -424,7 +424,6 @@ tmc:
   extends: .demo_template
   variables:
     DIRECTORY: tmc
-    PARALLEL: False
   parallel:
     matrix:
       - <<: *matrix_arch_runner
