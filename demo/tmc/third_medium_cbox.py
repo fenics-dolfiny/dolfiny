@@ -180,15 +180,10 @@ if comm.size == 1:
 # right Cauchy-Green deformation tensor. $K$ and $\mu$ are, respectively, the initial bulk and shear
 # moduli of the body. To keep the influence of the third medium negligible before contact, its
 # strain energy density is scaled by a small parameter $\gamma$, with the stiffening contribution
-# coming from the $\ln J$ volumetric term as $J \rightarrow 0$. As discussed in
-# {cite:t}`Faltus2024`, in 2D plane-strain conditions this term can be omitted, since the isochoric
-# term stiffening as $J \rightarrow 0$, combined with the plane strain constraint $F_{33} = 1$, is
-# sufficient to prevent penetration. That argument assumes a confined medium, which the column
-# beyond $x = L$ is not: there the isochoric term never activates, leaving a near-singular tangent.
-# The volumetric term is therefore retained, making the third medium the body energy scaled by
-# $\gamma$:
+# coming from the $\ln J$ volumetric term as $J \rightarrow 0$. We end up with the third medium
+# energy:
 
-# $$ \Psi_{tm}^{2D}(\boldsymbol{u}) = \gamma \left[\frac{K}{2}\left(\ln J\right)^{2} +
+# $$ \Psi_{tm}(\boldsymbol{u}) = \gamma \left[\frac{K}{2}\left(\ln J\right)^{2} +
 # \frac{\mu}{2}\left(J^{-2/3}\operatorname{tr}\boldsymbol{C} - 3\right)\right]. $$
 
 # When large deformations occur in the pre-contact phase, the third medium elements become severely
@@ -245,7 +240,7 @@ def psi_third(J, I1):
 # where the common part collects the elastic energy of the body and of the third medium:
 #
 # $$ \Pi_{el}(\boldsymbol{u}) = \int_{\Omega_{b}} \Psi_{body}(\boldsymbol{u}) \,\text{d}x +
-# \int_{\Omega_{tm}} \Psi_{tm}^{2D}(\boldsymbol{u}) \,\text{d}x, $$
+# \int_{\Omega_{tm}} \Psi_{tm}(\boldsymbol{u}) \,\text{d}x, $$
 #
 # with $\Omega_{b}$ and $\Omega_{tm}$ the body and third medium subdomains, and the regularization
 # part is:
@@ -256,10 +251,10 @@ def psi_third(J, I1):
 # following sections.
 #
 # The load is applied through prescribed displacement only, so no external work term appears. The
-# nonlinear system is solved using the PETSc Newton solver with backtracking line search, coupled
-# with an adaptive load stepping strategy to improve robustness and convergence: on failure the
-# state is reset to the last converged one and the increment is halved, until the target
-# displacement $\bar{v}$ is reached or the increment falls below $\Delta l_{\min}$.
+# nonlinear system is solved using the PETSc Newton solver with line search, coupled with an
+# adaptive load stepping strategy to improve robustness and convergence: on failure the state is
+# reset to the last converged one and the increment is halved, until the target displacement
+# $\bar{v}$ is reached or the increment falls below $\Delta l_{\min}$.
 
 # %% tags=["hide-input"]
 # Instantiate the nonlinear solver options
