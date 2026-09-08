@@ -25,7 +25,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-jit = ["numba", "cppjit @ git+https://github.com/compiler-research/cppjit"]
+jit = ["numba", "cppjit"]
 book = ["jupytext", "jupyter-book>=2.0.0", "jupyter"]
 all = ["dolfiny[book,jit]"]
 

@@ -27,11 +27,6 @@ RUN pip install --no-cache-dir --index-url https://gitlab.com/api/v4/projects/59
     vtk==9.6.2 && \
     find / -type f -name 'allDict.cxx*' -delete
 
-# Build cppjit from source (no published wheel yet.
-RUN pip install --no-cache-dir --no-build-isolation -v \
-    "cppjit @ git+https://github.com/compiler-research/cppjit" \
-    --config-settings=cmake.define.Clang_DIR=/usr/lib/llvm-21/lib/cmake/clang
-
 # Install python dependencies for efficient rebuilds
 RUN pip install --no-cache-dir -v \
     coverage \
@@ -50,7 +45,8 @@ RUN pip install --no-cache-dir -v \
     ruff \
     scipy \
     sympy \
-    typos
+    typos \
+    cppjit
 
 # Setup Dolfiny
 COPY . /src/dolfiny/
