@@ -3,13 +3,14 @@
 from mpi4py import MPI
 
 import pyvista as pv
+from vtkmodules.vtkIOXdmf3 import vtkXdmf3Reader
 
 import dolfiny
 
 
 class Xdmf3Reader(pv.XdmfReader):
-    _vtk_module_name = "vtkIOXdmf3"
-    _vtk_class_name = "vtkXdmf3Reader"
+    _vtk_class_name = ""
+    _class_reader = vtkXdmf3Reader
 
 
 def plot_spanner_pyvista(name, xdmf_file=None, plot_file=None, options={}, comm=MPI.COMM_WORLD):

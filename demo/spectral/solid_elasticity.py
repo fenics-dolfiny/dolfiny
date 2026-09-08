@@ -83,6 +83,7 @@ from dolfinx import default_scalar_type as scalar
 import numpy as np
 import pyvista as pv
 import sympy.physics.units as syu
+from vtkmodules.vtkIOXdmf3 import vtkXdmf3Reader
 
 import dolfiny
 from dolfiny.expression import normalize
@@ -236,8 +237,8 @@ def mesh_tube3d_gmshapi(
 
 
 class Xdmf3Reader(pv.XdmfReader):
-    _vtk_module_name = "vtkIOXdmf3"
-    _vtk_class_name = "vtkXdmf3Reader"
+    _vtk_class_name = ""
+    _class_reader = vtkXdmf3Reader
 
 
 def plot_tube3d_pyvista(u, s, comm=MPI.COMM_WORLD):

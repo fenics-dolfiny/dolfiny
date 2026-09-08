@@ -195,10 +195,11 @@ ofile.close()
 # Read results and plot using pyvista (all in serial)
 if comm.rank == 0:
     import pyvista as pv
+    from vtkmodules.vtkIOXdmf3 import vtkXdmf3Reader
 
     class Xdmf3Reader(pv.XdmfReader):
-        _vtk_module_name = "vtkIOXdmf3"
-        _vtk_class_name = "vtkXdmf3Reader"
+        _vtk_class_name = ""
+        _class_reader = vtkXdmf3Reader
 
     reader = Xdmf3Reader(path=f"./{name}.xdmf")
     multiblock = reader.read()
