@@ -146,10 +146,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
 import sympy.physics.units as syu
+import ufl_units
 from mesh_perforated import mesh_perforated
+from ufl_units.backends.dolfinx import Quantity
 
 import dolfiny
-from dolfiny.units import Quantity
 
 warnings.filterwarnings("error")
 
@@ -323,17 +324,17 @@ mapping = {
     δu: u_ref * δu,
 }
 
-quantities = dolfiny.units.collect_quantities(F0 + F1, mapping)
+quantities = ufl_units.collect_quantities(F0 + F1, mapping)
 assert len(quantities) == 5
 
 if comm.rank == 0:
-    dolfiny.units.buckingham_pi_analysis(quantities, us)
+    ufl_units.buckingham_pi_analysis(quantities, us)
 
 dimsys_SI = syu.si.SI.get_dimension_system()
-assert dimsys_SI.equivalent_dims(dolfiny.units.get_dimension(g, quantities, mapping), syu.pressure)
-assert dimsys_SI.equivalent_dims(dolfiny.units.get_dimension(F0, quantities, mapping), syu.energy)
+assert dimsys_SI.equivalent_dims(ufl_units.get_dimension(g, quantities, mapping), syu.pressure)
+assert dimsys_SI.equivalent_dims(ufl_units.get_dimension(F0, quantities, mapping), syu.energy)
 
-dolfiny.units.factorize(F0 + F1, quantities, mode="check", mapping=mapping)
+ufl_units.factorize(F0 + F1, quantities, mode="check", mapping=mapping)
 
 u_bottom = dolfinx.fem.Function(Uf, name="u_bottom")
 mesh.topology.create_connectivity(1, tdim)

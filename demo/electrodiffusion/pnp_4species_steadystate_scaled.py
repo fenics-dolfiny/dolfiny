@@ -18,10 +18,11 @@ import numpy as np
 import sympy as sy
 import sympy.physics.units as syu
 
-import dolfiny
-
 # import dolfiny.ufl_utils
-from dolfiny.units import Quantity
+import ufl_units
+from ufl_units.backends.dolfinx import Quantity
+
+import dolfiny
 
 warnings.filterwarnings("error")
 
@@ -160,7 +161,7 @@ terms_c = {
 quantities = [c_ref, φ_ref, D_ref, ε_0, F, R, T, l_ref, e_0]
 
 if comm.rank == 0:
-    dolfiny.units.buckingham_pi_analysis(quantities)
+    ufl_units.buckingham_pi_analysis(quantities)
 
 # %%
 mapping = {
@@ -179,19 +180,19 @@ S = ufl.dot(ufl.elem_mult(z, z), c) / 2 + w * n / 2  # ionic strength [mol / m^3
 
 dimsys = syu.si.SI.get_dimension_system()
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(S, quantities, mapping), syu.amount_of_substance / syu.length**3
+    ufl_units.get_dimension(S, quantities, mapping), syu.amount_of_substance / syu.length**3
 )
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(ε, quantities, mapping), syu.charge / (syu.voltage * syu.length)
+    ufl_units.get_dimension(ε, quantities, mapping), syu.charge / (syu.voltage * syu.length)
 )
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(B, quantities, mapping),
+    ufl_units.get_dimension(B, quantities, mapping),
     syu.length ** (-1)
     * syu.amount_of_substance ** sy.Rational(-1, 2)
     * syu.length ** sy.Rational(3, 2),
 )
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(A, quantities, mapping),
+    ufl_units.get_dimension(A, quantities, mapping),
     syu.amount_of_substance ** sy.Rational(-1, 2) * syu.length ** sy.Rational(3, 2),
 )
 
@@ -222,30 +223,30 @@ for δc_k, c_k, z_k, D_k, a_k in zip(δc, c, z, D, a):  # add species
 
 # Few dimensional sanity checks
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(ufl.dot(z, c) - w, quantities, mapping),
+    ufl_units.get_dimension(ufl.dot(z, c) - w, quantities, mapping),
     syu.amount_of_substance / syu.length**3,
 )
 
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(terms_φ["potential"], quantities, mapping),
-    dolfiny.units.get_dimension(terms_φ["electroneutrality"], quantities, mapping),
+    ufl_units.get_dimension(terms_φ["potential"], quantities, mapping),
+    ufl_units.get_dimension(terms_φ["electroneutrality"], quantities, mapping),
 )
 
 # %%
 
-factorized_φ = dolfiny.units.factorize(terms_φ, quantities, mode="factorize", mapping=mapping)
+factorized_φ = ufl_units.factorize(terms_φ, quantities, mode="factorize", mapping=mapping)
 assert isinstance(factorized_φ, dict)
-normalized_φ = dolfiny.units.normalize(factorized_φ, "potential", quantities)
+normalized_φ = ufl_units.normalize(factorized_φ, "potential", quantities)
 
-factorized_c = dolfiny.units.factorize(terms_c, quantities, mode="factorize", mapping=mapping)
+factorized_c = ufl_units.factorize(terms_c, quantities, mode="factorize", mapping=mapping)
 assert isinstance(factorized_c, dict)
-normalized_c = dolfiny.units.normalize(factorized_c, "diffusion", quantities)
+normalized_c = ufl_units.normalize(factorized_c, "diffusion", quantities)
 
 form = sum(list(normalized_φ.values()) + list(normalized_c.values()), ufl.form.Zero())
 
 assert isinstance(form, ufl.form.Form)
 # Check that the form is dimensionally consistent
-form_dim = dolfiny.units.get_dimension(form, quantities)
+form_dim = ufl_units.get_dimension(form, quantities)
 
 # %%
 

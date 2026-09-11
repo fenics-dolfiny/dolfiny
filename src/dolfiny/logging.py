@@ -74,12 +74,16 @@ def _configure_dolfiny_logging():
                 "filters": ["rank0"],
             }
         },
-        # Target ONLY the dolfiny logger
+        # Target ONLY the dolfiny logger and the loggers of packages split out of it
         "loggers": {
             "dolfiny": {
                 "level": log_level,
                 "handlers": ["console"],
-            }
+            },
+            "ufl_units": {
+                "level": log_level,
+                "handlers": ["console"],
+            },
         },
     }
 

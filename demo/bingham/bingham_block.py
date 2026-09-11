@@ -13,10 +13,11 @@ from dolfinx import default_scalar_type as scalar
 import mesh_annulus_gmshapi as mg
 import numpy as np
 import sympy.physics.units as syu
+import ufl_units
+from ufl_units.backends.dolfinx import Quantity
 
 import dolfiny
 import dolfiny.utils
-from dolfiny.units import Quantity
 
 warnings.filterwarnings("error")
 
@@ -175,7 +176,7 @@ def T(v, p):
 
 quantities = [t_ref, v_ref, l_ref, rho, mu, tau_zero]
 if MPI.COMM_WORLD.rank == 0:
-    dolfiny.units.buckingham_pi_analysis(quantities)
+    ufl_units.buckingham_pi_analysis(quantities)
 
 # Create mapping for dimensional transformation
 p_ref = mu * v_ref / l_ref
@@ -207,21 +208,21 @@ terms = {
 dimsys = syu.si.SI.get_dimension_system()
 
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(rho * vt, quantities, mapping),
+    ufl_units.get_dimension(rho * vt, quantities, mapping),
     syu.mass / syu.length**3 * syu.length / syu.time**2,
 )
 
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(tau_zero, quantities, mapping),
+    ufl_units.get_dimension(tau_zero, quantities, mapping),
     syu.mass / (syu.length * syu.time**2),
 )
 
-factorized = dolfiny.units.factorize(terms, quantities, mode="factorize", mapping=mapping)
+factorized = ufl_units.factorize(terms, quantities, mode="factorize", mapping=mapping)
 assert isinstance(factorized, dict)
 
 # Choose reference term for scaling
 reference_term = "conv"
-normalized = dolfiny.units.normalize(factorized, reference_term, quantities)
+normalized = ufl_units.normalize(factorized, reference_term, quantities)
 
 # Weak form (as one-form)
 form = sum(normalized.values(), ufl.form.Zero())

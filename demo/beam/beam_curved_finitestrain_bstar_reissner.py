@@ -15,10 +15,11 @@ import mesh_curve3d_gmshapi as mg
 import numpy as np
 import postprocess_matplotlib as pp
 import sympy.physics.units as syu
+import ufl_units
+from ufl_units.backends.dolfinx import Quantity
 
 import dolfiny
 from dolfiny.expression import normalize
-from dolfiny.units import Quantity
 
 warnings.filterwarnings("error")
 
@@ -90,7 +91,7 @@ M_y = μ * (2.0 * np.pi / L_ref) ** 1 * E * I * 1
 
 dimsys = syu.si.SI.get_dimension_system()
 
-assert dimsys.equivalent_dims(dolfiny.units.get_dimension(F_x, [L_ref, E, I]), syu.force)
+assert dimsys.equivalent_dims(ufl_units.get_dimension(F_x, [L_ref, E, I]), syu.force)
 
 # Define integration measures
 dx = ufl.Measure("dx", domain=mesh, subdomain_data=mesh_data.cell_tags)
@@ -205,7 +206,7 @@ mapping = {
 quantities = [area, I, L_ref, F_ref, mu, la, E]
 
 if comm.rank == 0:
-    dolfiny.units.buckingham_pi_analysis(quantities)
+    ufl_units.buckingham_pi_analysis(quantities)
 
 # Define beam terms for dimensional analysis
 terms = {
@@ -235,10 +236,10 @@ terms = {
     "point_m": δr * M_y * ds(end),
 }
 
-factorized = dolfiny.units.factorize(terms, quantities, mode="check", mapping=mapping)
+factorized = ufl_units.factorize(terms, quantities, mode="check", mapping=mapping)
 assert isinstance(factorized, dict)
 reference_term = "bending_mu"
-normalized = dolfiny.units.normalize(factorized, reference_term, quantities)
+normalized = ufl_units.normalize(factorized, reference_term, quantities)
 form = sum(normalized.values(), ufl.form.Zero())
 
 # Optional: linearise weak form

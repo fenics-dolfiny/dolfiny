@@ -16,7 +16,7 @@
 # In particular, this demo emphasizes:
 # - importing and meshing a STEP geometry with `gmsh`, extracting physical groups from face colours,
 # - multiple independent load cases and multi-objective compliance minimisation,
-# - imperial-to-SI unit conversion via `dolfiny.units.Quantity`,
+# - imperial-to-SI unit conversion via `ufl_units.Quantity`,
 # - Helmholtz filter with boundary penalization to prevent density accumulation at free surfaces,
 # - near-null space construction for the GAMG preconditioner in large-scale 3D elasticity.
 #
@@ -89,9 +89,9 @@ import matplotlib_inline
 import numpy as np
 import pyvista as pv
 import sympy.physics.units as syu
+from ufl_units.backends.dolfinx import Quantity
 
 import dolfiny
-from dolfiny.units import Quantity
 
 ScalarType = PETSc.ScalarType  # type: ignore
 
@@ -299,7 +299,7 @@ V_ρ_f_bolt_dofs = dolfinx.fem.locate_dofs_topological(
 # Dirichlet boundary conditions are the same for all load cases and correspond to fixing the bolt
 # faces.
 #
-# We can use convenient unit handling provided by the `dolfiny.units.Quantity` class to convert the
+# We can use convenient unit handling provided by the `ufl_units.Quantity` class to convert the
 # imperial units to SI units. This will happen automatically, since when we create a `Quantity`, the
 # value gets internally converted to base SI units.
 #

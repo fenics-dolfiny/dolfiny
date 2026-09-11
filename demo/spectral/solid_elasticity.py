@@ -16,7 +16,7 @@
 # - symbolic principal-stretch extraction from the Cauchy strain tensor via
 #   `dolfiny.invariants.eigenstate`,
 # - automatic differentiation of a strain energy written in spectral (eigenvalue) form with UFL,
-# - dimensional analysis and non-dimensionalization via `dolfiny.units`.
+# - dimensional analysis and non-dimensionalization via `ufl_units`.
 #
 # ---
 
@@ -83,11 +83,12 @@ from dolfinx import default_scalar_type as scalar
 import numpy as np
 import pyvista as pv
 import sympy.physics.units as syu
+import ufl_units
+from ufl_units.backends.dolfinx import Quantity
 from vtkmodules.vtkIOXdmf3 import vtkXdmf3Reader
 
 import dolfiny
 from dolfiny.expression import normalize
-from dolfiny.units import Quantity
 
 warnings.filterwarnings("error")
 
@@ -399,7 +400,7 @@ u_ref = Quantity(mesh, 1.0, syu.meter, "u_ref")
 quantities = [μ, κ, l_ref, t_ref, u_ref]
 # quantities = [μ, κ, l_ref, t_ref]
 if comm.rank == 0:
-    dolfiny.units.buckingham_pi_analysis(quantities)
+    ufl_units.buckingham_pi_analysis(quantities)
 # %% [markdown]
 # ## Weak form
 
@@ -480,27 +481,27 @@ terms = {
     "shear": -1 / 2 * ufl.inner(δC, S_shear) * dx,
     "external": ufl.inner(δu, t_ref * t) * ds(surface_upper),
 }
-factorized = dolfiny.units.factorize(terms, quantities, mode="factorize", mapping=mapping)
+factorized = ufl_units.factorize(terms, quantities, mode="factorize", mapping=mapping)
 assert isinstance(factorized, dict)
 
 dimsys = syu.si.SI.get_dimension_system()
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(terms["bulk"], quantities, mapping),
+    ufl_units.get_dimension(terms["bulk"], quantities, mapping),
     syu.energy,
 )
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(strain_energy_bulk(i1, i2, i3), quantities, mapping),
+    ufl_units.get_dimension(strain_energy_bulk(i1, i2, i3), quantities, mapping),
     syu.energy * syu.length**-3,
 )
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(S_shear, quantities, mapping),
+    ufl_units.get_dimension(S_shear, quantities, mapping),
     syu.pressure,
 )
 
 reference_term = "bulk"
 ref_factor = factorized[reference_term].factor
 
-normalized = dolfiny.units.normalize(factorized, reference_term, quantities)
+normalized = ufl_units.normalize(factorized, reference_term, quantities)
 form = sum(normalized.values(), ufl.form.Zero())
 
 # Overall form (as list of forms)

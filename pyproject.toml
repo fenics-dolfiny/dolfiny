@@ -22,6 +22,7 @@ dependencies = [
   "sympy",
   "imageio",
   "ffcx-backends @ git+https://github.com/fenics-dolfiny/ffcx-backends",
+  "ufl-units @ git+https://github.com/fenics-dolfiny/ufl-units",
 ]
 
 [project.optional-dependencies]
@@ -101,7 +102,15 @@ allowed-confusables = ["σ", "×"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["dolfiny"]
-known-third-party = ["cppjit", "gmsh", "numba", "numpy", "pytest", "pyvista"]
+known-third-party = [
+  "cppjit",
+  "gmsh",
+  "numba",
+  "numpy",
+  "pytest",
+  "pyvista",
+  "ufl_units",
+]
 section-order = [
   "future",
   "standard-library",

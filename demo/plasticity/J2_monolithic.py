@@ -133,9 +133,10 @@ import mesh_iso6892_gmshapi as mg
 import numpy as np
 import pyvista as pv
 import sympy.physics.units as syu
+import ufl_units
+from ufl_units.backends.dolfinx import Quantity
 
 import dolfiny
-from dolfiny.units import Quantity
 
 warnings.filterwarnings("error")
 
@@ -350,18 +351,18 @@ mapping = {
     S0: S_ref * S0,
 }
 
-quantities = dolfiny.units.collect_quantities(form, mapping=mapping)
+quantities = ufl_units.collect_quantities(form, mapping=mapping)
 assert len(quantities) == 11
 
 if comm.rank == 0:
-    dolfiny.units.buckingham_pi_analysis(quantities, us)
+    ufl_units.buckingham_pi_analysis(quantities, us)
 
 dimsys_SI = syu.si.SI.get_dimension_system()
 assert dimsys_SI.equivalent_dims(
-    dolfiny.units.get_dimension(ufl.inner(δE, S) * dx, quantities, mapping=mapping), syu.energy
+    ufl_units.get_dimension(ufl.inner(δE, S) * dx, quantities, mapping=mapping), syu.energy
 )
 
-dolfiny.units.factorize(form, quantities, mode="check", mapping=mapping)
+ufl_units.factorize(form, quantities, mode="check", mapping=mapping)
 
 # Overall form (as list of forms)
 forms = ufl.extract_blocks(form)
