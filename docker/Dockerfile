@@ -27,10 +27,12 @@ RUN pip install --no-cache-dir --index-url https://gitlab.com/api/v4/projects/59
     vtk==9.6.2 && \
     find / -type f -name 'allDict.cxx*' -delete
 
-# Install python dependencies for efficient rebuilds
+# Install python dependencies for efficient rebuilds.
+# Note: dolfiny itself is installed with --no-deps below, so its dependencies have to be listed here.
 RUN pip install --no-cache-dir -v \
     coverage \
     git+https://github.com/fenics-dolfiny/ffcx-backends \
+    git+https://github.com/fenics-dolfiny/ufl-units \
     imageio \
     jupyter \
     "jupyter-book>=2.0.0" \

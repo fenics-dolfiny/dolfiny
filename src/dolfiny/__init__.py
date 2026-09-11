@@ -20,7 +20,6 @@ from dolfiny import (
     snesproblem,
     taoproblem,
     ufl_utils,
-    units,
 )
 
 __all__ = [
@@ -45,5 +44,4 @@ __all__ = [
     "snesproblem",
     "taoproblem",
     "ufl_utils",
-    "units",
 ]

@@ -7,7 +7,7 @@
 # ---
 # # Dimensional analysis of the Navier-Stokes equations
 #
-# This demo demonstrates the automated dimensional analysis in `dolfiny.units` on a transient
+# This demo demonstrates the automated dimensional analysis in `ufl_units` on a transient
 # incompressible Navier-Stokes lid-driven cavity problem. The demo does not solve the nonlinear
 # cavity problem. Instead, it assembles the Jacobian of the normalized residual at the zero state
 # and studies how its matrix condition number varies with the Euler number.
@@ -60,10 +60,11 @@ from dolfinx import default_scalar_type as scalar
 import matplotlib.pyplot as plt
 import numpy as np
 import sympy.physics.units as syu
+import ufl_units
+from ufl_units.backends.dolfinx import Quantity
 
 import dolfiny
 import dolfiny.la
-from dolfiny.units import Quantity
 
 default_p_ref = 5000.0
 
@@ -228,9 +229,9 @@ mapping = {
 
 # %% [markdown]
 #
-# Once the weak form is defined, `dolfiny.units.collect_quantities` extracts the
+# Once the weak form is defined, `ufl_units.collect_quantities` extracts the
 # `Quantity` objects directly from the form (composed with the `mapping` used for
-# non-dimensionalisation). Passing that list to `dolfiny.units.buckingham_pi_analysis` reports
+# non-dimensionalisation). Passing that list to `ufl_units.buckingham_pi_analysis` reports
 # the overview of all dimensional quantities in the model, the dimension matrix, and the Pi
 # groups. Pi groups are found using a `Matrix.nullspace()` call in SymPy. For matrices over the
 # field of rational numbers, the nullspace is usually represented with small integer
@@ -244,11 +245,11 @@ mapping = {
 # %%
 form = sum(terms.values(), ufl.form.Zero())
 
-quantities = dolfiny.units.collect_quantities(form, mapping=mapping)
+quantities = ufl_units.collect_quantities(form, mapping=mapping)
 assert len(quantities) == 7
 
 if comm.rank == 0:
-    dolfiny.units.buckingham_pi_analysis(quantities)
+    ufl_units.buckingham_pi_analysis(quantities)
 
 # %% [markdown]
 # An advantage of the dimensional analysis, is that we can extract the dimensions of an arbitrary
@@ -258,19 +259,17 @@ if comm.rank == 0:
 
 # %%
 dimsys = syu.si.SI.get_dimension_system()
-assert dimsys.equivalent_dims(dolfiny.units.get_dimension(D(v), quantities, mapping), 1 / syu.time)
+assert dimsys.equivalent_dims(ufl_units.get_dimension(D(v), quantities, mapping), 1 / syu.time)
 assert dimsys.equivalent_dims(
-    dolfiny.units.get_dimension(
-        rho * (v - v0) / (t_ref / num_steps_per_t_ref), quantities, mapping
-    ),
+    ufl_units.get_dimension(rho * (v - v0) / (t_ref / num_steps_per_t_ref), quantities, mapping),
     syu.mass / syu.length**3 * syu.length / syu.time**2,
 )
-assert dolfiny.units.get_dimension(D(v), quantities, mapping) == 1 / syu.time
+assert ufl_units.get_dimension(D(v), quantities, mapping) == 1 / syu.time
 
-form_dim = dolfiny.units.get_dimension(form, quantities, mapping)
+form_dim = ufl_units.get_dimension(form, quantities, mapping)
 assert dimsys.equivalent_dims(form_dim, syu.power / syu.length)
 
-convective_dim = dolfiny.units.get_dimension(rho * ufl.dot(v, ufl.grad(v)), quantities, mapping)
+convective_dim = ufl_units.get_dimension(rho * ufl.dot(v, ufl.grad(v)), quantities, mapping)
 assert syu.si.SI.get_dimension_system().equivalent_dims(convective_dim, syu.force / syu.length**3)
 
 # %% [markdown]
@@ -297,12 +296,12 @@ assert syu.si.SI.get_dimension_system().equivalent_dims(convective_dim, syu.forc
 
 
 # %%
-terms_fact = dolfiny.units.factorize(terms, quantities, mode="factorize", mapping=mapping)
+terms_fact = ufl_units.factorize(terms, quantities, mode="factorize", mapping=mapping)
 assert isinstance(terms_fact, dict)
 
 reference_term = "convection"
 
-terms_norm = dolfiny.units.normalize(terms_fact, reference_term, quantities)
+terms_norm = ufl_units.normalize(terms_fact, reference_term, quantities)
 form_nondimensional = sum(terms_norm.values(), ufl.form.Zero())
 
 # %% [markdown]

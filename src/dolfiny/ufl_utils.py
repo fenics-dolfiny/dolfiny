@@ -14,7 +14,7 @@ from ufl.referencevalue import ReferenceValue
 from ufl.tensors import ComponentTensor
 from ufl.variable import Label
 
-from dolfiny.units import Quantity
+from ufl_units import QuantityMixin
 
 
 def visualize(expr, filename, label=""):
@@ -82,7 +82,7 @@ def add_expression_graph(expr, G, name):
             shape = "ellipse"
             xlabel = ""
 
-        if isinstance(n, Quantity):
+        if isinstance(n, QuantityMixin):
             color = "blue"
             fontcolor = color
             label = f"{label}"
