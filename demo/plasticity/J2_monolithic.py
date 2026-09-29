@@ -78,17 +78,20 @@
 # $(\delta u, \delta P, \delta h, \delta B)$,
 # \begin{align}
 #   \int_\Omega \delta E : S \,\text{d}x &= 0, \\
-#   \int_\Omega \delta P : \big[(P - P_0) - \Delta\lambda \, \partial_S g\big]
+#   \int_\Omega \delta P : S_y \big[(P - P_0) - \Delta\lambda \, \partial_S g\big]
 #     \,\text{d}x &= 0, \\
-#   \int_\Omega \delta h \big[(h - h_0) - \Delta\lambda b_h (q_h - h)\big]
+#   \int_\Omega \frac{\delta h}{S_y} \big[(h - h_0) - \Delta\lambda b_h (q_h - h)\big]
 #     \,\text{d}x &= 0, \\
-#   \int_\Omega \delta B
+#   \int_\Omega \frac{\delta B}{S_y}
 #   : \big[(B - B_0) - \Delta\lambda b_b (q_b \partial_S g - B)\big] \,\text{d}x &= 0
 # \end{align}
 # Here $\Omega$ is the reference configuration, $\delta E$ is the variation of the
 # Green-Lagrange strain induced by $\delta u$, and $\partial_S g$ is shorthand for
 # $\partial g / \partial S$. Subscript $0$ denotes the converged state from the previous load
-# step.
+# step. The evolution equations are scaled by the yield stress $S_y$, so that every residual
+# has the units of an energy density, like the equilibrium equation. The plastic strain $P$ is
+# dimensionless, while $h$, $B$ and their test functions $\delta h$, $\delta B$ carry the units
+# of stress.
 #
 # ```{note}
 # The penalty form for $\Delta\lambda$ yields an explicit algebraic expression that can be
@@ -336,8 +339,8 @@ dλ = dt / eta * Sy * ufl.max_value(f / Sy, 0)
 form = (
     ufl.inner(δE, S) * dx
     + ufl.inner(δP, Sy * ((P - P0) - dλ * dgdS)) * dx
-    + ufl.inner(δh, (h - h0) - dλ * bh * (qh - h)) * dx
-    + ufl.inner(δB, (B - B0) - dλ * bb * (qb * dgdS - B)) * dx
+    + ufl.inner(δh / Sy, (h - h0) - dλ * bh * (qh - h)) * dx
+    + ufl.inner(δB / Sy, (B - B0) - dλ * bb * (qb * dgdS - B)) * dx
 )
 
 mapping = {
@@ -349,6 +352,9 @@ mapping = {
     B: S_ref * B,
     B0: S_ref * B0,
     S0: S_ref * S0,
+    δu: u_ref * δu,
+    δh: S_ref * δh,
+    δB: S_ref * δB,
 }
 
 quantities = ufl_units.collect_quantities(form, mapping=mapping)

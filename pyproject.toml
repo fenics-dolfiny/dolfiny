@@ -30,6 +30,9 @@ jit = ["numba", "cppjit"]
 book = ["jupytext", "jupyter-book>=2.0.0", "jupyter"]
 all = ["dolfiny[book,jit]"]
 
+[project.urls]
+repository = "https://github.com/fenics-dolfiny/dolfiny"
+
 [dependency-groups]
 lint-format = ["ruff", "clang-format", "gersemi"]
 lint-typing = ["mypy", "ty"]
@@ -41,9 +44,6 @@ lint = [
 ]
 dev = ["pdbpp"]
 test = ["pytest-xdist", "coverage"]
-
-[project.urls]
-repository = "https://github.com/fenics-dolfiny/dolfiny"
 
 [tool.setuptools.package-data]
 dolfiny = ["localsolver.h", "running_error.h"]
@@ -75,30 +75,30 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-  "D",   # pydocstyle
-  "E",   # pycodestyle
-  "W",   # pycodestyle
-  "F",   # pyflakes
-  "I",   # isort - use standalone isort
-  "RUF", # Ruff-specific rules
+  "D",  # pydocstyle
+  "E",  # pycodestyle
+  "W",  # pycodestyle
+  "F",  # pyflakes
+  "I",  # isort - use standalone isort
+  "RUF",  # Ruff-specific rules
   "UP",  # pyupgrade
-  "ICN", # flake8-import-conventions
-  "NPY", # numpy-specific rules
-  "FLY", # use f-string not static joins
+  "ICN",  # flake8-import-conventions
+  "NPY",  # numpy-specific rules
+  "FLY",  # use f-string not static joins
 ]
 ignore = [
-  "D1",   # undocumented
-  "D203", # incompatible with D203 `no-blank-line-before-class`
-  "D213", # incomptabile with D212 `multi-line-summary-first-line`
+  "D1",  # undocumented
+  "D203",  # incompatible with D203 `no-blank-line-before-class`
+  "D213",  # incomptabile with D212 `multi-line-summary-first-line`
 ]
 unfixable = [
-  "F401", # skip removal of unused imports
+  "F401",  # skip removal of unused imports
 ]
 
 allowed-confusables = ["σ", "×"]
 
 [tool.ruff.lint.per-file-ignores]
-"!src/**.py" = ["D"] # no docstring linting outside of src/
+"!src/**.py" = ["D"]  # no docstring linting outside of src/
 
 [tool.ruff.lint.isort]
 known-first-party = ["dolfiny"]
@@ -125,14 +125,6 @@ section-order = [
 "mpi" = ["mpi4py", "petsc4py"]
 "fenics" = ["basix", "dolfinx", "ffcx", "ufl"]
 
-[tool.ruff.lint.flake8-import-conventions.extend-aliases]
-"matplotlib.pyplot" = "plt"
-"mpi4py.MPI" = "MPI"
-"numpy.typing" = "npt"
-"numpy" = "np"
-"petsc4py.PETSc" = "PETSc"
-"pyvista" = "pv"
-
 [tool.ruff.lint.flake8-import-conventions]
 banned-from = [
   "matplotlib.pyplot",
@@ -141,6 +133,14 @@ banned-from = [
   "petsc4py.PETSc",
   "pyvista",
 ]
+
+[tool.ruff.lint.flake8-import-conventions.extend-aliases]
+"matplotlib.pyplot" = "plt"
+"mpi4py.MPI" = "MPI"
+"numpy.typing" = "npt"
+"numpy" = "np"
+"petsc4py.PETSc" = "PETSc"
+"pyvista" = "pv"
 
 [tool.ty.rules]
 possibly-missing-submodule = "ignore"
