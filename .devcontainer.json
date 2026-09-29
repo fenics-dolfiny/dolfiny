@@ -29,6 +29,10 @@
           "editor.defaultFormatter": "esbenp.prettier-vscode",
           "editor.formatOnSave": true
         },
+        "[toml]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        },
         "[python]": {
           "editor.defaultFormatter": "charliermarsh.ruff",
           "editor.formatOnSave": true,
@@ -66,7 +70,8 @@
     "options": ["--progress", "plain", "--pull"]
   },
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2.5.9": {}
+    "ghcr.io/devcontainers/features/common-utils:2.7.0": {},
+    "ghcr.io/devcontainers/features/node:2.1.0": {}
   },
-  "postCreateCommand": "pip install --group lint --group dev --group test && pip3 install --no-deps --no-build-isolation --editable ."
+  "postCreateCommand": "pip install --group lint --group dev --group test && pip3 install --no-deps --no-build-isolation --editable . && npm install --no-save prettier@latest prettier-plugin-toml@latest"
 }
