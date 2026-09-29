@@ -23,12 +23,14 @@ find_package(nanobind CONFIG REQUIRED)
 
 find_package(DOLFINX REQUIRED)
 
-# MPFR is required for ErrorMode::EXACT (arbitrary-precision arithmetic)
-find_path(MPFR_INCLUDE_DIR NAMES mpfr.h)
-find_library(MPFR_LIBRARY NAMES mpfr)
-if(NOT MPFR_INCLUDE_DIR OR NOT MPFR_LIBRARY)
-    message(FATAL_ERROR "MPFR not found. Install libmpfr-dev.")
-endif()
+# Running error analysis header-only library, provides running_error.h.
+include(FetchContent)
+FetchContent_Declare(
+    rea
+    GIT_REPOSITORY https://github.com/fenics-dolfiny/rea.git
+    GIT_TAG main
+)
+FetchContent_MakeAvailable(rea)
 
 nanobind_add_module(_cpp STABLE_ABI NB_STATIC bindings.cpp)
 
@@ -54,12 +56,14 @@ if(NOT DOLFINX_PY_RESULT EQUAL 0)
 endif()
 
 target_include_directories(_cpp PRIVATE ${DOLFINX_PY_INCLUDE_DIRS})
-target_compile_features(_cpp PRIVATE cxx_std_20)
-target_link_libraries(_cpp PRIVATE dolfinx::dolfinx ${MPFR_LIBRARY})
-target_include_directories(
-    _cpp
-    PRIVATE ${DOLFINX_INCLUDE_DIRS} ${MPFR_INCLUDE_DIR}
-)
+target_compile_features(_cpp PRIVATE cxx_std_23)
+target_link_libraries(_cpp PRIVATE dolfinx::dolfinx rea)
+target_include_directories(_cpp PRIVATE ${DOLFINX_INCLUDE_DIRS})
 
 install(TARGETS _cpp LIBRARY DESTINATION dolfiny/cpp)
-install(FILES running_error.h DESTINATION dolfiny/include/dolfiny)
+# Installed next to the _cpp extension module so that dolfiny.cpp.get_include()
+# finds it both in regular and in editable installs.
+install(
+    FILES "${rea_SOURCE_DIR}/include/running_error.h"
+    DESTINATION dolfiny/cpp
+)

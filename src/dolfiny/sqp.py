@@ -87,6 +87,7 @@ class SQP:
         H = tao.getHessian()[0]
         self._objective = tao.computeObjectiveGradient(x, grad)
 
+        # petsc4py returns None (not a tuple, as stubs claim) if no constraints are set.
         c, g_tuple = tao.getEqualityConstraints()
         # FIXME: petsc4py returns None (not a tuple, as stubs claim) if no constraints are set.
         g, g_args, g_kwargs = g_tuple if g_tuple is not None else (None, None, {})
