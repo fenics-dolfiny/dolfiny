@@ -112,13 +112,13 @@ class SQP:
 
             tao.computeHessian(x, H)
 
-            if not g:  # type: ignore
+            if not g:
                 # In the unconstrained case we have:
                 #      0 = ∇f̂(x) = ∇f(x̂) + Hf(x̂) (x - x̂)
                 # ⟺   Hf(x̂) x = Hf(x̂) x̂ - ∇f(x̂)
                 #
                 # ⇒ A = Hf(x̂), b = Hf(x̂) x̂ - ∇f(x̂)
-                self._subsolver.setOperators(H)  # type: ignore
+                self._subsolver.setOperators(H)
                 b = x.copy()
                 H.mult(x, b)
                 b -= grad
@@ -141,7 +141,7 @@ class SQP:
                 #
                 # ⇒ A = ⎡ Hf(x̂) ∇h(x̂)ᵀ ⎤, b = ⎡ Hf(x̂) x̂ - ∇f(x̂) ⎤
                 #       ⎣ ∇h(x̂)    0   ⎦      ⎣ ∇h(x̂) x̂ - h(x̂)  ⎦
-                assert Jg  # type: ignore
+                assert Jg
 
                 g(tao, x, c, *g_args, **g_kwargs)  # type: ignore
                 Jg(tao, x, J, None, *Jg_args, **Jg_kwargs)  # type: ignore

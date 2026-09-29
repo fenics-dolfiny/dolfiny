@@ -43,8 +43,8 @@ def sync_functions(u: Sequence[dolfinx.fem.Function]):
 
     def _decorator(_to_wrap):
         def _wrapped_callback(tao: PETSc.TAO, x: PETSc.Vec, *args) -> float | None:
-            x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
-            dolfinx.fem.petsc.assign(x, u)  # type: ignore
+            x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            dolfinx.fem.petsc.assign(x, u)
 
             return _to_wrap(tao, x, *args)  # type: ignore
 
@@ -139,7 +139,7 @@ def wrap_objective_callbacks(
         x.setAttr("_blocks", x0.getAttr("_blocks"))
         J_vec.setAttr("_blocks", x0.getAttr("_blocks"))
         J_vec.zeroEntries()
-        J_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
+        J_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         dolfinx.fem.petsc.assemble_vector(J_vec, J_form)
 
@@ -151,7 +151,7 @@ def wrap_objective_callbacks(
             alpha=-1.0,
         )
 
-        J_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)  # type: ignore
+        J_vec.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
         dolfinx.fem.petsc.set_bc(
             J_vec,
@@ -329,7 +329,7 @@ def wrap_constraint_callbacks(
                 with Jg_vec.localForm() as lf:
                     lf.set(0.0)
                 dolfinx.fem.petsc.assemble_vector(Jg_vec, _Jg)
-                Jg_vec.ghostUpdate(PETSc.InsertMode.ADD, PETSc.ScatterMode.REVERSE)  # type: ignore
+                Jg_vec.ghostUpdate(PETSc.InsertMode.ADD, PETSc.ScatterMode.REVERSE)
                 Jg_vec.scale(-1)
 
                 offset = Jg_vec.getOwnershipRange()[0]
@@ -546,14 +546,14 @@ class TAOProblem:
     def solve(self) -> None:
         """Solve the optimisation problem."""
         dolfinx.fem.petsc.assign(self._u, self._x0)
-        self._x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
+        self._x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         self._tao.solve(self._x0)
 
         solution = self._tao.getSolution()
         # TODO: code duplication with link_state -> resolve
-        solution.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
-        dolfinx.fem.petsc.assign(solution, self._u)  # type: ignore
+        solution.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        dolfinx.fem.petsc.assign(solution, self._u)
 
     @property
     def tao(self) -> PETSc.TAO:

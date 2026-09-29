@@ -223,13 +223,13 @@ class SNESProblem:
             self.restriction.assign(x, [self.u[idx] for idx in self.global_spaces_id])
             dolfinx.fem.petsc.assign([self.u[idx] for idx in self.global_spaces_id], self.x)
         else:
-            dolfinx.fem.petsc.assign(x, [self.u[idx] for idx in self.global_spaces_id])  # type: ignore
+            dolfinx.fem.petsc.assign(x, [self.u[idx] for idx in self.global_spaces_id])
 
             for idx in self.global_spaces_id:
                 self.u[idx].x.scatter_forward()
 
             x.copy(self.x)
-            self.x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore
+            self.x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def _F_block(self, snes: PETSc.SNES, x: PETSc.Vec, F: PETSc.Vec) -> None:
         with self.F.localForm() as f_local:
@@ -254,7 +254,7 @@ class SNESProblem:
             x0=self.x,  # type: ignore
             alpha=-1.0,
         )
-        self.F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)  # type: ignore
+        self.F.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         dolfinx.fem.petsc.set_bc(
             self.F,
             dolfinx.fem.bcs_by_block(dolfinx.fem.extract_function_spaces(self.F_form), self.bcs),
@@ -269,7 +269,7 @@ class SNESProblem:
             self.F.copy(F)
 
     def _F_nest(self, snes: PETSc.SNES, x: PETSc.Vec, F: PETSc.Vec) -> None:
-        dolfinx.fem.petsc.assign(x, self.u)  # type: ignore
+        dolfinx.fem.petsc.assign(x, self.u)
         for u in self.u:
             u.x.scatter_forward()
         x_sub = x.getNestSubVecs()
@@ -283,7 +283,7 @@ class SNESProblem:
                 F_sub_local.set(0.0)
             dolfinx.fem.petsc.assemble_vector(F_sub, L)
             dolfinx.fem.petsc.apply_lifting(F_sub, a, bcs1, x0=x_sub, alpha=-1.0)
-            F_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)  # type: ignore
+            F_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
         # Set bc value in RHS
         bcs0 = dolfinx.fem.bcs.bcs_by_block(
@@ -432,7 +432,7 @@ class SNESProblem:
         return self.snes.reason
 
     def compute_norms_block(self, snes: PETSc.SNES) -> None:
-        r = snes.getFunction()[0].getArray(readonly=True)  # type: ignore[index]
+        r = snes.getFunction()[0].getArray(readonly=True)
         dx = snes.getSolutionUpdate().getArray(readonly=True)
         x = snes.getSolution().getArray(readonly=True)
 
@@ -475,7 +475,7 @@ class SNESProblem:
         self.size_x[it] = si_x
 
     def compute_norms_nest(self, snes: PETSc.SNES) -> None:
-        r = snes.getFunction()[0].getNestSubVecs()  # type: ignore
+        r = snes.getFunction()[0].getNestSubVecs()
         dx = snes.getSolutionUpdate().getNestSubVecs()
         x = snes.getSolution().getNestSubVecs()
 
@@ -501,7 +501,7 @@ class SNESProblem:
     def solve(self, u_init: list[dolfinx.fem.Function] | None = None) -> list[dolfinx.fem.Function]:
         if u_init is not None:
             dolfinx.fem.petsc.assign(u_init, self.x0)
-            self.x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)  # type: ignore[arg-type]
+            self.x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         self.snes.getKSP().setMonitor(self._monitor_ksp)
 
@@ -510,7 +510,7 @@ class SNESProblem:
             self.restriction.assign(self.rx, [self.solution[idx] for idx in self.global_spaces_id])
         else:
             self.snes.solve(None, self.x0)
-            dolfinx.fem.petsc.assign(self.x0, [self.solution[idx] for idx in self.global_spaces_id])  # type: ignore[arg-type]
+            dolfinx.fem.petsc.assign(self.x0, [self.solution[idx] for idx in self.global_spaces_id])
 
             for idx in self.global_spaces_id:
                 self.solution[idx].x.scatter_forward()
@@ -520,8 +520,8 @@ class SNESProblem:
                 dx_local.set(0.0)  # converged solution (fix for single step solves)
             self.localsolver.local_update(self)  # ensure final local update
             dolfinx.fem.petsc.assign(
-                self.xloc,  # type: ignore
-                [self.solution[idx] for idx in self.localsolver.local_spaces_id],  # type: ignore[arg-type]
+                self.xloc,
+                [self.solution[idx] for idx in self.localsolver.local_spaces_id],
             )
 
             for idx in self.localsolver.local_spaces_id:
