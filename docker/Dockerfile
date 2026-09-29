@@ -11,8 +11,9 @@ ENV LIBGL_ALWAYS_SOFTWARE=0
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
-# Make CppJIT compile with optimizations
-ARG EXTRA_INTERPRETER_ARGS="-O3"
+# Make CppJIT compile with optimizations. C++23 is required by running_error.h
+# (std::float16_t, <stdfloat>); CppInterOp otherwise defaults to -std=c++17.
+ARG EXTRA_INTERPRETER_ARGS="-O3 -std=c++23"
 ENV CPPINTEROP_EXTRA_INTERPRETER_ARGS=${EXTRA_INTERPRETER_ARGS}
 
 # Install system dependencies

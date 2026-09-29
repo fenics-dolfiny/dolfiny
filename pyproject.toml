@@ -46,7 +46,7 @@ dev = ["pdbpp"]
 test = ["pytest-xdist", "coverage"]
 
 [tool.setuptools.package-data]
-dolfiny = ["localsolver.h", "running_error.h"]
+dolfiny = ["localsolver.h"]
 
 [tool.scikit-build]
 cmake.source-dir = "src/dolfiny/cpp"
