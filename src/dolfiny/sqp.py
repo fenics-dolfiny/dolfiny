@@ -88,10 +88,12 @@ class SQP:
         self._objective = tao.computeObjectiveGradient(x, grad)
 
         c, g_tuple = tao.getEqualityConstraints()
-        g, g_args, g_kwargs = g_tuple if g_tuple else (None, None, {})
+        # FIXME: petsc4py returns None (not a tuple, as stubs claim) if no constraints are set.
+        g, g_args, g_kwargs = g_tuple if g_tuple is not None else (None, None, {})
 
         J, _, Jg_tuple = tao.getJacobianEquality()
-        Jg, Jg_args, Jg_kwargs = Jg_tuple if Jg_tuple else (None, None, {})
+        # FIXME: petsc4py returns None (not a tuple, as stubs claim) if no constraints are set.
+        Jg, Jg_args, Jg_kwargs = Jg_tuple if Jg_tuple is not None else (None, None, {})
 
         tao.setIterationNumber(0)
         grad_norm = grad.norm()
