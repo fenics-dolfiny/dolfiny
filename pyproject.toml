@@ -35,7 +35,7 @@ repository = "https://github.com/fenics-dolfiny/dolfiny"
 
 [dependency-groups]
 lint-format = ["ruff", "clang-format", "gersemi"]
-lint-typing = ["mypy", "ty"]
+lint-typing = ["mypy", "pyrefly", "ty"]
 lint-spell-check = ["typos"]
 lint = [
   { include-group = "lint-format" },
