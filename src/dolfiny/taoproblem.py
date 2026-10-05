@@ -371,8 +371,8 @@ class TAOProblem:
         F: TAOObjectiveFunction | ufl.Form,
         u: Sequence[dolfinx.fem.Function],
         bcs: Sequence[dolfinx.fem.DirichletBC] = [],
-        lb: np.floating | Sequence[dolfinx.fem.Function] = PETSc.NINFINITY,  # type: ignore
-        ub: np.floating | Sequence[dolfinx.fem.Function] = PETSc.INFINITY,  # type: ignore
+        lb: float | Sequence[dolfinx.fem.Function] = PETSc.NINFINITY,
+        ub: float | Sequence[dolfinx.fem.Function] = PETSc.INFINITY,
         J: Sequence[ufl.Form] | tuple[TAOJacobianFunction, PETSc.Vec] | None = None,
         H: Sequence[Sequence[ufl.Form]] | tuple[TAOHessianFunction, PETSc.Mat] | None = None,
         g: Sequence[ufl.equation.Equation] | tuple[TAOConstraintsFunction, PETSc.Vec] | None = None,

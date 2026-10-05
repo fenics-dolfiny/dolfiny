@@ -330,7 +330,8 @@ class CONLIN:
             self._r_h,
             self._x_recip,
         )
-        for o in filter(lambda o: o is not None, to_destroy):
-            o.destroy()
+        for o in to_destroy:
+            if o is not None:
+                o.destroy()
 
         self._subsolver.destroy()
