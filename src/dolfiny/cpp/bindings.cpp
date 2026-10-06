@@ -1,11 +1,8 @@
 // clang-format off
 #include "running_error.h"
 
-// Under clang running_error.h aliases std::float16_t to _Float16, for which
-// libc++ has no std::abs/std::norm overloads (used by dolfinx::la::MatrixCSR)
-// and no std::formatter. Must be declared before the dolfinx headers: qualified
-// calls in templates are looked up at the point of definition.
 #if defined(__clang__)
+// REA uses (non-standard) _Float16 for which arithmetic operations need to be handled by hand.
 #include <format>
 
 namespace std {
@@ -44,6 +41,31 @@ struct formatter<float16_t> : formatter<float> {
 #include <cstddef>
 #include <format>
 #include <type_traits>
+
+#if defined(__clang__)
+// _Float16 is neither std::floating_point nor std::is_arithmetic.
+template <>
+struct dolfinx::is_custom_scalar<std::float16_t> : std::true_type {};
+
+namespace nanobind::detail {
+template <>
+struct type_caster<std::float16_t> {
+  NB_TYPE_CASTER(std::float16_t, const_name("float"))
+
+  bool from_python(handle src, uint8_t flags, cleanup_list* cleanup) noexcept {
+    type_caster<double> caster;
+    if (!caster.from_python(src, flags, cleanup)) return false;
+    value = static_cast<std::float16_t>(caster.value);
+    return true;
+  }
+
+  static handle from_cpp(std::float16_t src, rv_policy,
+                         cleanup_list*) noexcept {
+    return PyFloat_FromDouble(static_cast<double>(src));
+  }
+};
+}  // namespace nanobind::detail
+#endif
 
 using re_worst_float64_t = running_error::re_worst_t<std::float64_t>;
 using re_exact_float64_t = running_error::re_exact_t<std::float64_t>;
@@ -150,34 +172,6 @@ template <>
 struct dolfinx_wrappers::numpy_dtype<std::float16_t> {
   static constexpr char value = 'e';
 };
-
-#if defined(__clang__)
-// Under clang std::float16_t is _Float16, which is neither std::floating_point
-// nor std::is_arithmetic. Register it as a dolfinx scalar and give nanobind a
-// caster; otherwise nanobind treats it as a bound class, which requires
-// typeinfo for _Float16 (not exported by Apple's libc++abi).
-template <>
-struct dolfinx::is_custom_scalar<std::float16_t> : std::true_type {};
-
-namespace nanobind::detail {
-template <>
-struct type_caster<std::float16_t> {
-  NB_TYPE_CASTER(std::float16_t, const_name("float"))
-
-  bool from_python(handle src, uint8_t flags, cleanup_list* cleanup) noexcept {
-    type_caster<double> caster;
-    if (!caster.from_python(src, flags, cleanup)) return false;
-    value = static_cast<std::float16_t>(caster.value);
-    return true;
-  }
-
-  static handle from_cpp(std::float16_t src, rv_policy,
-                         cleanup_list*) noexcept {
-    return PyFloat_FromDouble(static_cast<double>(src));
-  }
-};
-}  // namespace nanobind::detail
-#endif
 
 // --- Python bindings ---
 
