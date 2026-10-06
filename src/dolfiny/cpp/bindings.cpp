@@ -2,15 +2,27 @@
 #include "running_error.h"
 
 // Under clang running_error.h aliases std::float16_t to _Float16, for which
-// libc++ has no std::abs/std::norm overloads (used by dolfinx::la::MatrixCSR).
-// Must be declared before the dolfinx headers: qualified calls in templates are
-// looked up at the point of definition.
+// libc++ has no std::abs/std::norm overloads (used by dolfinx::la::MatrixCSR)
+// and no std::formatter. Must be declared before the dolfinx headers: qualified
+// calls in templates are looked up at the point of definition.
 #if defined(__clang__)
+#include <format>
+
 namespace std {
+
 inline float16_t abs(float16_t x) { return __builtin_fabsf16(x); }
+
 inline float norm(float16_t x) {
   return static_cast<float>(x) * static_cast<float>(x);
 }
+
+template <>
+struct formatter<float16_t> : formatter<float> {
+  auto format(float16_t x, format_context& ctx) const {
+    return formatter<float>::format(static_cast<float>(x), ctx);
+  }
+};
+
 }  // namespace std
 #endif
 // clang-format on
@@ -165,15 +177,7 @@ struct type_caster<std::float16_t> {
   }
 };
 }  // namespace nanobind::detail
-
-// libc++ has no std::formatter for _Float16, widen it to float.
-float formattable(std::float16_t x) { return x; }
 #endif
-
-template <typename T>
-T formattable(T x) {
-  return x;
-}
 
 // --- Python bindings ---
 
@@ -198,16 +202,15 @@ namespace nb = nanobind;
   dolfinx_wrappers::declare_form<RE_TYPE, GEOM_T>(m, SCALAR_TAG "_" GEOM_TAG); \
   dolfinx_wrappers::declare_assembly_functions<RE_TYPE, GEOM_T>(m)
 
-#define BIND_TYPE(RE_TYPE, SCALAR_T, PY_NAME)                              \
-  nb::class_<RE_TYPE>(m, PY_NAME)                                          \
-      .def(nb::init<SCALAR_T, SCALAR_T>(), nb::arg("val") = 0.0,           \
-           nb::arg("err") = 0.0)                                           \
-      .def_rw("val", &RE_TYPE::val)                                        \
-      .def_rw("err", &RE_TYPE::err)                                        \
-      .def_ro_static("eps", &RE_TYPE::eps)                                 \
-      .def("__repr__", [](const RE_TYPE& d) {                              \
-        return std::format(PY_NAME "(val={}, err={})", formattable(d.val), \
-                           formattable(d.err));                            \
+#define BIND_TYPE(RE_TYPE, SCALAR_T, PY_NAME)                         \
+  nb::class_<RE_TYPE>(m, PY_NAME)                                     \
+      .def(nb::init<SCALAR_T, SCALAR_T>(), nb::arg("val") = 0.0,      \
+           nb::arg("err") = 0.0)                                      \
+      .def_rw("val", &RE_TYPE::val)                                   \
+      .def_rw("err", &RE_TYPE::err)                                   \
+      .def_ro_static("eps", &RE_TYPE::eps)                            \
+      .def("__repr__", [](const RE_TYPE& d) {                         \
+        return std::format(PY_NAME "(val={}, err={})", d.val, d.err); \
       });
 
 // BIND_TYPE registers nb::class_<RE_TYPE> and must run first: the dolfinx
