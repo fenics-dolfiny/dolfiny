@@ -91,7 +91,9 @@ using re_exact_float16_t = running_error::re_exact_t<std::float16_t>;
   }
 
 TRAITS(re_worst_float64_t, double, Complex, 128, "complex128", 'D');
+#if REA_HAS_EXTENDED_FLOAT
 TRAITS(re_exact_float64_t, double, Complex, 128, "complex128", 'D');
+#endif
 TRAITS(re_worst_float32_t, float, Complex, 64, "complex64", 'F');
 TRAITS(re_exact_float32_t, float, Complex, 64, "complex64", 'F');
 TRAITS(re_worst_float16_t, std::float16_t, Float, 32, "float32", 'f');
@@ -174,8 +176,10 @@ NB_MODULE(_cpp, m) {
 
   BIND(re_worst_float64_t, double, double, "ReWorstFloat64", "re_worst_float64",
        "float64");
+#if REA_HAS_EXTENDED_FLOAT
   BIND(re_exact_float64_t, double, double, "ReExactFloat64", "re_exact_float64",
        "float64");
+#endif
   BIND(re_worst_float32_t, float, float, "ReWorstFloat32", "re_worst_float32",
        "float32");
   BIND(re_exact_float32_t, float, float, "ReExactFloat32", "re_exact_float32",
