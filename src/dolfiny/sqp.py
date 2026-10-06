@@ -121,7 +121,7 @@ class SQP:
                 self._subsolver.setOperators(H)
                 b = x.copy()
                 H.mult(x, b)
-                b -= grad
+                b.axpy(-1.0, grad)
                 self._subsolver.solve(b, x)
             else:
                 # In the eq. constrained case we have:

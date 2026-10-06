@@ -231,6 +231,7 @@ class MMA:
             return -W  # type: ignore
 
         if (constraint := tao.getInequalityConstraints())[1] is not None:
+            assert self._λ is not None
             self._subsolver.setSolution(self._λ)
             self._subsolver.setObjectiveGradient(dual_objective_and_gradient, self._J_λ)
 
