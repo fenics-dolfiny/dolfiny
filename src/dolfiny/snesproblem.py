@@ -527,6 +527,6 @@ class SNESProblem:
             for idx in self.localsolver.local_spaces_id:
                 self.solution[idx].x.scatter_forward()
 
-        self.snes.getKSP().cancelMonitor()
+        self.snes.getKSP().monitorCancel()
 
         return self.solution

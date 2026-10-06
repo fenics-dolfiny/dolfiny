@@ -647,6 +647,6 @@ class TAOProblem:
             else:
                 message += f" |Jg|={self._Jg[1].norm():9.3e}"
 
-        message += f" f={tao.getFunctionValue():9.3e}"
+        message += f" f={tao.getObjectiveValue():9.3e}"
         message += ANSI.reset
         logger.info(message)

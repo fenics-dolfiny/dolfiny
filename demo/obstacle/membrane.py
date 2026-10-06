@@ -149,8 +149,8 @@ S = ufl.sqrt(1 + ufl.inner(ufl.grad(g), ufl.grad(g))) * ufl.dx
 problem = dolfiny.taoproblem.TAOProblem(S, [g], [bc], lb=[lb], prefix="obstacle")
 problem.solve()
 
-dolfiny.utils.pprint(f"S_linear(g) = {linear_problem.tao.getFunctionValue():.4f}")
-dolfiny.utils.pprint(f"S(g)        = {problem.tao.getFunctionValue():.4f}")
+dolfiny.utils.pprint(f"S_linear(g) = {linear_problem.tao.getObjectiveValue():.4f}")
+dolfiny.utils.pprint(f"S(g)        = {problem.tao.getObjectiveValue():.4f}")
 
 
 # %% tags=["hide-input"]
