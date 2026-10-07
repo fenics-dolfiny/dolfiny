@@ -169,7 +169,7 @@ class LocalSolver:
                 [],
                 mesh=V.mesh._cpp_object,
             )
-            cppform = dolfinx.fem.Form(cppform)
+            cppform = dolfinx.fem.Form(cppform, V.mesh, [V])
             F_form += [cppform]
 
         return F_form
@@ -204,7 +204,7 @@ class LocalSolver:
                     [],
                     mesh=V0.mesh._cpp_object,
                 )
-                J_form[gi][gj] = dolfinx.fem.Form(J_form[gi][gj])
+                J_form[gi][gj] = dolfinx.fem.Form(J_form[gi][gj], V0.mesh, [V0, V1])
 
         return J_form
 
@@ -234,7 +234,7 @@ class LocalSolver:
                 [],
                 mesh=V.mesh._cpp_object,
             )
-            cppform = dolfinx.fem.Form(cppform)
+            cppform = dolfinx.fem.Form(cppform, V.mesh, [V])
             local_form += [cppform]
 
         return local_form

@@ -14,7 +14,9 @@ import dolfinx.cpp.la
 import ffcx
 import ufl
 from dolfinx.fem import DirichletBC, Form, IntegralType
+from dolfinx.fem.assemble import _bc_dof_markers, _owned_marked_rows
 from dolfinx.fem.forms import _ufl_to_dolfinx_domain, get_integration_domains
+from dolfinx.mesh import _mesh_from_ufl_domain
 from ffcx.compiler import compile_ufl_objects
 from ffcx.options import get_options
 
@@ -149,10 +151,10 @@ def assemble_matrix(
 
     sp = dolfiny.cpp._cpp.create_sparsity_pattern(a._cpp_object)
     sp.finalize()
-    kwargs = {} if block_mode is None else {"block_mode": block_mode}
+    block_mode = dolfinx.la.BlockMode.compact if block_mode is None else block_mode
 
     packed_type = getattr(dolfiny.cpp._cpp, f"MatrixCSR_{a._re_scalar_tag}")
-    A: dolfinx.la.MatrixCSR = packed_type(sp, **kwargs)
+    A: dolfinx.la.MatrixCSR = packed_type(sp, block_mode)
     _assemble_matrix_csr(A, a, bcs, diag, constants, coeffs, errors)
 
     # Value and error matrices, both in the studied dtype (fp16 only from dolfiny).
@@ -160,8 +162,8 @@ def assemble_matrix(
     csr_type = getattr(dolfinx.cpp.la, f"MatrixCSR_{dtype.name}", None) or getattr(
         dolfiny.cpp._cpp, f"MatrixCSR_{dtype.name}"
     )
-    A_val = csr_type(sp, **kwargs)
-    A_err = csr_type(sp, **kwargs)
+    A_val = csr_type(sp, block_mode)
+    A_err = csr_type(sp, block_mode)
     packed = A.data.view(_packed_dtype(dtype))  # no copy; the assignments below are the copy
     A_val.data[:] = packed["val"]
     A_err.data[:] = packed["err"]
@@ -179,21 +181,24 @@ def _assemble_matrix_csr(
     errors: dict | None = None,
 ) -> typing.Any:
     """Assemble bilinear form into a matrix."""
-    bcs = [] if bcs is None else [bc._cpp_object for bc in bcs]  # type: ignore
-
     if constants is None:
         constants = pack_constants(a, errors)
 
     if coeffs is None:
         coeffs = pack_coefficients(a, errors)
 
-    dolfiny.cpp._cpp.assemble_matrix(A, a._cpp_object, constants, coeffs, bcs)
+    V0, V1 = a.function_spaces
+    dof_marker0 = _bc_dof_markers(V0, bcs)
+    dof_marker1 = _bc_dof_markers(V1, bcs)
+    dolfiny.cpp._cpp.assemble_matrix(A, a._cpp_object, constants, coeffs, dof_marker0, dof_marker1)
 
-    # If matrix is a 'diagonal'block, set diagonal entry for constrained
-    # dofs
+    # If matrix is a 'diagonal' block, set diagonal entry for constrained
+    # dofs. Insert, not add: adding to the zeroed entry would accrue a rounding error.
     diag = a._re_scalar_type(diag.real, diag.imag)  # type: ignore[attr-defined]
-    if a.function_spaces[0] is a.function_spaces[1]:
-        dolfiny.cpp._cpp.insert_diagonal(A, a.function_spaces[0], bcs, diag)
+    if V0._cpp_object is V1._cpp_object:
+        dolfiny.cpp._cpp.set_diagonal(
+            A, _owned_marked_rows(V0, dof_marker0), diag, dolfinx.la.InsertMode.insert
+        )
     return A
 
 
@@ -245,9 +250,9 @@ def form(
             ) from None
         return ftype, fn_type, constant_type, nptype_to_cpp[geometry_dtype.type]
 
-    def _tagged(cpp_form, src_coefficients=(), src_constants=()):
+    def _tagged(cpp_form, msh, V, src_coefficients=(), src_constants=()):
         """Wrap the C++ form, recording the scalar hidden by the packed ``Form.dtype``."""
-        f = Form(cpp_form)
+        f = Form(cpp_form, msh, V)
         # Suffix of the bound C++ instantiations, for lookups: MatrixCSR_re_worst_float64.
         f._re_scalar_tag = scalar_tag
         # Studied precision, one half of a packed pair: split(b, float16) -> two fp16 arrays.
@@ -267,16 +272,14 @@ def form(
             non_none = [d for d in data if d is not None]
             assert len(non_none) == 0 or all(d is non_none[0] for d in non_none)
 
-        msh = domain.ufl_cargo()
-        if msh is None:
-            raise RuntimeError("Expecting to find a Mesh in the form.")
+        msh = _mesh_from_ufl_domain(domain)
 
         ftype, fn_type, constant_type, geom_cpp = _re_types(msh)
 
         ufcx_form_template = jit(form, form_compiler_options=form_compiler_options)
         ufcx_form = ufcx_form_template[cpp_type, geom_cpp]
 
-        V = [arg.ufl_function_space()._cpp_object for arg in form.arguments()]
+        V = [arg.ufl_function_space() for arg in form.arguments()]
         if form_compiler_options.get("part", "full") == "diagonal":
             V = [V[0]]
 
@@ -374,26 +377,39 @@ def form(
                 integrals[integral_type].append((idx, kernel_address, entities, active_coeffs))
 
         return _tagged(
-            ftype(V, integrals, coeffs, constants, False, _entity_maps, msh),
+            ftype(
+                [_V._cpp_object for _V in V],
+                integrals,
+                coeffs,
+                constants,
+                False,
+                _entity_maps,
+                msh._cpp_object,
+            ),
+            msh,
+            V,
             src_coefficients,
             src_constants,
         )
 
     def _zero_form(form):
-        V = [arg.ufl_function_space()._cpp_object for arg in form.arguments()]
+        V = [arg.ufl_function_space() for arg in form.arguments()]
         assert V, "Form must have at least one argument"
+        msh = V[0].mesh
 
-        ftype, _, _, _ = _re_types(V[0].mesh)
+        ftype, _, _, _ = _re_types(msh)
         return _tagged(
             ftype(
-                spaces=V,
+                spaces=[_V._cpp_object for _V in V],
                 integrals={},
                 coefficients=[],
                 constants=[],
                 need_permutation_data=False,
                 entity_maps=[],
-                mesh=V[0].mesh,
-            )
+                mesh=msh._cpp_object,
+            ),
+            msh,
+            V,
         )
 
     def _create_form(form):

@@ -122,7 +122,7 @@ def project_codimension(p_expression, target_func, projector, mt, mt_id, eps=1.0
     pattern = dolfinx.fem.create_sparsity_pattern(a)
     pattern.insert_diagonal(dofs_inactive)
     pattern.finalize()
-    A = dolfinx.cpp.la.petsc.create_matrix(V.mesh.comm, pattern)
+    A = dolfinx.cpp.la.petsc.create_matrix(V.mesh.comm, pattern._cpp_object, None)
 
     # Assemble linear system
     A.zeroEntries()
