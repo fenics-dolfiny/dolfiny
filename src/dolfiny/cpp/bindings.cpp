@@ -1,5 +1,27 @@
 // clang-format off
 #include "running_error.h"
+
+#if defined(__clang__)
+// REA uses (non-standard) _Float16 for which arithmetic operations need to be handled by hand.
+#include <format>
+
+namespace std {
+
+inline float16_t abs(float16_t x) { return __builtin_fabsf16(x); }
+
+inline float16_t norm(float16_t x) {
+  return std::norm(static_cast<float>(x));
+}
+
+template <>
+struct formatter<float16_t> : formatter<float> {
+  auto format(float16_t x, format_context& ctx) const {
+    return formatter<float>::format(static_cast<float>(x), ctx);
+  }
+};
+
+}  // namespace std
+#endif
 // clang-format on
 
 #include <dolfinx/common/MPI.h>
@@ -18,8 +40,32 @@
 
 #include <cstddef>
 #include <format>
-#include <stdfloat>
 #include <type_traits>
+
+#if defined(__clang__)
+// _Float16 is neither std::floating_point nor std::is_arithmetic.
+template <>
+struct dolfinx::is_custom_scalar<std::float16_t> : std::true_type {};
+
+namespace nanobind::detail {
+template <>
+struct type_caster<std::float16_t> {
+  NB_TYPE_CASTER(std::float16_t, const_name("float"))
+
+  bool from_python(handle src, uint8_t flags, cleanup_list* cleanup) noexcept {
+    type_caster<double> caster;
+    if (!caster.from_python(src, flags, cleanup)) return false;
+    value = static_cast<std::float16_t>(caster.value);
+    return true;
+  }
+
+  static handle from_cpp(std::float16_t src, rv_policy,
+                         cleanup_list*) noexcept {
+    return PyFloat_FromDouble(static_cast<double>(src));
+  }
+};
+}  // namespace nanobind::detail
+#endif
 
 using re_worst_float64_t = running_error::re_worst_t<std::float64_t>;
 using re_exact_float64_t = running_error::re_exact_t<std::float64_t>;
