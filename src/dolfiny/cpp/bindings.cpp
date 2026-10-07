@@ -9,8 +9,8 @@ namespace std {
 
 inline float16_t abs(float16_t x) { return __builtin_fabsf16(x); }
 
-inline float norm(float16_t x) {
-  return static_cast<float>(x) * static_cast<float>(x);
+inline float16_t norm(float16_t x) {
+  return std::norm(static_cast<float>(x));
 }
 
 template <>
