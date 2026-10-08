@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Sequence
+from typing import cast
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -374,11 +375,11 @@ class TAOProblem:
         ub: np.floating | Sequence[dolfinx.fem.Function] = PETSc.INFINITY,  # type: ignore
         J: Sequence[ufl.Form] | tuple[TAOJacobianFunction, PETSc.Vec] | None = None,
         H: Sequence[Sequence[ufl.Form]] | tuple[TAOHessianFunction, PETSc.Mat] | None = None,
-        g: Sequence[dolfiny.inequality.Inequality]
+        g: Sequence[ufl.equation.Equation] | tuple[TAOConstraintsFunction, PETSc.Vec] | None = None,
+        Jg: Sequence[Sequence[ufl.Form]] | None = None,
+        h: Sequence[dolfiny.inequality.Inequality]
         | tuple[TAOConstraintsFunction, PETSc.Vec]
         | None = None,
-        Jg: Sequence[Sequence[ufl.Form]] | None = None,
-        h: Sequence[ufl.equation.Equation] | tuple[TAOConstraintsFunction, PETSc.Vec] | None = None,
         Jh: Sequence[Sequence[ufl.Form]] | None = None,
         prefix=None,
         form_compiler_options: dict | None = None,
@@ -405,13 +406,13 @@ class TAOProblem:
         H:
             Hessian of objective functional.
         g:
-            Inequality constraints, see `dolfiny.inequality.Inequality` - constant rhs.
-        Jg:
-            Jacobian of inequality constraints.
-        h:
             Equality constraints, see `ufl.equation.Equation` - constant rhs.
-        Jh:
+        Jg:
             Jacobian of equality constraints.
+        h:
+            Inequality constraints, see `dolfiny.inequality.Inequality` - constant rhs.
+        Jh:
+            Jacobian of inequality constraints.
         prefix:
             Prefix for the PETSc options database.
         form_compiler_options:
@@ -481,7 +482,7 @@ class TAOProblem:
             # TODO: check _g either callback, or sequence of equations
             assert len(g) > 0
             if isinstance(g[0], ufl.equation.Equation):
-                assert len(g) == 1  # type: ignore[unreachable]  # TODO
+                assert len(g) == 1  # TODO
                 self._g, self._Jg = wrap_constraint_callbacks(
                     self._comm,
                     self._x0,
@@ -509,11 +510,11 @@ class TAOProblem:
         if h is not None:
             # TODO: check _h either callback, or sequence of inequalities
             if isinstance(h[0], dolfiny.inequality.Inequality):
-                self._h, self._Jh = wrap_constraint_callbacks(  # type: ignore[unreachable]
+                self._h, self._Jh = wrap_constraint_callbacks(
                     self._comm,
                     self._x0,
                     self._u,
-                    h,
+                    cast(Sequence[dolfiny.inequality.Inequality], h),
                     Jh,
                     self._bcs,
                     form_compiler_options,
