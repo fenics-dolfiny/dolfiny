@@ -55,7 +55,11 @@ nptype_to_cpp = {np.float64: "double", np.float32: "float"}
 
 # Opaque numpy carrier for a packed pair, of matching width. fp16 uses float32:
 # numpy has no complex32.
-nptype_to_carrier = {np.float64: np.complex128, np.float32: np.complex64, np.float16: np.float32}
+nptype_to_carrier: dict[type[np.floating], type[np.inexact]] = {
+    np.float64: np.complex128,
+    np.float32: np.complex64,
+    np.float16: np.float32,
+}
 
 
 def _packed_dtype(T: npt.DTypeLike) -> np.dtype:

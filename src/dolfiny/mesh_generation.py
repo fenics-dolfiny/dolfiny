@@ -68,7 +68,7 @@ def create_truss_x_braced_mesh(
         # |    |
         # 0----1
         max_facet_to_cell_links = 8
-        v = c_to_v.array.reshape(-1, 4)
+        v = c_to_v.array.reshape(-1, 4).astype(np.int64)
         cells = np.append(cells, np.stack([v[:, 1], v[:, 2]], axis=1), axis=0)
         cells = np.append(cells, np.stack([v[:, 0], v[:, 3]], axis=1), axis=0)
     else:
@@ -87,7 +87,7 @@ def create_truss_x_braced_mesh(
         # 6 axis aligned
         # 12 in plane diagonals
         # 8 'true' diagonals
-        v = c_to_v.array.reshape(-1, 8)
+        v = c_to_v.array.reshape(-1, 8).astype(np.int64)
         cells = np.append(cells, np.stack([v[:, 0], v[:, 3]], axis=1), axis=0)
         cells = np.append(cells, np.stack([v[:, 1], v[:, 2]], axis=1), axis=0)
         cells = np.append(cells, np.stack([v[:, 2], v[:, 7]], axis=1), axis=0)

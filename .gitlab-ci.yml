@@ -54,6 +54,18 @@ mypy:
     - rm /dolfinx-env/lib/python3.14/site-packages/petsc4py/PETSc.pyi
     - mypy test/ demo/ --explicit-package-bases
 
+pyrefly:
+  stage: lint
+  image: dolfinx/dolfinx@sha256:3a3da0aa99b41572a29de4c82830bb47f1343408946adb3b49897177d2fa3423 # dolfinx/dolfinx:nightly on Oct 6th 2026
+  script:
+    - apt-get -y update && xargs -a apt-requirements.txt apt-get -y install
+    - pip install --group lint-typing
+    - pip install "numpy>=2.5" # nedded for correct numpy dtype type hints
+    - pip install . --no-build-isolation
+    - pyrefly check src/dolfiny
+    - rm /dolfinx-env/lib/python3.14/site-packages/petsc4py/PETSc.pyi
+    - pyrefly check test/ demo/
+
 ty:
   stage: lint
   allow_failure: true # mypy is blocking

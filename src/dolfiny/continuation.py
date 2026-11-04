@@ -141,11 +141,13 @@ class Crisfield:
                 δx_local.set(0.0)
 
         # update accumulated increment
-        Δx -= δx
+        Δx.axpy(-1.0, δx)
 
         # compute δx_dFdλ if KSP is present and intact
         if snes.getKSP().getConvergedReason() != 0 and snes_iteration > 0:
-            snes.getKSP().solve(-dFdλ, δx_dFdλ)
+            rhs = dFdλ.copy()
+            rhs.scale(-1)
+            snes.getKSP().solve(rhs, δx_dFdλ)
         else:
             with δx_dFdλ.localForm() as δx_dFdλ_local:
                 δx_dFdλ_local.set(0.0)
