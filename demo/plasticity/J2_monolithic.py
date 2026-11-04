@@ -368,7 +368,7 @@ assert dimsys_SI.equivalent_dims(
     ufl_units.get_dimension(ufl.inner(δE, S) * dx, quantities, mapping=mapping), syu.energy
 )
 
-ufl_units.factorize(form, quantities, mode="check", mapping=mapping)
+ufl_units.factorize(form, quantities, mapping=mapping)
 
 # Overall form (as list of forms)
 forms = ufl.extract_blocks(form)

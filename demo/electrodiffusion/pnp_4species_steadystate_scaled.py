@@ -234,11 +234,11 @@ assert dimsys.equivalent_dims(
 
 # %%
 
-factorized_φ = ufl_units.factorize(terms_φ, quantities, mode="factorize", mapping=mapping)
+factorized_φ = ufl_units.factorize(terms_φ, quantities, mapping=mapping)
 assert isinstance(factorized_φ, dict)
 normalized_φ = ufl_units.normalize(factorized_φ, "potential", quantities)
 
-factorized_c = ufl_units.factorize(terms_c, quantities, mode="factorize", mapping=mapping)
+factorized_c = ufl_units.factorize(terms_c, quantities, mapping=mapping)
 assert isinstance(factorized_c, dict)
 normalized_c = ufl_units.normalize(factorized_c, "diffusion", quantities)
 

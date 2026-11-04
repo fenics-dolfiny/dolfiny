@@ -217,7 +217,7 @@ assert dimsys.equivalent_dims(
     syu.mass / (syu.length * syu.time**2),
 )
 
-factorized = ufl_units.factorize(terms, quantities, mode="factorize", mapping=mapping)
+factorized = ufl_units.factorize(terms, quantities, mapping=mapping)
 assert isinstance(factorized, dict)
 
 # Choose reference term for scaling
