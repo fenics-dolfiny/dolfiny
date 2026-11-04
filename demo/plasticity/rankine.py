@@ -334,7 +334,7 @@ dimsys_SI = syu.si.SI.get_dimension_system()
 assert dimsys_SI.equivalent_dims(ufl_units.get_dimension(g, quantities, mapping), syu.pressure)
 assert dimsys_SI.equivalent_dims(ufl_units.get_dimension(F0, quantities, mapping), syu.energy)
 
-ufl_units.factorize(F0 + F1, quantities, mode="check", mapping=mapping)
+ufl_units.factorize(F0 + F1, quantities, mapping=mapping)
 
 u_bottom = dolfinx.fem.Function(Uf, name="u_bottom")
 mesh.topology.create_connectivity(1, tdim)

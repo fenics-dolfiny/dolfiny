@@ -296,7 +296,7 @@ assert syu.si.SI.get_dimension_system().equivalent_dims(convective_dim, syu.forc
 
 
 # %%
-terms_fact = ufl_units.factorize(terms, quantities, mode="factorize", mapping=mapping)
+terms_fact = ufl_units.factorize(terms, quantities, mapping=mapping)
 assert isinstance(terms_fact, dict)
 
 reference_term = "convection"

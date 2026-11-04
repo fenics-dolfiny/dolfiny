@@ -236,7 +236,7 @@ terms = {
     "point_m": δr * M_y * ds(end),
 }
 
-factorized = ufl_units.factorize(terms, quantities, mode="check", mapping=mapping)
+factorized = ufl_units.factorize(terms, quantities, mapping=mapping)
 assert isinstance(factorized, dict)
 reference_term = "bending_mu"
 normalized = ufl_units.normalize(factorized, reference_term, quantities)

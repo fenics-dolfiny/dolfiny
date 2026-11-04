@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 import dolfinx
 import ufl
-from ufl.algorithms.map_integrands import map_integrand_dags
+from ufl.algorithms.map_integrands import map_integrand_dags, map_integrands
 from ufl.algorithms.replace import Replacer
 from ufl.corealg.multifunction import MultiFunction
 
@@ -40,7 +40,7 @@ def evaluate(e, u, u0):
         expr = ufl.algorithms.apply_algebra_lowering.apply_algebra_lowering(expr)
         expr = ufl.algorithms.apply_derivatives.apply_derivatives(expr)
         # Apply replacements
-        return map_integrand_dags(replacer, expr)
+        return map_integrands(replacer, expr)
 
     if isinstance(e, Sequence):
         return [replace_single(e_) for e_ in e]

@@ -481,7 +481,7 @@ terms = {
     "shear": -1 / 2 * ufl.inner(δC, S_shear) * dx,
     "external": ufl.inner(δu, t_ref * t) * ds(surface_upper),
 }
-factorized = ufl_units.factorize(terms, quantities, mode="factorize", mapping=mapping)
+factorized = ufl_units.factorize(terms, quantities, mapping=mapping)
 assert isinstance(factorized, dict)
 
 dimsys = syu.si.SI.get_dimension_system()

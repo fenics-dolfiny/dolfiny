@@ -1,5 +1,5 @@
-# dolfinx/dolfinx:nightly on Oct 6th 2026
-FROM dolfinx/dolfinx@sha256:3a3da0aa99b41572a29de4c82830bb47f1343408946adb3b49897177d2fa3423
+# dolfinx/dolfinx:nightly on Nov 3rd 2026
+FROM dolfinx/dolfinx@sha256:ac5f6d1d7752b6651e4ad47e825568a980becce7d953ab112c0dd0791113f64f
 
 ENV PYTHONPYCACHEPREFIX=/root/.cache/cpython
 

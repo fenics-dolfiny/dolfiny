@@ -43,7 +43,7 @@ ruff:
 
 mypy:
   stage: lint
-  image: dolfinx/dolfinx@sha256:3a3da0aa99b41572a29de4c82830bb47f1343408946adb3b49897177d2fa3423 # dolfinx/dolfinx:nightly on Oct 6th 2026
+  image: dolfinx/dolfinx@sha256:ac5f6d1d7752b6651e4ad47e825568a980becce7d953ab112c0dd0791113f64f # dolfinx/dolfinx:nightly on Nov 3rd 2026
   variables:
     FORCE_COLOR: 1
   script:
@@ -56,7 +56,7 @@ mypy:
 
 pyrefly:
   stage: lint
-  image: dolfinx/dolfinx@sha256:3a3da0aa99b41572a29de4c82830bb47f1343408946adb3b49897177d2fa3423 # dolfinx/dolfinx:nightly on Oct 6th 2026
+  image: dolfinx/dolfinx@sha256:ac5f6d1d7752b6651e4ad47e825568a980becce7d953ab112c0dd0791113f64f # dolfinx/dolfinx:nightly on Nov 3rd 2026
   script:
     - apt-get -y update && xargs -a apt-requirements.txt apt-get -y install
     - pip install --group lint-typing
@@ -69,12 +69,11 @@ pyrefly:
 ty:
   stage: lint
   allow_failure: true # mypy is blocking
-  image: dolfinx/dolfinx@sha256:3a3da0aa99b41572a29de4c82830bb47f1343408946adb3b49897177d2fa3423 # dolfinx/dolfinx:nightly on Oct 6th 2026
+  image: dolfinx/dolfinx@sha256:ac5f6d1d7752b6651e4ad47e825568a980becce7d953ab112c0dd0791113f64f # dolfinx/dolfinx:nightly on Nov 3rd 2026
   script:
     - apt-get -y update && xargs -a apt-requirements.txt apt-get -y install
     - pip install --group lint-typing
     - pip install . --no-build-isolation
-    - pip uninstall -y pyvista # https://github.com/astral-sh/ty/issues/350
     - ty check --color always src/dolfiny
     - rm /dolfinx-env/lib/python3.14/site-packages/petsc4py/PETSc.pyi
     - ty check --color always demo/

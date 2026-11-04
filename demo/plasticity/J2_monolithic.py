@@ -235,8 +235,9 @@ def u_bar(x):
 # internal fields, consistent with the $P_1$ displacement approximation. The measure `dx`
 # therefore represents cell integration with that quadrature rule.
 #
-# The $B$ test space uses `Tf.clone()` so `dolfiny` assembles separate Jacobian block rows for
-# the test directions corresponding to $P$ and $B$.
+# $P$ and $B$ share the same element, so $B$ lives on `Bf = Tf.clone()`, which has the same data
+# but is a distinct space. Its trial and test functions then form their own Jacobian block row and
+# column, separate from those of $P$.
 
 # %% tags=["hide-input"]
 quad_degree = p
@@ -255,6 +256,7 @@ Te = basix.ufl.blocked_element(He, shape=(mesh.geometry.dim, mesh.geometry.dim),
 # Define function spaces
 Uf = dolfinx.fem.functionspace(mesh, Ue)
 Tf = dolfinx.fem.functionspace(mesh, Te)
+Bf = Tf.clone()  # same element/dofmap as Tf, distinct block for B
 Hf = dolfinx.fem.functionspace(mesh, He)
 Sf = dolfinx.fem.functionspace(mesh, ("DG", 0))
 
@@ -262,12 +264,12 @@ Sf = dolfinx.fem.functionspace(mesh, ("DG", 0))
 u = dolfinx.fem.Function(Uf, name="u")  # displacement
 P = dolfinx.fem.Function(Tf, name="P")  # plastic strain
 h = dolfinx.fem.Function(Hf, name="h")  # isotropic hardening
-B = dolfinx.fem.Function(Tf, name="B")  # kinematic hardening
+B = dolfinx.fem.Function(Bf, name="B")  # kinematic hardening
 
 u0 = dolfinx.fem.Function(Uf, name="u0")  # displacement, previous converged solution (load step)
 P0 = dolfinx.fem.Function(Tf, name="P0")
 h0 = dolfinx.fem.Function(Hf, name="h0")
-B0 = dolfinx.fem.Function(Tf, name="B0")
+B0 = dolfinx.fem.Function(Bf, name="B0")
 
 S0 = dolfinx.fem.Function(Tf, name="S0")  # stress, previous converged solution (load step)
 
@@ -279,8 +281,7 @@ Bo = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), na
 So = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0, (3, 3))), name="S")
 ho = dolfinx.fem.Function(dolfinx.fem.functionspace(mesh, ("DP", 0)), name="h")
 
-# clone to be distinct from Tf
-δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf, Tf, Hf, Tf.clone()))
+δm = ufl.TestFunctions(ufl.MixedFunctionSpace(Uf, Tf, Hf, Bf))
 δu, δP, δh, δB = δm
 
 # Define state and variation of state as (ordered) list of functions
@@ -368,7 +369,7 @@ assert dimsys_SI.equivalent_dims(
     ufl_units.get_dimension(ufl.inner(δE, S) * dx, quantities, mapping=mapping), syu.energy
 )
 
-ufl_units.factorize(form, quantities, mode="check", mapping=mapping)
+ufl_units.factorize(form, quantities, mapping=mapping)
 
 # Overall form (as list of forms)
 forms = ufl.extract_blocks(form)
