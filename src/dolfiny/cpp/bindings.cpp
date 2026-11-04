@@ -39,7 +39,10 @@ struct formatter<float16_t> : formatter<float> {
 #include <ufcx.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <format>
+#include <span>
+#include <stdexcept>
 #include <type_traits>
 
 #if defined(__clang__)
@@ -177,6 +180,32 @@ struct dolfinx_wrappers::numpy_dtype<std::float16_t> {
 
 namespace nb = nanobind;
 
+// dolfinx binds set_diagonal in declare_la_functions, alongside norm and
+// orthonormalize, which do not compile for running-error scalars: dolfinx's
+// la::norm assumes std::abs(T) is real. Bind only the single-value
+// set_diagonal.
+template <typename T>
+void declare_set_diagonal(nb::module_& m) {
+  m.def(
+      "set_diagonal",
+      [](dolfinx::la::MatrixCSR<T>& A,
+         nb::ndarray<const std::int32_t, nb::ndim<1>, nb::c_contig> rows,
+         T diagonal, dolfinx_wrappers::PyInsertMode mode) {
+        std::span _rows(rows.data(), rows.size());
+        switch (mode) {
+          case dolfinx_wrappers::PyInsertMode::insert:
+            dolfinx::la::set_diagonal(A.mat_set_values(), _rows, diagonal);
+            break;
+          case dolfinx_wrappers::PyInsertMode::add:
+            dolfinx::la::set_diagonal(A.mat_add_values(), _rows, diagonal);
+            break;
+          default:
+            throw std::invalid_argument("InsertMode not recognized.");
+        }
+      },
+      nb::arg("A"), nb::arg("rows"), nb::arg("diagonal"), nb::arg("mode"));
+}
+
 // ---------------------------------------------------------------------------
 // Register the Python class and the dolfinx object/form/assembly/la wrappers
 // for a single running-error scalar type.
@@ -215,6 +244,7 @@ namespace nb = nanobind;
   BIND_TYPE(RE_TYPE, SCALAR_T, PY_NAME);                               \
   dolfinx_wrappers::declare_constant<RE_TYPE>(m, SCALAR_TAG);          \
   dolfinx_wrappers::declare_la_objects<RE_TYPE>(m, SCALAR_TAG);        \
+  declare_set_diagonal<RE_TYPE>(m);                                    \
   BIND_GEOM(RE_TYPE, GEOM_T, SCALAR_TAG, GEOM_TAG);
 
 NB_MODULE(_cpp, m) {
