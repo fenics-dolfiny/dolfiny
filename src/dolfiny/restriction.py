@@ -79,7 +79,7 @@ class Restriction:
 
     def restrict_vector(self, x: PETSc.Vec):
         arr = x.array[self.bglobal_dofs_vec_stacked]
-        subx = PETSc.Vec().createGhostWithArray([], arr)
+        subx = PETSc.Vec().createGhostWithArray([], arr)  # pyrefly: ignore[bad-argument-type]
 
         return subx
 

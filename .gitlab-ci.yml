@@ -74,7 +74,6 @@ ty:
     - apt-get -y update && xargs -a apt-requirements.txt apt-get -y install
     - pip install --group lint-typing
     - pip install . --no-build-isolation
-    - pip uninstall -y pyvista # https://github.com/astral-sh/ty/issues/350
     - ty check --color always src/dolfiny
     - rm /dolfinx-env/lib/python3.14/site-packages/petsc4py/PETSc.pyi
     - ty check --color always demo/
