@@ -19,26 +19,29 @@ def test_write_mesh_data(tmp_path):
 
     im_c = mesh.topology.index_map(tdim)
     cell_entities = np.arange(im_c.size_local + im_c.num_ghosts, dtype=np.int32)
-    cell_tags = dolfinx.mesh.meshtags(mesh, tdim, cell_entities, tdim)
+    cell_tags = dolfinx.mesh.meshtags(mesh, tdim, cell_entities, tdim, "cell_tags")
 
     fdim = tdim - 1
     facet_entities = dolfinx.mesh.locate_entities_boundary(
         mesh, fdim, lambda x: np.isclose(x[0], 0.0)
     )
+    facet_tags = dolfinx.mesh.meshtags(mesh, fdim, facet_entities, fdim, "facet_tags")
 
     rdim = tdim - 2
     ridge_entities = np.array([0], dtype=np.int32)
+    ridge_tags = dolfinx.mesh.meshtags(mesh, rdim, ridge_entities, rdim, "ridge_tags")
 
     pdim = tdim - 3
     peak_entities = np.array([0], dtype=np.int32)
+    peak_tags = dolfinx.mesh.meshtags(mesh, pdim, peak_entities, pdim, "peak_tags")
 
     mesh_data = dolfinx.io.gmsh.MeshData(
         mesh=mesh,
-        physical_groups={"cells": {"tag": 1}, "facets": {"tag": 2}},
         cell_tags=cell_tags,
-        facet_tags=dolfinx.mesh.meshtags(mesh, fdim, facet_entities, fdim),
-        ridge_tags=dolfinx.mesh.meshtags(mesh, rdim, ridge_entities, rdim),
-        peak_tags=dolfinx.mesh.meshtags(mesh, pdim, peak_entities, pdim),
+        facet_tags=facet_tags,
+        ridge_tags=ridge_tags,
+        peak_tags=peak_tags,
+        physical_groups={"cells": {"tag": 1}, "facets": {"tag": 2}},
     )
 
     output = tmp_path / "mesh_data.xdmf"
@@ -54,5 +57,4 @@ def test_write_mesh_data(tmp_path):
     }
 
     grid_names = [grid.attrib["Name"] for grid in root.iter("Grid")]
-    assert grid_names.count("mesh") == 1
-    assert grid_names.count("mesh_tags") == 4
+    assert grid_names == ["mesh", "cell_tags", "facet_tags", "ridge_tags", "peak_tags"]
