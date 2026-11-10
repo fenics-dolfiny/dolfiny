@@ -145,9 +145,10 @@ banned-from = [
 [tool.ty.rules]
 possibly-missing-submodule = "ignore"
 unused-type-ignore-comment = "ignore"
-unresolved-import = "ignore"
+import-not-found = "ignore"
 not-iterable = "ignore"
-unresolved-attribute = "ignore"
+missing-attribute = "ignore"
+missing-union-attribute = "ignore"
 invalid-argument-type = "ignore"
 unsupported-operator = "ignore"
 call-non-callable = "ignore"
