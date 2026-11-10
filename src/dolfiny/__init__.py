@@ -21,6 +21,7 @@ from dolfiny import (
     taoproblem,
     ufl_utils,
 )
+from dolfiny.cpp._cpp import has_float128
 
 __all__ = [
     "continuation",
@@ -28,6 +29,7 @@ __all__ = [
     "fem",
     "function",
     "gmsh",
+    "has_float128",
     "interpolation",
     "invariants",
     "io",

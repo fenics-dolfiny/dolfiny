@@ -33,11 +33,14 @@ struct formatter<float16_t> : formatter<float> {
 #include <dolfinx_wrappers/la.h>
 #include <nanobind/nanobind.h>
 #include <nanobind/ndarray.h>
+#include <nanobind/stl/map.h>
+#include <nanobind/stl/pair.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
 #include <ufcx.h>
 
+#include <cfloat>
 #include <cstddef>
 #include <cstdint>
 #include <format>
@@ -71,13 +74,13 @@ struct type_caster<std::float16_t> {
 #endif
 
 using re_worst_float64_t = running_error::re_worst_t<std::float64_t>;
-using re_exact_float64_t = running_error::re_exact_t<std::float64_t>;
+using re_signed_float64_t = running_error::re_signed_t<std::float64_t>;
 
 using re_worst_float32_t = running_error::re_worst_t<std::float32_t>;
-using re_exact_float32_t = running_error::re_exact_t<std::float32_t>;
+using re_signed_float32_t = running_error::re_signed_t<std::float32_t>;
 
 using re_worst_float16_t = running_error::re_worst_t<std::float16_t>;
-using re_exact_float16_t = running_error::re_exact_t<std::float16_t>;
+using re_signed_float16_t = running_error::re_signed_t<std::float16_t>;
 
 // ---------------------------------------------------------------------------
 // dolfinx / nanobind trait specializations
@@ -141,12 +144,12 @@ using re_exact_float16_t = running_error::re_exact_t<std::float16_t>;
 
 TRAITS(re_worst_float64_t, double, Complex, 128, "complex128", 'D');
 #if REA_HAS_EXTENDED_FLOAT
-TRAITS(re_exact_float64_t, double, Complex, 128, "complex128", 'D');
+TRAITS(re_signed_float64_t, double, Complex, 128, "complex128", 'D');
 #endif
 TRAITS(re_worst_float32_t, float, Complex, 64, "complex64", 'F');
-TRAITS(re_exact_float32_t, float, Complex, 64, "complex64", 'F');
+TRAITS(re_signed_float32_t, float, Complex, 64, "complex64", 'F');
 TRAITS(re_worst_float16_t, std::float16_t, Float, 32, "float32", 'f');
-TRAITS(re_exact_float16_t, std::float16_t, Float, 32, "float32", 'f');
+TRAITS(re_signed_float16_t, std::float16_t, Float, 32, "float32", 'f');
 
 #undef TRAITS
 
@@ -175,6 +178,42 @@ template <>
 struct dolfinx_wrappers::numpy_dtype<std::float16_t> {
   static constexpr char value = 'e';
 };
+
+// IEEE binary128 reference scalar of the "true" mode, available where long
+// double is binary128 (e.g. aarch64 Linux). x86-64 long double is 80-bit.
+#if LDBL_MANT_DIG == 113
+#define DOLFINY_HAS_FLOAT128 1
+
+template <>
+MPI_Datatype dolfinx::MPI::mpi_datatype<long double>() {
+  static MPI_Datatype dt = []() {
+    MPI_Datatype datatype;
+    MPI_Type_contiguous(sizeof(long double), MPI_BYTE, &datatype);
+    MPI_Type_commit(&datatype);
+    return datatype;
+  }();
+  return dt;
+}
+
+// numpy exports longdouble neither through DLPack nor through a buffer format
+// nanobind reads, so it travels as an opaque complex128 of the same 16 bytes,
+// viewed back as numpy.longdouble on the Python side.
+static_assert(sizeof(long double) == 16);
+
+namespace nanobind::detail {
+template <>
+struct dtype_traits<long double> {
+  static constexpr dlpack::dtype value{(uint8_t)dlpack::dtype_code::Complex,
+                                       128, 1};
+  static constexpr auto name = const_name("complex128");
+};
+}  // namespace nanobind::detail
+
+template <>
+struct dolfinx_wrappers::numpy_dtype<long double> {
+  static constexpr char value = 'D';
+};
+#endif
 
 // --- Python bindings ---
 
@@ -253,21 +292,48 @@ NB_MODULE(_cpp, m) {
   BIND(re_worst_float64_t, double, double, "ReWorstFloat64", "re_worst_float64",
        "float64");
 #if REA_HAS_EXTENDED_FLOAT
-  BIND(re_exact_float64_t, double, double, "ReExactFloat64", "re_exact_float64",
-       "float64");
+  BIND(re_signed_float64_t, double, double, "ReSignedFloat64",
+       "re_signed_float64", "float64");
 #endif
   BIND(re_worst_float32_t, float, float, "ReWorstFloat32", "re_worst_float32",
        "float32");
-  BIND(re_exact_float32_t, float, float, "ReExactFloat32", "re_exact_float32",
-       "float32");
+  BIND(re_signed_float32_t, float, float, "ReSignedFloat32",
+       "re_signed_float32", "float32");
   BIND(re_worst_float16_t, std::float16_t, double, "ReWorstFloat16",
        "re_worst_float16", "float64");
-  BIND(re_exact_float16_t, std::float16_t, double, "ReExactFloat16",
-       "re_exact_float16", "float64");
+  BIND(re_signed_float16_t, std::float16_t, double, "ReSignedFloat16",
+       "re_signed_float16", "float64");
 
   // Only bind the geometry objects.
   BIND_GEOM(re_worst_float32_t, double, "re_worst_float32", "float64");
-  BIND_GEOM(re_exact_float32_t, double, "re_exact_float32", "float64");
+  BIND_GEOM(re_signed_float32_t, double, "re_signed_float32", "float64");
+
+#if DOLFINY_HAS_FLOAT128
+  dolfinx_wrappers::declare_constant<long double>(m, "float128");
+  dolfinx_wrappers::declare_la_objects<long double>(m, "float128");
+  BIND_GEOM(long double, double, "float128", "float64");
+
+  // The bound assemble_scalar returns a Python float, which drops the binary128
+  // digits. This variant writes the value into a numpy array, viewed as
+  // numpy.longdouble.
+  m.def(
+      "assemble_scalar_float128",
+      [](nb::ndarray<long double, nb::shape<1>, nb::c_contig> out,
+         const dolfinx::fem::Form<long double, double>& M,
+         nb::ndarray<const long double, nb::ndim<1>, nb::c_contig> constants,
+         const std::map<std::pair<dolfinx::fem::IntegralType, int>,
+                        nb::ndarray<const long double, nb::ndim<2>,
+                                    nb::c_contig>>& coefficients) {
+        out(0) = dolfinx::fem::assemble_scalar(
+            M, std::span(constants.data(), constants.size()),
+            dolfinx_wrappers::py_to_cpp_coeffs(coefficients));
+      },
+      nb::arg("out"), nb::arg("M"), nb::arg("constants"),
+      nb::arg("coefficients"));
+  m.attr("has_float128") = true;
+#else
+  m.attr("has_float128") = false;
+#endif
 
   // Bind some objects missing from dolfinx exports.
   dolfinx_wrappers::declare_objects<float, double>(m, "float32_float64");

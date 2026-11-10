@@ -29,7 +29,7 @@ def test_packed_layout(dtype: type[np.floating]) -> None:
 
 
 @pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
-@pytest.mark.parametrize("mode", ["worst", "exact"])
+@pytest.mark.parametrize("mode", ["worst", "signed"])
 def test_scalar(mode: str, dtype: np.dtype) -> None:
     """Assembling the area of a rectangle mesh; error bound must be < 100 eps (relative)."""
 
@@ -59,7 +59,7 @@ def test_scalar(mode: str, dtype: np.dtype) -> None:
 
 
 @pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
-@pytest.mark.parametrize("mode", ["worst", "exact"])
+@pytest.mark.parametrize("mode", ["worst", "signed"])
 def test_vector(mode: str, dtype: np.dtype) -> None:
     """Assembling a linear form with a constant coefficient;
     error bounds must be < 100 eps (relative)."""
@@ -98,7 +98,7 @@ def test_vector(mode: str, dtype: np.dtype) -> None:
 
 
 @pytest.mark.parametrize("dtype", [np.float64, np.float32, np.float16])
-@pytest.mark.parametrize("mode", ["worst", "exact"])
+@pytest.mark.parametrize("mode", ["worst", "signed"])
 def test_matrix(mode: str, dtype: np.dtype) -> None:
 
     eps = np.finfo(dtype).eps
@@ -148,7 +148,7 @@ def test_scalar_cancellation():
     u = dolfinx.fem.Function(V)
     u.x.array[:] = 1 / 3
 
-    compiled_form = dolfiny.fem.form(((u - C) + C) * ufl.dx(domain=mesh), mode="exact")
+    compiled_form = dolfiny.fem.form(((u - C) + C) * ufl.dx(domain=mesh), mode="signed")
     _val, err = dolfiny.fem.assemble_scalar(compiled_form)
     err = mesh.comm.allreduce(err, op=MPI.SUM)
 
@@ -157,7 +157,7 @@ def test_scalar_cancellation():
     assert err < -tol * (1 / 3), f"Error {err} should be below -tol * (1/3) = {-tol * (1 / 3)}"
 
 
-@pytest.mark.parametrize("mode", ["worst", "exact"])
+@pytest.mark.parametrize("mode", ["worst", "signed"])
 def test_seed_errors(mode: str) -> None:
     """Errors passed at assembly propagate linearly through a linear functional."""
 
@@ -172,3 +172,71 @@ def test_seed_errors(mode: str) -> None:
     err0, err1 = (mesh.comm.allreduce(e, op=MPI.SUM) for e in (err0, err1))
 
     assert np.isclose(err1 - err0, 1e-3, rtol=1e-6)
+
+
+requires_float128 = pytest.mark.skipif(
+    not dolfiny.has_float128, reason="mode 'true' needs long double to be binary128"
+)
+
+
+@requires_float128
+def test_true_scalar() -> None:
+    """The area of the unit square times fl64(1/3) is exact to binary128."""
+
+    mesh = dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 7, 5)
+    c = dolfinx.fem.Constant(mesh, 1 / 3)
+
+    ref = dolfiny.fem.assemble_scalar(dolfiny.fem.form(c * ufl.dx(domain=mesh), mode="true"))
+    ref = mesh.comm.allreduce(ref, op=MPI.SUM)
+
+    assert ref.dtype == np.longdouble
+    assert abs(ref - np.longdouble(1 / 3)) < 1e-30
+
+
+@requires_float128
+def test_true_cancellation() -> None:
+    """Unstable and stable forms agree in binary128, and the "signed" estimate of fp32, seeded
+    with the representation error of the inputs, matches the true error."""
+
+    mesh = dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 7, 5)
+    V = dolfinx.fem.functionspace(mesh, ("P", 2))
+    u = dolfinx.fem.Function(V)
+    u.interpolate(lambda x: 1 + 1e-4 * (x[0] + x[1] ** 2))
+    unstable, stable = (u * u - 1) * ufl.dx, (u - 1) * (u + 1) * ufl.dx
+
+    def assemble(F, mode, **kwargs):
+        dtype = None if mode == "true" else np.float32
+        value = dolfiny.fem.assemble_scalar(dolfiny.fem.form(F, mode=mode, dtype=dtype), **kwargs)
+        if mode == "true":
+            return mesh.comm.allreduce(value, op=MPI.SUM)
+        return tuple(mesh.comm.allreduce(v, op=MPI.SUM) for v in value)
+
+    ref_unstable, ref_stable = assemble(unstable, "true"), assemble(stable, "true")
+    assert abs(ref_unstable - ref_stable) < 1e-25 * abs(ref_stable)
+
+    errors = {u: u.x.array.astype(np.float32).astype(np.float64) - u.x.array}
+    val, err = assemble(unstable, "signed", errors=errors)
+    assert np.isclose(np.longdouble(val) - ref_stable, err, rtol=0.1)
+
+
+@requires_float128
+def test_true_vector_matrix() -> None:
+    """Vector and matrix in binary128 agree with fp64 dolfinx to fp64 accuracy, normwise."""
+
+    mesh = dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 7, 5)
+    V = dolfinx.fem.functionspace(mesh, ("P", 2))
+    u = dolfinx.fem.Function(V)
+    u.interpolate(lambda x: 1 + x[0] * x[1])
+    v, w = ufl.TestFunction(V), ufl.TrialFunction(V)
+    L = ufl.sin(u) * v * ufl.dx
+    a = ufl.exp(u) * ufl.inner(ufl.grad(w), ufl.grad(v)) * ufl.dx
+    tol = 100 * np.finfo(np.float64).eps
+
+    b = dolfiny.fem.assemble_vector(dolfiny.fem.form(L, mode="true"))
+    b64 = dolfinx.fem.assemble_vector(dolfinx.fem.form(L)).array
+    assert b.dtype == np.longdouble
+    assert np.max(np.abs(b - b64)) < tol * np.max(np.abs(b))
+
+    A = dolfiny.fem.assemble_matrix(dolfiny.fem.form(a, mode="true"))
+    data, data64 = A.data.view(np.longdouble), dolfinx.fem.assemble_matrix(dolfinx.fem.form(a)).data
+    assert np.max(np.abs(data - data64)) < tol * np.max(np.abs(data))
