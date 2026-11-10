@@ -54,11 +54,12 @@ re_dtypes = set(np.dtype(t) for t in (np.float64, np.float32, np.float16))
 nptype_to_cpp = {np.float64: "double", np.float32: "float"}
 
 # Opaque numpy carrier for a packed pair, of matching width. fp16 uses float32:
-# numpy has no complex32.
+# numpy has no complex32. The binary128 scalar of the "true" mode is carried as complex128.
 nptype_to_carrier: dict[type[np.floating], type[np.inexact]] = {
     np.float64: np.complex128,
     np.float32: np.complex64,
     np.float16: np.float32,
+    np.longdouble: np.complex128,
 }
 
 
@@ -82,6 +83,11 @@ def _fill_packed(arr: np.ndarray, values: npt.ArrayLike, T: npt.DTypeLike, err=0
     view["err"] = err
 
 
+def _fill_true(arr: np.ndarray, values: npt.ArrayLike) -> None:
+    """Seed a binary128 buffer with ``values``, converted exactly."""
+    arr.view(np.longdouble)[...] = values
+
+
 def split(arr: np.ndarray, T: npt.DTypeLike) -> tuple[np.ndarray, np.ndarray]:
     """Split a packed running-error array into value and error arrays, both ``T``."""
     s = arr.view(_packed_dtype(T))
@@ -102,8 +108,13 @@ def pack_coefficients(
     ``errors`` maps a source Function to the error of its dofs, zero if not listed.
     """
     errors = errors or {}
+    if form._re_mode == "true" and errors:  # type: ignore[attr-defined]
+        raise ValueError("Mode 'true' has no input errors.")
     for src, mirror in zip(form._re_src_coefficients, form._cpp_object.coefficients, strict=True):  # type: ignore[attr-defined]
-        _fill_packed(mirror.x.array, src.x.array, form._re_scalar_dtype, errors.get(src, 0))  # type: ignore[attr-defined]
+        if form._re_mode == "true":  # type: ignore[attr-defined]
+            _fill_true(mirror.x.array, src.x.array)  # type: ignore[attr-defined]
+        else:
+            _fill_packed(mirror.x.array, src.x.array, form._re_scalar_dtype, errors.get(src, 0))  # type: ignore[attr-defined]
     return _pack_coefficients(form._cpp_object)  # type: ignore
 
 
@@ -113,20 +124,32 @@ def pack_constants(form: Form, errors: dict | None = None) -> npt.NDArray:
     ``errors`` maps a source Constant to the error of its value, zero if not listed.
     """
     errors = errors or {}
+    if form._re_mode == "true" and errors:  # type: ignore[attr-defined]
+        raise ValueError("Mode 'true' has no input errors.")
     for src, mirror in zip(form._re_src_constants, form._cpp_object.constants, strict=True):  # type: ignore[attr-defined]
-        _fill_packed(mirror.value, src.value, form._re_scalar_dtype, errors.get(src, 0))  # type: ignore[attr-defined]
+        if form._re_mode == "true":  # type: ignore[attr-defined]
+            _fill_true(mirror.value, src.value)  # type: ignore[attr-defined]
+        else:
+            _fill_packed(mirror.value, src.value, form._re_scalar_dtype, errors.get(src, 0))  # type: ignore[attr-defined]
     return _pack_constants(form._cpp_object)  # type: ignore
 
 
 def assemble_scalar(M: Form, errors: dict | None = None) -> typing.Any:
+    """Assemble a functional into its value and error, or into the "true" binary128 value."""
     constants = pack_constants(M, errors)
     coeffs = pack_coefficients(M, errors)
-    val = dolfiny.cpp._cpp.assemble_scalar(M._cpp_object, constants, coeffs)
 
+    if M._re_mode == "true":  # type: ignore[attr-defined]
+        val = np.zeros(1, dtype=np.complex128)
+        dolfiny.cpp._cpp.assemble_scalar_float128(val, M._cpp_object, constants, coeffs)
+        return val.view(np.longdouble)[0]
+
+    val = dolfiny.cpp._cpp.assemble_scalar(M._cpp_object, constants, coeffs)
     return val.val, val.err
 
 
-def assemble_vector(L: Form, errors: dict | None = None) -> tuple[np.ndarray, np.ndarray]:
+def assemble_vector(L: Form, errors: dict | None = None) -> typing.Any:
+    """Assemble a linear form into value and error arrays, or into the "true" binary128 array."""
     constants = pack_constants(L, errors)
     coeffs = pack_coefficients(L, errors)
     V = L.function_spaces[0]
@@ -137,6 +160,8 @@ def assemble_vector(L: Form, errors: dict | None = None) -> tuple[np.ndarray, np
 
     dolfiny.cpp._cpp.assemble_vector(b, L._cpp_object, constants, coeffs)
 
+    if L._re_mode == "true":  # type: ignore[attr-defined]
+        return b.view(np.longdouble)
     return split(b, L._re_scalar_dtype)  # type: ignore[attr-defined]
 
 
@@ -149,8 +174,12 @@ def assemble_matrix(
     coeffs: dict[tuple[IntegralType, int], npt.NDArray] | None = None,
     block_mode: dolfinx.la.BlockMode | None = None,
     errors: dict | None = None,
-) -> tuple[typing.Any, typing.Any]:
-    """Assemble bilinear form into value and error matrices."""
+) -> typing.Any:
+    """Assemble bilinear form into value and error matrices.
+
+    A "true" mode form is assembled into a single binary128 matrix, whose entries are
+    ``A.data.view(np.longdouble)``.
+    """
     bcs = [] if bcs is None else bcs
 
     sp = dolfiny.cpp._cpp.create_sparsity_pattern(a._cpp_object)
@@ -160,6 +189,8 @@ def assemble_matrix(
     packed_type = getattr(dolfiny.cpp._cpp, f"MatrixCSR_{a._re_scalar_tag}")
     A: dolfinx.la.MatrixCSR = packed_type(sp, block_mode)
     _assemble_matrix_csr(A, a, bcs, diag, constants, coeffs, errors)
+    if a._re_mode == "true":
+        return A
 
     # Value and error matrices, both in the studied dtype (fp16 only from dolfiny).
     dtype = a._re_scalar_dtype
@@ -198,7 +229,10 @@ def _assemble_matrix_csr(
 
     # If matrix is a 'diagonal' block, set diagonal entry for constrained
     # dofs. Insert, not add: adding to the zeroed entry would accrue a rounding error.
-    diag = a._re_scalar_type(diag.real, diag.imag)  # type: ignore[attr-defined]
+    if a._re_mode == "true":  # type: ignore[attr-defined]
+        diag = diag.real
+    else:
+        diag = a._re_scalar_type(diag.real, diag.imag)  # type: ignore[attr-defined]
     if V0._cpp_object is V1._cpp_object:
         dolfiny.cpp._cpp.set_diagonal(
             A, _owned_marked_rows(V0, dof_marker0), diag, dolfinx.la.InsertMode.insert
@@ -208,34 +242,54 @@ def _assemble_matrix_csr(
 
 def form(
     form: ufl.Form | Sequence[ufl.Form] | Sequence[Sequence[ufl.Form]],
-    dtype: npt.DTypeLike = np.float64,
+    dtype: npt.DTypeLike | None = None,
     form_compiler_options: dict | None = None,
     entity_maps: Sequence[_EntityMap] | None = None,
     mode: str = "worst",
 ):
+    """Compile a running-error form, or with mode "true" a binary128 reference form.
+
+    The "worst" and "signed" modes evaluate in ``dtype`` (default float64) and track the
+    rounding error, as a bound and as a signed first-order estimate. The "true" mode evaluates
+    in IEEE binary128 (np.longdouble), including the geometry, and tracks nothing: it gives the
+    reference to measure the true error by.
+    """
     form_compiler_options = form_compiler_options or {}
 
-    # Normalized once, so that both np.float64 and np.dtype("float64") are accepted.
-    dtype = np.dtype(dtype)
-    if dtype not in re_dtypes:
-        supported = sorted(t.name for t in re_dtypes)
-        raise NotImplementedError(
-            f"Unsupported dtype: {dtype.name}. Only {supported} are implemented."
-        )
+    if mode not in ("worst", "signed", "true"):
+        raise ValueError(f"Unknown mode: {mode!r}. Must be 'worst', 'signed' or 'true'.")
 
-    if mode not in ("worst", "exact"):
-        raise ValueError(f"Unknown mode: {mode!r}. Must be 'worst' or 'exact'.")
-
-    # (mode, dtype) picks one C++ instantiation, spelled twice: cpp_type as source text for
-    # the form compiler, scalar_tag as the name bindings.cpp exported the bindings under.
     _cpp = dolfiny.cpp._cpp
-    scalar_cpp = f"std::{dtype.name}_t"
-    cpp_type = (
-        f"running_error::running_error_t<{scalar_cpp}, running_error::ErrorMode::{mode.upper()}>"
-    )
-    scalar_tag = f"re_{mode}_{dtype.name}"
-    # The scalar class bound in bindings.cpp, e.g. re_worst_float64 -> ReWorstFloat64.
-    scalar_type = getattr(_cpp, "".join(part.capitalize() for part in scalar_tag.split("_")))
+    if mode == "true":
+        if not dolfiny.has_float128:
+            raise NotImplementedError("Mode 'true' needs long double to be IEEE binary128.")
+        if dtype is not None and np.dtype(dtype) != np.longdouble:
+            raise ValueError(f"Mode 'true' evaluates in np.longdouble, not {np.dtype(dtype).name}.")
+        dtype = np.dtype(np.longdouble)
+        # Geometry in binary128 too, otherwise the Jacobian is computed in double.
+        form_compiler_options = {**form_compiler_options, "scalar_geometry": True}
+        cpp_type = "long double"
+        scalar_tag = "float128"
+        scalar_type = None
+    else:
+        # Normalized once, so that both np.float64 and np.dtype("float64") are accepted.
+        dtype = np.dtype(np.float64 if dtype is None else dtype)
+        if dtype not in re_dtypes:
+            supported = sorted(t.name for t in re_dtypes)
+            raise NotImplementedError(
+                f"Unsupported dtype: {dtype.name}. Only {supported} are implemented."
+            )
+
+        # (mode, dtype) picks one C++ instantiation, spelled twice: cpp_type as source text
+        # for the form compiler, scalar_tag as the name bindings.cpp exported the bindings under.
+        scalar_cpp = f"std::{dtype.name}_t"
+        cpp_type = (
+            f"running_error::running_error_t<{scalar_cpp}, "
+            f"running_error::ErrorMode::{mode.upper()}>"
+        )
+        scalar_tag = f"re_{mode}_{dtype.name}"
+        # The scalar class bound in bindings.cpp, e.g. re_worst_float64 -> ReWorstFloat64.
+        scalar_type = getattr(_cpp, "".join(part.capitalize() for part in scalar_tag.split("_")))
 
     def _re_types(msh):
         """Running-error C++ types for scalar ``dtype`` on this mesh geometry."""
@@ -263,6 +317,8 @@ def form(
         f._re_scalar_dtype = dtype
         # Packed scalar class, to build a value/error pair: ReWorstFloat64(1.0, 0.0).
         f._re_scalar_type = scalar_type
+        # "worst" and "signed" assemble value/error pairs, "true" a binary128 value.
+        f._re_mode = mode
         # Sources the mirrors are re-seeded from, in the order the mirrors are stored.
         f._re_src_coefficients = list(src_coefficients)
         f._re_src_constants = list(src_constants)
@@ -374,9 +430,24 @@ def form(
                         else msh.topology.dim - 1
                     )
                     msh.topology.create_entities(tdim)
-                    entities = np.arange(msh.topology.index_map(tdim).size_local, dtype=np.int32)
+                    if integral_type == IntegralType.exterior_facet:
+                        # Exterior facets are integrated as (cell, local facet) pairs
+                        msh.topology.create_connectivity(tdim, tdim + 1)
+                        msh.topology.create_connectivity(tdim + 1, tdim)
+                        facets = dolfinx.mesh.exterior_facet_indices(msh.topology)
+                        entities = dolfinx.fem.compute_integration_domains(
+                            integral_type, msh.topology, facets
+                        )
+                    else:
+                        entities = np.arange(
+                            msh.topology.index_map(tdim).size_local, dtype=np.int32
+                        )
                 else:
-                    entities = np.array(subdomains.get(integral_type, []), dtype=np.int32)
+                    # subdomains maps each integral type to [(subdomain id, entities)]
+                    entities = np.array(
+                        dict(subdomains.get(integral_type, [])).get(integral_id, []),
+                        dtype=np.int32,
+                    )
 
                 integrals[integral_type].append((idx, kernel_address, entities, active_coeffs))
 

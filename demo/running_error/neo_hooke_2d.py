@@ -16,7 +16,7 @@
 #
 # In particular, this demo emphasizes:
 # - custom assemblers that track rounding errors,
-# - worst and exact error modes,
+# - worst and signed error modes,
 # - catastrophic cancellation in the standard Neo-Hooke energy density at small strains,
 # - reformulation of the Neo-Hooke energy in terms of 3rd order expansion.
 #
@@ -47,7 +47,7 @@
 # (`running_error.h`, which `dolfiny` fetches and installs alongside its extension module).
 # It costs one extra scalar per value and requires no change to the algorithm.
 #
-# ## Running error modes: "worst" vs "exact"
+# ## Running error modes: "worst" vs "signed"
 #
 # The `ErrorMode` template parameter selects between two tracking strategies. In both, the
 # value and its error share the working precision `T`, so a scalar is a homogeneous pair
@@ -68,7 +68,7 @@
 # rather than the unit roundoff $\epsilon_\text{mach}/2$ of round-to-nearest, which keeps it
 # conservative.
 #
-# **`ErrorMode::EXACT`, "exact" mode.** `err` is instead a *signed* estimate: the derivatives
+# **`ErrorMode::SIGNED`, "signed" mode.** `err` is instead a *signed* estimate: the derivatives
 # are taken with sign, and the local rounding is measured rather than bounded — exactly, by
 # error-free transformations, for `+ - *`, by an FMA-based estimate for `/`, and by
 # re-evaluating in a wider type (`float32` for
@@ -89,7 +89,7 @@
 # enter with zero error, i.e. treated as exact, unless an error is passed explicitly as
 # `assemble_vector(L, errors={u: u_err})`. Assembly returns the
 # value and the accumulated error as two real arrays of dtype `T` — an approximate upper bound
-# in "worst" mode, a signed estimate in "exact" mode.
+# in "worst" mode, a signed estimate in "signed" mode.
 #
 # We start by generating a rectangular mesh for a cantilever beam.
 
@@ -296,7 +296,7 @@ _ = problem.solve()
 # where $e_i$ is the error estimate of the assembled $b_i$, and $b_i^\text{ref}$ is the double
 # precision evaluation of the stable expression. For the "worst" mode the estimate is a
 # nonnegative approximate bound, $|\text{fl}(b_i) - b_i| \leq e_i + \text{h.o.t.}$, while for
-# the "exact" mode it has a sign, $\text{fl}(b_i) - b_i \approx e_i$.
+# the "signed" mode it has a sign, $\text{fl}(b_i) - b_i \approx e_i$.
 
 # %% tags=["hide-input"]
 # DG-0 space for cell-wise strain energy density
@@ -393,8 +393,8 @@ reference = dolfinx.fem.assemble_vector(
 energy_form = density_form(u0_svk, neo_hooke)
 
 energy_fn, abs_error_fn, rel_error_fn = extract_energy_fields(energy_form, "Strain Energy Density")
-energy_fn_exact, abs_error_fn_exact, rel_error_fn_exact = extract_energy_fields(
-    energy_form, "Strain Energy Density", mode="exact"
+energy_fn_signed, abs_error_fn_signed, rel_error_fn_signed = extract_energy_fields(
+    energy_form, "Strain Energy Density", mode="signed"
 )
 
 energy_approx_form = density_form(u0_svk, neo_hooke_expansion)
@@ -402,12 +402,12 @@ energy_approx_form = density_form(u0_svk, neo_hooke_expansion)
 energy_approx_fn, abs_error_approx_fn, rel_error_approx_fn = extract_energy_fields(
     energy_approx_form, "Neo-Hooke Expansion Strain Energy Density", suffix="_approx"
 )
-energy_approx_fn_exact, abs_error_approx_fn_exact, rel_error_approx_fn_exact = (
+energy_approx_fn_signed, abs_error_approx_fn_signed, rel_error_approx_fn_signed = (
     extract_energy_fields(
         energy_approx_form,
         "Neo-Hooke Expansion Strain Energy Density",
         suffix="_approx",
-        mode="exact",
+        mode="signed",
     )
 )
 
@@ -418,7 +418,7 @@ with dolfinx.io.XDMFFile(comm, "error.xdmf", "w") as xdmf:
     xdmf.write_function(energy_fn)
     xdmf.write_function(rel_error_fn)
     xdmf.write_function(abs_error_fn)
-    xdmf.write_function(rel_error_fn_exact)
+    xdmf.write_function(rel_error_fn_signed)
 
 
 # %% [markdown]
@@ -515,13 +515,13 @@ if comm.size == 1:
 
     # Add data to grid
     grid.cell_data["Rel. error bound (W, worst) [-]"] = np.abs(rel_error_fn.x.array)
-    grid.cell_data["Rel. error estimate (W, exact) [-]"] = np.abs(rel_error_fn_exact.x.array)
+    grid.cell_data["Rel. error estimate (W, signed) [-]"] = np.abs(rel_error_fn_signed.x.array)
 
     save_field_plot(
         grid, "Rel. error bound (W, worst) [-]", "error_unstable_worst.png", clim=(1e-1, 1e7)
     )
     save_field_plot(
-        grid, "Rel. error estimate (W, exact) [-]", "error_unstable_exact.png", clim=(1e-1, 1e7)
+        grid, "Rel. error estimate (W, signed) [-]", "error_unstable_signed.png", clim=(1e-1, 1e7)
     )
 
 # %% [markdown]
@@ -530,10 +530,10 @@ if comm.size == 1:
 # :align: center
 #
 # ![Rel. error bound for W and "worst" mode.](error_unstable_worst.png)
-# ![Rel. error estimate for W and "exact" mode.](error_unstable_exact.png)
+# ![Rel. error estimate for W and "signed" mode.](error_unstable_signed.png)
 #
 # Relative rounding error $\eta_i$ for the unstable expression $W$: "worst" mode bound (top)
-# and "exact" mode estimate (bottom) show the pessimism of the worst-case bound.
+# and "signed" mode estimate (bottom) show the pessimism of the worst-case bound.
 # ```
 
 # %% tags=["hide-input"]
@@ -543,8 +543,8 @@ if comm.size == 1:
 
     # Add data to grid
     grid.cell_data["Rel. error bound (W_stable, worst) [-]"] = np.abs(rel_error_approx_fn.x.array)
-    grid.cell_data["Rel. error estimate (W_stable, exact) [-]"] = np.abs(
-        rel_error_approx_fn_exact.x.array
+    grid.cell_data["Rel. error estimate (W_stable, signed) [-]"] = np.abs(
+        rel_error_approx_fn_signed.x.array
     )
 
     save_field_plot(
@@ -555,8 +555,8 @@ if comm.size == 1:
     )
     save_field_plot(
         grid,
-        "Rel. error estimate (W_stable, exact) [-]",
-        "error_expansion_exact.png",
+        "Rel. error estimate (W_stable, signed) [-]",
+        "error_expansion_signed.png",
         clim=(1e-8, 1e-2),
     )
 
@@ -566,9 +566,9 @@ if comm.size == 1:
 # :align: center
 #
 # ![Rel. error bound for W_stable and "worst" mode.](error_expansion_worst.png)
-# ![Rel. error estimate for W_stable and "exact" mode.](error_expansion_exact.png)
+# ![Rel. error estimate for W_stable and "signed" mode.](error_expansion_signed.png)
 #
 # Relative rounding error $\eta_i$ for the stable expression $W_\text{stable}$: "worst" mode
-# bound (top) and "exact" mode estimate (bottom) demonstrate significantly lower error
+# bound (top) and "signed" mode estimate (bottom) demonstrate significantly lower error
 # accumulation due to improved numerical stability.
 # ```
