@@ -111,7 +111,7 @@ class ODEInt:
             self.x0t_aux = self.x0t.copy()
 
         # Initialise values of auxiliary state
-        dolfiny.odeint._copy_entries(self.x1t, self.x1t_aux)
+        self.reset()
 
         # Default values: Crank-Nicolson
         domain = ufl.domain.extract_unique_domain(self.t)
@@ -163,6 +163,13 @@ class ODEInt:
                 raise RuntimeError("Given function not registered in ODEInt object.")
             else:
                 return self._integral_dt(self.x1, self.x1t, self.x0, self.x0t)
+
+    def reset(self):
+        """Reset the integrator to (re)start a time integration from the current values of x, xt."""
+        dolfiny.odeint._copy_entries(self.x1, self.x0)
+        dolfiny.odeint._copy_entries(self.x1t, self.x0t)
+        dolfiny.odeint._copy_entries(self.x1t, self.x1t_aux)
+        dolfiny.odeint._copy_entries(self.x1t, self.x0t_aux)
 
     def stage(self, t0=None, dt=None):
         """Stages the processing of the next time step: sets time value (to t1) and initial values."""
@@ -345,7 +352,7 @@ class ODEInt2:
             self.x0tt_aux = self.x0tt.copy()
 
         # Initialise values of auxiliary state
-        dolfiny.odeint._copy_entries(self.x1tt, self.x1tt_aux)
+        self.reset()
 
         # Default values: Newmark
         domain = ufl.domain.extract_unique_domain(self.t)
@@ -409,6 +416,14 @@ class ODEInt2:
                 raise RuntimeError("Given function not registered in ODEInt2 object.")
             else:
                 return self._integral_dt(self.x1, self.x1t, self.x1tt, self.x0, self.x0t, self.x0tt)
+
+    def reset(self):
+        """Reset the integrator to (re)start a time integration from the current values of x, xt, xtt."""
+        dolfiny.odeint._copy_entries(self.x1, self.x0)
+        dolfiny.odeint._copy_entries(self.x1t, self.x0t)
+        dolfiny.odeint._copy_entries(self.x1tt, self.x0tt)
+        dolfiny.odeint._copy_entries(self.x1tt, self.x1tt_aux)
+        dolfiny.odeint._copy_entries(self.x1tt, self.x0tt_aux)
 
     def stage(self, t0=None, dt=None):
         """Stages the processing of the next time step: sets time value (to t1) and initial values."""
