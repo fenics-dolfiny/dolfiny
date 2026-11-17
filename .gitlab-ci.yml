@@ -115,6 +115,42 @@ gersemi:
     - pip install gersemi
     - gersemi --check .
 
+spack build:
+  stage: image
+  needs: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SPACK_BUILD == "true"
+    - when: manual
+      allow_failure: true
+  image:
+    name: spack/ubuntu-noble:1.2.2 # ubuntu@24.04
+    entrypoint: [""]
+  tags:
+    - saas-linux-2xlarge-amd64
+    - zed
+  timeout: 3h
+  variables:
+    SPACK_PACKAGES_REF: v2026.10.0
+    SPACK_COLOR: always
+  script:
+    - . /opt/spack/share/spack/setup-env.sh
+    - spack repo update builtin --commit $SPACK_PACKAGES_REF
+    - spack repo add --name fenics https://github.com/FEniCS/spack-fenics.git
+    - spack repo add $CI_PROJECT_DIR/spack/spack_repo/dolfiny
+    # TODO: e4s cache (the only interesting one for us) runs on ubuntu@22.04 which is too old (gcc@11)
+    # - spack mirror add --type binary spack-binaries https://binaries.spack.io/develop
+    # - spack buildcache keys --install --trust --yes-to-all spack-binaries
+    - spack config add "packages:all:require:['os=ubuntu24.04','target=x86_64_v3']"
+    - spack config add "packages:c:require:gcc"
+    - spack config add "packages:cxx:require:gcc"
+    - spack config add "packages:fortran:require:gcc"
+    - spack env create --without-view -d spack-env
+    - spack -D spack-env add py-dolfiny@main
+    - spack -D spack-env develop --no-clone --path $CI_PROJECT_DIR py-dolfiny@main
+    - spack -D spack-env install -j $(nproc)
+    - spack load py-dolfiny
+    - python -c "import dolfiny"
+
 image build:
   stage: image
   needs: []
