@@ -47,6 +47,26 @@ before calling `pip`.
 
 You may also check the [Dockerfile](https://github.com/fenics-dolfiny/dolfiny/blob/main/docker/Dockerfile) for an up-to-date version of the installation process.
 
+## Spack (experimental)
+
+`dolfiny` can be built from source with [Spack](https://spack.io) (v1.0 or later), currently
+tracking the `main` branches of `dolfiny` and DOLFINx. This relies on three package repositories:
+
+- [`builtin`](https://github.com/spack/spack-packages): Spack's default packages (tested with `v2026.10.0`),
+- [`fenics`](https://github.com/FEniCS/spack-fenics): FEniCSx packages (DOLFINx, FFCx, Basix, UFL),
+- [`dolfiny`](https://github.com/fenics-dolfiny/dolfiny/tree/main/spack/spack_repo/dolfiny): `py-dolfiny` and `py-ufl-units`, shipped with this repository.
+
+```
+git clone https://github.com/fenics-dolfiny/dolfiny.git
+spack repo update builtin --commit v2026.10.0
+spack repo add --name fenics https://github.com/FEniCS/spack-fenics.git
+spack repo add dolfiny/spack/spack_repo/dolfiny
+spack install py-dolfiny@main
+```
+
+A C++23-capable compiler is required (e.g. GCC 13 or newer). See the `spack build` job in
+[`.gitlab-ci.yml`](https://github.com/fenics-dolfiny/dolfiny/blob/main/.gitlab-ci.yml) for the tested configuration.
+
 # Docker image
 
 Multi-arch (`amd64` and `arm64`) Docker images with pre-installed `dolfiny` (and dependencies)
