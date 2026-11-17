@@ -568,8 +568,8 @@ class MMA:
                 self._x += tmp_q
                 self._x.pointwiseDivide(self._x, div_tmp)
 
-                self._x.pointwiseMax(self._x, lb)
-                self._x.pointwiseMin(self._x, ub)
+                self._x.pointwiseMax(self._x, self._alpha)
+                self._x.pointwiseMin(self._x, self._beta)
 
             # convergence and logging
             self._objective = tao.computeObjectiveGradient(self._x, self._gradient)
